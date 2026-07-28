@@ -17,6 +17,7 @@ type PropsType = {
   required?: boolean;
   minDate?: DateOption;
   disabled?: boolean;
+  staticPositioning?: boolean;
 };
 
 export default function DatePicker({
@@ -29,10 +30,11 @@ export default function DatePicker({
   required = false,
   minDate,
   disabled = false,
+  staticPositioning = false,
 }: PropsType) {
   useEffect(() => {
     const config: any = {
-      static: true,
+      static: staticPositioning,
       monthSelectorType: "static",
       defaultDate,
       onChange,
@@ -69,7 +71,7 @@ export default function DatePicker({
         }
       }
     };
-  }, [mode, onChange, id, defaultDate, minDate, disabled]);
+  }, [mode, onChange, id, defaultDate, minDate, disabled, staticPositioning]);
 
   return (
     <div>
