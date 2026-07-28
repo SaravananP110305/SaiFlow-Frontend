@@ -46,12 +46,38 @@ interface MeetingFormProps {
   onSave?: (meeting: Meeting, isEdit: boolean) => void;
 }
 
+function parseTimeToMinutes(timeStr: string): number | null {
+  if (!timeStr || typeof timeStr !== "string") return null;
+  const trimmed = timeStr.trim();
+  if (!trimmed) return null;
+
+  // Match 12-hour or 24-hour time string: e.g. "12:00 AM", "09:30 PM", "14:30", "9:00"
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (!match) return null;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3] ? match[3].toUpperCase() : null;
+
+  if (isNaN(hours) || isNaN(minutes)) return null;
+
+  if (period) {
+    if (period === "PM" && hours < 12) {
+      hours += 12;
+    } else if (period === "AM" && hours === 12) {
+      hours = 0;
+    }
+  }
+
+  return hours * 60 + minutes;
+}
+
 function calculateDuration(start: string, end: string): string {
   if (!start || !end) return "";
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  const startMin = sh * 60 + sm;
-  const endMin = eh * 60 + em;
+  const startMin = parseTimeToMinutes(start);
+  const endMin = parseTimeToMinutes(end);
+  if (startMin === null || endMin === null) return "";
+
   const diff = endMin - startMin;
   if (diff <= 0) return "";
   const hours = Math.floor(diff / 60);
