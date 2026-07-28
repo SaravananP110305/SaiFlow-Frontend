@@ -25,7 +25,7 @@ import {
   FiCheckCircle,
   FiXCircle,
   FiRefreshCw,
-  FiSend,
+  FiFileText,
 } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
 import { Meeting, getMeetingStatusColor } from "../data/meetingsData";
@@ -62,6 +62,7 @@ export default function MeetingsScopePage({
   const [rescheduleModal, setRescheduleModal] = useState<{ open: boolean; meeting: Meeting | null }>({ open: false, meeting: null });
   const [completeModal, setCompleteModal] = useState<{ open: boolean; meeting: Meeting | null }>({ open: false, meeting: null });
   const [cancelModal, setCancelModal] = useState<{ open: boolean; meeting: Meeting | null }>({ open: false, meeting: null });
+  const [proposalConfirmModal, setProposalConfirmModal] = useState<{ open: boolean; meeting: Meeting | null }>({ open: false, meeting: null });
 
   // Reschedule form
   const [rescheduleDate, setRescheduleDate] = useState("");
@@ -182,14 +183,14 @@ export default function MeetingsScopePage({
         <span className="flex flex-col">
           <ChevronUpIcon
             className={`w-3 h-3 -mb-1 transition-colors ${isActive && sortOrder === "asc"
-                ? "text-brand-500"
-                : "text-gray-300 dark:text-gray-600"
+              ? "text-brand-500"
+              : "text-gray-300 dark:text-gray-600"
               }`}
           />
           <ChevronDownIcon
             className={`w-3 h-3 transition-colors ${isActive && sortOrder === "desc"
-                ? "text-brand-500"
-                : "text-gray-300 dark:text-gray-600"
+              ? "text-brand-500"
+              : "text-gray-300 dark:text-gray-600"
               }`}
           />
         </span>
@@ -207,8 +208,8 @@ export default function MeetingsScopePage({
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       meetingId,
       action: updates.status === "Rescheduled" ? "Meeting Rescheduled" :
-              updates.status === "Completed" ? "Meeting Completed" :
-              updates.status === "Cancelled" ? "Meeting Cancelled" : "Meeting Updated",
+        updates.status === "Completed" ? "Meeting Completed" :
+          updates.status === "Cancelled" ? "Meeting Cancelled" : "Meeting Updated",
       description: logMessage,
       timestamp: new Date().toISOString(),
       operator: loggedInUser?.name || "Admin User",
@@ -228,10 +229,10 @@ export default function MeetingsScopePage({
       const updatedLeads = allLeads.map(l =>
         l.id === matchingLead!.id
           ? {
-              ...l,
-              status: newStatus as Lead["status"],
-              remarks: `${l.remarks || ""}\n[Meeting ${newStatus}]: ${reason || "No details"}`.trim()
-            }
+            ...l,
+            status: newStatus as Lead["status"],
+            remarks: `${l.remarks || ""}\n[Meeting ${newStatus}]: ${reason || "No details"}`.trim()
+          }
           : l
       );
       setStorage("saiflow_leads", updatedLeads);
@@ -341,6 +342,21 @@ export default function MeetingsScopePage({
   };
 
   // ─── Business Proposal Navigation ───────────────────────────────────
+  const openProposalConfirmModal = (meeting: Meeting) => {
+    setProposalConfirmModal({ open: true, meeting });
+  };
+
+  const closeProposalConfirmModal = () => {
+    setProposalConfirmModal({ open: false, meeting: null });
+  };
+
+  const handleConfirmProposal = () => {
+    const { meeting } = proposalConfirmModal;
+    if (!meeting) return;
+    closeProposalConfirmModal();
+    navigateToProposal(meeting);
+  };
+
   const navigateToProposal = (meeting: Meeting) => {
     showToast(`Navigating to Business Proposal for "${meeting.company}"...`, "info");
     // Navigate to quotation/business proposal page
@@ -405,11 +421,11 @@ export default function MeetingsScopePage({
       case "Completed":
         return (
           <button
-            onClick={() => navigateToProposal(meeting)}
+            onClick={() => openProposalConfirmModal(meeting)}
             className="p-1.5 text-brand-500 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-lg transition cursor-pointer"
-            title="Send business proposal"
+            title="Create business proposal"
           >
-            <FiSend className="size-4" />
+            <FiFileText className="size-4" />
           </button>
         );
       case "Cancelled":
@@ -421,7 +437,7 @@ export default function MeetingsScopePage({
       default:
         return null;
     }
-  };  return(
+  }; return (
     <>
       <PageMeta
         title="Meetings | SaiFlow"
@@ -478,11 +494,10 @@ export default function MeetingsScopePage({
           <button
             key={tab}
             onClick={() => { setActiveTab(tab); setSearchQuery(""); setCurrentPage(1); }}
-            className={`pb-3 text-sm font-medium px-4 border-b-2 transition-all duration-200 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-              activeTab === tab
+            className={`pb-3 text-sm font-medium px-4 border-b-2 transition-all duration-200 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === tab
                 ? "border-brand-500 text-brand-500 font-semibold"
                 : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            }`}
+              }`}
           >
             {tab === "all" ? "All Meetings" : tab}
             <span className="rounded-full px-2 py-0.5 text-xs bg-gray-100 text-gray-600 dark:bg-white/[0.08] dark:text-gray-400">
@@ -557,7 +572,7 @@ export default function MeetingsScopePage({
                       {`SF-MTG-${String(meeting.id).padStart(4, "0")}`}
                     </TableCell>
                     <TableCell className="px-4 py-4">
-                       <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold text-xs">
                           {meeting.company.charAt(0)}
                         </div>
@@ -812,7 +827,7 @@ export default function MeetingsScopePage({
 
             <div>
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-                Lost Reason <span className="text-error-500">*</span>
+                Cancel Reason <span className="text-error-500">*</span>
               </label>
               <Select
                 options={getStorage<any[]>("saiflow_master_lost_reasons", LOST_REASONS)
@@ -822,7 +837,7 @@ export default function MeetingsScopePage({
                 onChange={(val: string) => setCancelLostReason(val)}
               />
               {!cancelLostReason && (
-                <p className="text-xs text-error-500 mt-1.5">Lost reason is required</p>
+                <p className="text-xs text-error-500 mt-1.5">Cancel reason is required</p>
               )}
             </div>
 
@@ -844,6 +859,55 @@ export default function MeetingsScopePage({
               disabled={!cancelSummary.trim() || !cancelLostReason}
             >
               Confirm Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Proposal Confirmation Modal ── */}
+      <Modal isOpen={proposalConfirmModal.open} onClose={closeProposalConfirmModal} className="max-w-[480px] m-4">
+        <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
+          <div className="mb-6 space-y-4">
+            <div>
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
+                Create business proposal
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Are you sure you want to generate a new business proposal for{" "}
+                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  {proposalConfirmModal.meeting?.company}
+                </span>?
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-white/[0.05] dark:bg-white/[0.03]">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-500 font-bold text-sm">
+                  <FiFileText className="size-5" />
+                </div>
+                <div>
+                  <h5 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                    {proposalConfirmModal.meeting?.company}
+                  </h5>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Contact: {proposalConfirmModal.meeting?.contactPerson} • Subject: {proposalConfirmModal.meeting?.subject}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-brand-50 dark:bg-brand-500/10 p-3.5 border border-brand-100 dark:border-brand-500/20">
+              <p className="text-xs text-brand-700 dark:text-brand-400">
+                <span className="font-semibold">Note:</span> You will be redirected to the proposal creation form with the client and meeting details pre-filled.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-3">
+            <Button size="sm" variant="outline" onClick={closeProposalConfirmModal} className="w-1/2">
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleConfirmProposal} className="w-1/2">
+              Create proposal
             </Button>
           </div>
         </div>
