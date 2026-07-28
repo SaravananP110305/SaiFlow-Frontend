@@ -408,9 +408,21 @@ export default function MyLeads() {
                       {lead.phone}
                     </TableCell>
                     <TableCell className="px-5 py-4 whitespace-nowrap">
-                      <Badge size="sm" color={getStatusColor(lead.status)}>
-                        {lead.status}
-                      </Badge>
+                      <button
+                        onClick={() => handleOpenContactModal(lead)}
+                        title="Click to change status"
+                        className="group inline-flex items-center cursor-pointer rounded-full transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none"
+                      >
+                        <Badge
+                          size="sm"
+                          color={getStatusColor(lead.status)}
+                          endIcon={
+                            <ChevronDownIcon className="w-3 h-3 opacity-70 group-hover:opacity-100 transition-transform duration-200 group-hover:translate-y-0.5" />
+                          }
+                        >
+                          <span className="font-semibold">{lead.status}</span>
+                        </Badge>
+                      </button>
                     </TableCell>
                     {activeTab === "new" && (
                       <TableCell className="px-5 py-4 whitespace-nowrap">
@@ -431,15 +443,6 @@ export default function MyLeads() {
                         >
                           <FiEye className="size-4" />
                         </button>
-                        {activeTab === "new" && (
-                          <button
-                            onClick={() => handleOpenContactModal(lead)}
-                            title="Contact"
-                            className="flex items-center justify-center h-8 w-8 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition cursor-pointer"
-                          >
-                            <FiPhone className="size-4" />
-                          </button>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
