@@ -22,7 +22,7 @@ import {
   PROJECT_CATEGORIES,
   PAYMENT_TYPES,
 } from "../../Master/data/masterData";
-import { FiPlus, FiTrash2, FiXCircle, FiUser, FiList, FiDollarSign, FiFileText, FiCpu } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiXCircle, FiUser, FiList, FiCreditCard, FiFileText, FiCpu } from "react-icons/fi";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -35,7 +35,7 @@ function generateId(arr: { id: number }[]): number {
 }
 
 function formatCurrency(amount: number): string {
-  return "$" + amount.toLocaleString("en-US");
+  return "₹" + amount.toLocaleString("en-IN");
 }
 
 // ─── Empty Templates ────────────────────────────────────────────────────────
@@ -480,7 +480,7 @@ export default function AddProposal() {
         {/* ── Estimation ────────────────────────────────────────────────────── */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/[0.05] dark:bg-white/[0.03]">
           <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05] flex items-center gap-2">
-            <FiDollarSign className="size-4 text-brand-500" /> Estimation
+            <FiCreditCard className="size-4 text-brand-500" /> Estimation
           </h3>
 
           <div className="overflow-x-auto mb-3 border border-gray-200 dark:border-gray-800 rounded-xl">
