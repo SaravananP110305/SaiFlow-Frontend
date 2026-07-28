@@ -359,8 +359,8 @@ export default function AddProposal() {
                 🔍 Quick select from existing lead <span className="text-xs font-normal text-gray-500">(auto-fills all fields below)</span>
               </label>
               <Select
-                options={[{ value: "", label: "Select a lead to auto-fill..." }, ...leadsList]}
-                placeholder="Select a lead..."
+                options={leadsList}
+                placeholder="Select a lead to auto-fill..."
                 defaultValue=""
                 onChange={handleLeadSelect}
               />
@@ -419,8 +419,8 @@ export default function AddProposal() {
             <div className="flex items-start gap-2">
               <div className="flex-1">
                 <Select
-                  options={[{ value: "", label: "Select technology..." }, ...techStackOptions]}
-                  placeholder="Add technology..."
+                  options={techStackOptions}
+                  placeholder="Select technology..."
                   defaultValue=""
                   onChange={handleAddTechStack}
                 />
@@ -587,7 +587,7 @@ export default function AddProposal() {
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Payment Type <span className="text-error-500">*</span></label>
               <Select
                 key={isEditMode ? `payment-${formPaymentTerms}` : 'payment-create'}
-                options={[{ value: "", label: "Select payment type..." }, ...paymentTypeOptions]}
+                options={paymentTypeOptions}
                 placeholder="Select payment type..."
                 defaultValue={formPaymentTerms}
                 onChange={(val) => setFormPaymentTerms(val)}

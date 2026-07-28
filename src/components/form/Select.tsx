@@ -31,6 +31,22 @@ const Select: React.FC<SelectProps> = ({
     onChange(value); // Trigger parent handler
   };
 
+  // Check if options array already contains an item with value === ""
+  const hasEmptyInOptions = options.some((opt) => opt.value === "");
+
+  // Deduplicate options by value to prevent repeating duplicate options
+  const uniqueOptions: Option[] = [];
+  const seenValues = new Set<string>();
+  for (const option of options) {
+    if (option.value !== "" && seenValues.has(option.value)) {
+      continue;
+    }
+    if (option.value !== "") {
+      seenValues.add(option.value);
+    }
+    uniqueOptions.push(option);
+  }
+
   return (
     <select
       disabled={disabled}
@@ -42,18 +58,20 @@ const Select: React.FC<SelectProps> = ({
       value={selectedValue}
       onChange={handleChange}
     >
-      {/* Placeholder option */}
-      <option
-        value=""
-        disabled
-        className="text-gray-700 dark:bg-gray-900 dark:text-gray-400"
-      >
-        {placeholder}
-      </option>
-      {/* Map over options */}
-      {options.map((option) => (
+      {/* Render placeholder option only if options doesn't already contain a value="" item */}
+      {!hasEmptyInOptions && placeholder && (
         <option
-          key={option.value}
+          value=""
+          disabled
+          className="text-gray-700 dark:bg-gray-900 dark:text-gray-400"
+        >
+          {placeholder}
+        </option>
+      )}
+      {/* Map over deduplicated options */}
+      {uniqueOptions.map((option) => (
+        <option
+          key={`${option.value}-${option.label}`}
           value={option.value}
           className="text-gray-700 dark:bg-gray-900 dark:text-gray-400"
         >
