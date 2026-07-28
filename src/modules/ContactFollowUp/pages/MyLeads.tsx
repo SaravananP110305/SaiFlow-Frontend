@@ -17,7 +17,6 @@ import {
 } from "../../../components/ui/table";
 import { ChevronDownIcon, ChevronUpIcon } from "../../../icons";
 import {
-  FiPhone,
   FiEye,
   FiCheckCircle,
   FiClock,

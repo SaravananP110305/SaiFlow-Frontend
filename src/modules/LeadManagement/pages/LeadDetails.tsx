@@ -18,14 +18,25 @@ import {
   FiMail,
   FiPhone,
   FiGlobe,
-  FiMapPin,
-  FiTag,
   FiUserCheck,
   FiCalendar,
   FiEdit,
   FiArrowLeft,
   FiActivity,
   FiXCircle,
+  FiHash,
+  FiAward,
+  FiSmartphone,
+  FiSend,
+  FiLayers,
+  FiPieChart,
+  FiHome,
+  FiFlag,
+  FiMap,
+  FiCompass,
+  FiNavigation,
+  FiShare2,
+  FiAlertCircle,
 } from "react-icons/fi";
 
 interface InfoCardProps {
@@ -335,7 +346,7 @@ export default function LeadDetails() {
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
-              icon={<FiTag className="size-4" />}
+              icon={<FiHash className="size-4" />}
               label="Lead ID"
               value={`SF-LEAD-${String(lead.id).padStart(4, "0")}`}
             />
@@ -350,7 +361,7 @@ export default function LeadDetails() {
               value={lead.contactPerson}
             />
             <InfoCard
-              icon={<FiUser className="size-4" />}
+              icon={<FiAward className="size-4" />}
               label="Designation"
               value={lead.designation}
             />
@@ -369,7 +380,7 @@ export default function LeadDetails() {
               value={lead.phone}
             />
             <InfoCard
-              icon={<FiPhone className="size-4" />}
+              icon={<FiSmartphone className="size-4" />}
               label="Alternate Mobile"
               value={lead.alternatePhone}
             />
@@ -385,7 +396,7 @@ export default function LeadDetails() {
               }
             />
             <InfoCard
-              icon={<FiMail className="size-4" />}
+              icon={<FiSend className="size-4" />}
               label="Alternate Email"
               value={
                 lead.alternateEmail ? (
@@ -421,12 +432,12 @@ export default function LeadDetails() {
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
-              icon={<FiBriefcase className="size-4" />}
+              icon={<FiLayers className="size-4" />}
               label="Industry"
               value={lead.industry}
             />
             <InfoCard
-              icon={<FiBriefcase className="size-4" />}
+              icon={<FiPieChart className="size-4" />}
               label="Company Type"
               value={lead.companyType}
             />
@@ -441,28 +452,28 @@ export default function LeadDetails() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <InfoCard
-                icon={<FiMapPin className="size-4" />}
+                icon={<FiHome className="size-4" />}
                 label="Address Line 1"
                 value={lead.addressLine1 || lead.address}
               />
             </div>
             <InfoCard
-              icon={<FiMapPin className="size-4" />}
+              icon={<FiFlag className="size-4" />}
               label="Country"
               value={lead.country}
             />
             <InfoCard
-              icon={<FiMapPin className="size-4" />}
+              icon={<FiMap className="size-4" />}
               label="State"
               value={lead.state}
             />
             <InfoCard
-              icon={<FiMapPin className="size-4" />}
+              icon={<FiCompass className="size-4" />}
               label="City"
               value={lead.city}
             />
             <InfoCard
-              icon={<FiMapPin className="size-4" />}
+              icon={<FiNavigation className="size-4" />}
               label="Pincode"
               value={lead.pincode}
             />
@@ -476,12 +487,12 @@ export default function LeadDetails() {
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
-              icon={<FiTag className="size-4" />}
+              icon={<FiShare2 className="size-4" />}
               label="Lead Source"
               value={lead.source}
             />
             <InfoCard
-              icon={<FiTag className="size-4" />}
+              icon={<FiAlertCircle className="size-4" />}
               label="Priority"
               value={lead.priority}
             />

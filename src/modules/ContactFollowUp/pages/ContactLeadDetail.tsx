@@ -14,8 +14,6 @@ import {
   FiMail,
   FiPhone,
   FiGlobe,
-  FiMapPin,
-  FiTag,
   FiUserCheck,
   FiFileText,
   FiArrowLeft,
@@ -26,6 +24,18 @@ import {
   FiMessageSquare,
   FiActivity,
   FiEdit,
+  FiHash,
+  FiAward,
+  FiSmartphone,
+  FiSend,
+  FiLayers,
+  FiHome,
+  FiFlag,
+  FiMap,
+  FiCompass,
+  FiNavigation,
+  FiShare2,
+  FiAlertCircle,
 } from "react-icons/fi";
 
 // ──────────────────────────────────────────────
@@ -361,7 +371,7 @@ export default function ContactLeadDetail() {
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
-              icon={<FiTag className="size-4" />}
+              icon={<FiHash className="size-4" />}
               label="Lead ID"
               value={`SF-LEAD-${String(lead.id).padStart(4, "0")}`}
             />
@@ -381,7 +391,7 @@ export default function ContactLeadDetail() {
               value={lead.contactPerson}
             />
             <InfoCard
-              icon={<FiUser className="size-4" />}
+              icon={<FiAward className="size-4" />}
               label="Designation"
               value={lead.designation}
             />
@@ -400,7 +410,7 @@ export default function ContactLeadDetail() {
               value={lead.phone}
             />
             <InfoCard
-              icon={<FiPhone className="size-4" />}
+              icon={<FiSmartphone className="size-4" />}
               label="Alternate Mobile"
               value={lead.alternatePhone}
             />
@@ -416,7 +426,7 @@ export default function ContactLeadDetail() {
               }
             />
             <InfoCard
-              icon={<FiMail className="size-4" />}
+              icon={<FiSend className="size-4" />}
               label="Alternate Email"
               value={
                 lead.alternateEmail ? (
@@ -452,7 +462,7 @@ export default function ContactLeadDetail() {
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
-              icon={<FiBriefcase className="size-4" />}
+              icon={<FiLayers className="size-4" />}
               label="Industry"
               value={lead.industry}
             />
@@ -472,28 +482,28 @@ export default function ContactLeadDetail() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <InfoCard
-                icon={<FiMapPin className="size-4" />}
+                icon={<FiHome className="size-4" />}
                 label="Address Line 1"
                 value={lead.addressLine1 || lead.address}
               />
             </div>
             <InfoCard
-              icon={<FiMapPin className="size-4" />}
+              icon={<FiFlag className="size-4" />}
               label="Country"
               value={lead.country}
             />
             <InfoCard
-              icon={<FiMapPin className="size-4" />}
+              icon={<FiMap className="size-4" />}
               label="State"
               value={lead.state}
             />
             <InfoCard
-              icon={<FiMapPin className="size-4" />}
+              icon={<FiCompass className="size-4" />}
               label="City"
               value={lead.city}
             />
             <InfoCard
-              icon={<FiMapPin className="size-4" />}
+              icon={<FiNavigation className="size-4" />}
               label="Pincode"
               value={lead.pincode}
             />
@@ -507,12 +517,12 @@ export default function ContactLeadDetail() {
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
-              icon={<FiTag className="size-4" />}
+              icon={<FiShare2 className="size-4" />}
               label="Lead Source"
               value={lead.source}
             />
             <InfoCard
-              icon={<FiTag className="size-4" />}
+              icon={<FiAlertCircle className="size-4" />}
               label="Lead Status"
               value={
                 <Badge size="sm" color={getStatusColor(lead.status)}>
@@ -521,7 +531,7 @@ export default function ContactLeadDetail() {
               }
             />
             <InfoCard
-              icon={<FiTag className="size-4" />}
+              icon={<FiFlag className="size-4" />}
               label="Priority"
               value={
                 <Badge size="sm" color={getPriorityColor(lead.priority)}>
@@ -564,7 +574,7 @@ export default function ContactLeadDetail() {
                 value={`${formatDate(latestFollowUp.date)} at ${formatTime(latestFollowUp.time)}`}
               />
               <InfoCard
-                icon={<FiTag className="size-4" />}
+                icon={<FiClock className="size-4" />}
                 label="Status"
                 value={
                   <Badge size="sm" color={getFollowUpStatusColor(latestFollowUp.status)}>

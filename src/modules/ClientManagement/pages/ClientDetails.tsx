@@ -12,7 +12,6 @@ import {
   FiMail,
   FiPhone,
   FiGlobe,
-  FiMapPin,
   FiCalendar,
   FiArrowLeft,
   FiActivity,
@@ -20,6 +19,11 @@ import {
   FiCreditCard,
   FiExternalLink,
   FiShield,
+  FiHome,
+  FiCompass,
+  FiMap,
+  FiNavigation,
+  FiFlag,
 } from "react-icons/fi";
 
 interface InfoCardProps {
@@ -191,12 +195,12 @@ export default function ClientDetails() {
               </h3>
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
                 <div className="sm:col-span-3">
-                  <InfoCard icon={<FiMapPin className="size-4" />} label="Office Address" value={client.address || "45 Tech Corridor, ITPL Road"} />
+                  <InfoCard icon={<FiHome className="size-4" />} label="Office Address" value={client.address || "45 Tech Corridor, ITPL Road"} />
                 </div>
-                <InfoCard icon={<FiMapPin className="size-4" />} label="City" value={client.city || "Bangalore"} />
-                <InfoCard icon={<FiMapPin className="size-4" />} label="State" value={client.state || "Karnataka"} />
-                <InfoCard icon={<FiMapPin className="size-4" />} label="Pincode" value={client.pincode || "560066"} />
-                <InfoCard icon={<FiGlobe className="size-4" />} label="Country" value={client.country || "India"} />
+                <InfoCard icon={<FiCompass className="size-4" />} label="City" value={client.city || "Bangalore"} />
+                <InfoCard icon={<FiMap className="size-4" />} label="State" value={client.state || "Karnataka"} />
+                <InfoCard icon={<FiNavigation className="size-4" />} label="Pincode" value={client.pincode || "560066"} />
+                <InfoCard icon={<FiFlag className="size-4" />} label="Country" value={client.country || "India"} />
               </div>
             </div>
           </div>
