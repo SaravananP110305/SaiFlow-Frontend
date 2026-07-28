@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { formatDate, formatTime } from "../../../utils/dateFormatter";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
@@ -218,14 +218,19 @@ function ActivityItem({ activity, isLast }: { activity: Activity; isLast?: boole
   );
 }
 
-// ──────────────────────────────────────────────
-// Main component
-// ──────────────────────────────────────────────
+interface ContactLeadDetailProps {
+  isFollowUpView?: boolean;
+}
 
-export default function ContactLeadDetail() {
+export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailProps = {}) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
+
+  const isFromFollowUps = isFollowUpView || location.pathname.startsWith("/contacts/follow-ups");
+  const backTarget = isFromFollowUps ? "/contacts/follow-ups" : "/contacts/my-leads";
+  const backLabel = isFromFollowUps ? "Back to follow-ups" : "Back to my leads";
 
   // Get the currently logged-in user
   const loggedInUser = getStorage<any>("saiflow_logged_in_user", {
@@ -306,11 +311,11 @@ export default function ContactLeadDetail() {
           </p>
           <div className="flex gap-3">
             <button
-              onClick={() => navigate("/contacts/my-leads")}
+              onClick={() => navigate(backTarget)}
               className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-white transition cursor-pointer"
             >
               <FiArrowLeft className="size-4" />
-              Back to my leads
+              {backLabel}
             </button>
           </div>
         </div>
@@ -329,11 +334,11 @@ export default function ContactLeadDetail() {
       {/* Top action bar */}
       <div className="mb-5">
         <button
-          onClick={() => navigate("/contacts/my-leads")}
+          onClick={() => navigate(backTarget)}
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-white transition cursor-pointer"
         >
           <FiArrowLeft className="size-4" />
-          Back to my leads
+          {backLabel}
         </button>
       </div>
 

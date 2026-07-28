@@ -1,5 +1,9 @@
 import { Link, useLocation } from "react-router";
 import { getStorage } from "../../utils/storage";
+import { initialLeads } from "../../modules/LeadManagement/data/leadsData";
+import { initialClients } from "../../modules/ClientManagement/data/clientsData";
+import { initialMeetings } from "../../modules/MeetingManagement/data/meetingsData";
+import { initialProposals } from "../../modules/Quotation/data/quotationsData";
 
 interface BreadcrumbProps {
   pageTitle: string;
@@ -7,33 +11,38 @@ interface BreadcrumbProps {
 
 // Helper functions to get entity names from local storage matching route IDs
 const getLeadName = (id: string | number): string => {
-  const leads = getStorage<any[]>("saiflow_leads", []);
+  const leads = getStorage<any[]>("saiflow_leads", initialLeads);
   const lead = leads.find((l) => String(l.id) === String(id));
-  return lead ? lead.contactPerson : `Lead #${id}`;
+  if (!lead) return `Lead #${id}`;
+  return lead.company || lead.contactPerson || `Lead #${id}`;
 };
 
 const getClientName = (id: string | number): string => {
-  const clients = getStorage<any[]>("saiflow_clients", []);
+  const clients = getStorage<any[]>("saiflow_clients", initialClients);
   const client = clients.find((c) => String(c.id) === String(id));
-  return client ? client.name : `Client #${id}`;
+  if (!client) return `Client #${id}`;
+  return client.company || client.name || `Client #${id}`;
 };
 
 const getMeetingTitle = (id: string | number): string => {
-  const meetings = getStorage<any[]>("saiflow_meetings", []);
+  const meetings = getStorage<any[]>("saiflow_meetings", initialMeetings);
   const meeting = meetings.find((m) => String(m.id) === String(id));
-  return meeting ? meeting.subject : `Meeting #${id}`;
+  if (!meeting) return `Meeting #${id}`;
+  return meeting.subject || `Meeting #${id}`;
 };
 
 const getUserName = (id: string | number): string => {
   const users = getStorage<any[]>("saiflow_users", []);
   const user = users.find((u) => String(u.id) === String(id));
-  return user ? user.name : `User #${id}`;
+  if (!user) return `User #${id}`;
+  return user.name || `User #${id}`;
 };
 
 const getProposalNo = (id: string | number): string => {
-  const proposals = getStorage<any[]>("saiflow_proposals", []);
+  const proposals = getStorage<any[]>("saiflow_proposals", initialProposals);
   const proposal = proposals.find((p) => String(p.id) === String(id));
-  return proposal ? proposal.proposalNo : `Proposal #${id}`;
+  if (!proposal) return `Proposal #${id}`;
+  return proposal.proposalNo || `Proposal #${id}`;
 };
 
 const MASTER_LABELS: Record<string, string> = {
@@ -129,7 +138,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       const pluralLabel = MASTER_LABELS[tab] || tab;
       const singularLabel = MASTER_SINGULARS[tab] || "item";
 
-      breadcrumbs.push({ label: "Master", to: "/master/countries" });
+      breadcrumbs.push({ label: "Master", to: `/master/${tab}` });
 
       if (isAdd) {
         breadcrumbs.push({ label: pluralLabel, to: `/master/${tab}` });
@@ -212,6 +221,14 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
     } else if (pathname === "/contacts/follow-ups") {
       breadcrumbs.push({ label: "Connect", to: "/contacts/my-leads" });
       breadcrumbs.push({ label: "Follow-ups" });
+    } else if (pathname.startsWith("/contacts/follow-ups/")) {
+      const parts = pathname.split("/");
+      const id = parts[3];
+      const leadName = getLeadName(id);
+
+      breadcrumbs.push({ label: "Connect", to: "/contacts/my-leads" });
+      breadcrumbs.push({ label: "Follow-ups", to: "/contacts/follow-ups" });
+      breadcrumbs.push({ label: leadName });
     } else if (pathname.startsWith("/contacts/")) {
       const parts = pathname.split("/");
       const id = parts[2];

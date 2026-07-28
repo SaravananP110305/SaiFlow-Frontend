@@ -178,6 +178,14 @@ export default function App() {
               }
             />
             <Route
+              path="/contacts/follow-ups/:id"
+              element={
+                <ProtectedRoute allowedRoles={allowedRoles}>
+                  <ContactLeadDetail isFollowUpView={true} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/contacts/:id"
               element={
                 <ProtectedRoute allowedRoles={allowedRoles}>
