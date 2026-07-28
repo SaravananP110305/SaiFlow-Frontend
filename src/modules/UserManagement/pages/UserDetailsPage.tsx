@@ -223,7 +223,7 @@ export default function UserDetailsPage() {
               value={
                 <a
                   href={`mailto:${user.email}`}
-                  className="text-brand-500 hover:underline"
+                  className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors"
                 >
                   {user.email}
                 </a>

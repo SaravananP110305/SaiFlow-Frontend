@@ -167,7 +167,7 @@ export default function ClientDetails() {
               </h3>
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <InfoCard icon={<FiBriefcase className="size-4" />} label="Industry" value={client.industry || "Information Technology"} />
-                <InfoCard icon={<FiGlobe className="size-4" />} label="Website" value={client.website ? <a href={client.website} target="_blank" rel="noreferrer" className="text-brand-500 hover:underline inline-flex items-center gap-1">{client.website}<FiExternalLink className="size-3" /></a> : "—"} />
+                <InfoCard icon={<FiGlobe className="size-4" />} label="Website" value={client.website ? <a href={client.website} target="_blank" rel="noreferrer" className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors inline-flex items-center gap-1">{client.website}<FiExternalLink className="size-3" /></a> : "—"} />
                 <InfoCard icon={<FiShield className="size-4" />} label="GST Number" value={client.gstNumber} />
                 <InfoCard icon={<FiShield className="size-4" />} label="PAN Number" value={client.panNumber || "AAAAA0000A"} />
                 <InfoCard icon={<FiMail className="size-4" />} label="Company Email" value={client.companyEmail} />
@@ -215,7 +215,7 @@ export default function ClientDetails() {
               <InfoCard icon={<FiUser className="size-4" />} label="Contact Name" value={client.contactName || client.name} />
               <InfoCard icon={<FiBriefcase className="size-4" />} label="Designation" value={client.designation || "BD Director"} />
               <InfoCard icon={<FiPhone className="size-4" />} label="Mobile" value={client.mobile || client.phone} />
-              <InfoCard icon={<FiMail className="size-4" />} label="Email" value={client.email ? <a href={`mailto:${client.email}`} className="text-brand-500 hover:underline">{client.email}</a> : "—"} />
+              <InfoCard icon={<FiMail className="size-4" />} label="Email" value={client.email ? <a href={`mailto:${client.email}`} className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors">{client.email}</a> : "—"} />
             </div>
 
             <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 mt-6 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05] uppercase tracking-wider">

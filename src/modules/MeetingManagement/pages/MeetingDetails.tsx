@@ -420,7 +420,7 @@ export default function MeetingDetails() {
                     onClick={() =>
                       navigate(meeting.relatedToType === "Client" ? `/clients/${meeting.relatedToId}` : `/leads/${meeting.relatedToId}`)
                     }
-                    className="text-brand-500 hover:underline flex items-center gap-1 text-left font-medium cursor-pointer"
+                    className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors flex items-center gap-1 text-left font-medium cursor-pointer"
                   >
                     {meeting.company}
                     <FiExternalLink className="size-3" />
@@ -469,7 +469,7 @@ export default function MeetingDetails() {
                       href={meeting.linkOrLocation}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-brand-500 hover:underline break-all flex items-center gap-1 font-medium"
+                      className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors break-all flex items-center gap-1 font-medium"
                     >
                       {meeting.linkOrLocation}
                       <FiExternalLink className="size-3 shrink-0" />

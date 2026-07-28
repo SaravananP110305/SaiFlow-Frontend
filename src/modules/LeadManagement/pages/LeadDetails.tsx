@@ -389,7 +389,7 @@ export default function LeadDetails() {
               label="Email Address"
               value={
                 lead.email ? (
-                  <a href={`mailto:${lead.email}`} className="text-brand-500 hover:underline">
+                  <a href={`mailto:${lead.email}`} className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors">
                     {lead.email}
                   </a>
                 ) : ""
@@ -400,7 +400,7 @@ export default function LeadDetails() {
               label="Alternate Email"
               value={
                 lead.alternateEmail ? (
-                  <a href={`mailto:${lead.alternateEmail}`} className="text-brand-500 hover:underline">
+                  <a href={`mailto:${lead.alternateEmail}`} className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors">
                     {lead.alternateEmail}
                   </a>
                 ) : ""
@@ -415,7 +415,7 @@ export default function LeadDetails() {
                     href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-brand-500 hover:underline"
+                    className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors"
                   >
                     {lead.website}
                   </a>

@@ -513,7 +513,7 @@ export default function FollowUps() {
                     <TableCell className="px-5 py-4 text-theme-sm font-medium whitespace-nowrap">
                       <button
                         onClick={() => navigate(`/contacts/${item.leadId}`)}
-                        className="text-brand-500 hover:underline font-medium cursor-pointer text-left"
+                        className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors font-medium cursor-pointer text-left"
                         title="View lead details"
                       >
                         {item.company}
