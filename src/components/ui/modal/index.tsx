@@ -14,7 +14,7 @@ export const Modal: React.FC<ModalProps> = ({
   onClose,
   children,
   className,
-  showCloseButton = true, // Default to true for backwards compatibility
+  showCloseButton = false, // Default to false to remove top-right "X" button across all modals
   isFullscreen = false,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
