@@ -87,23 +87,23 @@ interface StatusAction {
 
 const STATUS_TRANSITIONS: Record<ProposalStatus, StatusAction[]> = {
   Draft: [
-    { key: "send", label: "Send to client", status: "Sent", icon: <FiSend className="size-3.5" /> },
+    { key: "send", label: "Send to client", status: "Sent", icon: <FiSend className="size-3.5 text-blue-500" /> },
   ],
   Sent: [
-    { key: "review", label: "Mark as Reviewed", status: "Under Review", icon: <FiClock className="size-3.5" /> },
-    { key: "reject", label: "Reject", status: "Rejected", icon: <FiXCircle className="size-3.5" />, destructive: true, needsConfirm: true },
+    { key: "review", label: "Mark as Reviewed", status: "Under Review", icon: <FiClock className="size-3.5 text-amber-500" /> },
+    { key: "reject", label: "Reject", status: "Rejected", icon: <FiXCircle className="size-3.5 text-rose-500" />, destructive: true, needsConfirm: true },
   ],
   "Under Review": [
-    { key: "negotiate", label: "Negotiate", status: "Negotiation", icon: <FiRefreshCw className="size-3.5" /> },
-    { key: "approved", label: "Approve", status: "Approved", icon: <FiCheckCircle className="size-3.5" /> },
-    { key: "reject", label: "Reject", status: "Rejected", icon: <FiXCircle className="size-3.5" />, destructive: true, needsConfirm: true },
+    { key: "negotiate", label: "Negotiate", status: "Negotiation", icon: <FiRefreshCw className="size-3.5 text-indigo-500" /> },
+    { key: "approved", label: "Approve", status: "Approved", icon: <FiCheckCircle className="size-3.5 text-emerald-500" /> },
+    { key: "reject", label: "Reject", status: "Rejected", icon: <FiXCircle className="size-3.5 text-rose-500" />, destructive: true, needsConfirm: true },
   ],
   Negotiation: [
-    { key: "approved", label: "Approve", status: "Approved", icon: <FiCheckCircle className="size-3.5" /> },
-    { key: "reject", label: "Reject", status: "Rejected", icon: <FiXCircle className="size-3.5" />, destructive: true, needsConfirm: true },
+    { key: "approved", label: "Approve", status: "Approved", icon: <FiCheckCircle className="size-3.5 text-emerald-500" /> },
+    { key: "reject", label: "Reject", status: "Rejected", icon: <FiXCircle className="size-3.5 text-rose-500" />, destructive: true, needsConfirm: true },
   ],
   Approved: [
-    { key: "convert", label: "Convert to Client", status: "Converted", icon: <FiTrendingUp className="size-3.5" />, needsConfirm: true },
+    { key: "convert", label: "Convert to Client", status: "Converted", icon: <FiTrendingUp className="size-3.5 text-emerald-600" />, needsConfirm: true },
   ],
   Rejected: [],
   Converted: [],
@@ -617,20 +617,20 @@ export default function QuotationList() {
                                     setActiveStatusDropdown(null);
                                     handleStatusAction(action.key, proposal);
                                   }}
-                                  className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer
-                                    ${action.destructive
-                                      ? "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
-                                    }`}
+                                  className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer ${
+                                    action.key === "reject"
+                                      ? "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 font-medium"
+                                      : action.key === "approved" || action.key === "convert"
+                                      ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 font-medium"
+                                      : action.key === "negotiate"
+                                      ? "text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 font-medium"
+                                      : action.key === "review"
+                                      ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 font-medium"
+                                      : "text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-medium"
+                                  }`}
                                 >
-                                  <span className={`shrink-0 ${action.destructive ? "text-red-500" : "text-gray-500 dark:text-gray-400"}`}>
-                                    {action.icon}
-                                  </span>
+                                  <span className="shrink-0">{action.icon}</span>
                                   <span className="flex-1 text-left">{action.label}</span>
-                                  <span className="text-xs text-gray-400 dark:text-gray-500">
-                                    {action.destructive && <FiXCircle className="size-3" />}
-                                    {action.key === "convert" && <FiTrendingUp className="size-3" />}
-                                  </span>
                                 </button>
                               ))}
                             </div>
@@ -652,15 +652,15 @@ export default function QuotationList() {
                         <div className="flex items-center justify-center gap-1.5"
                           onClick={(e) => e.stopPropagation()}>
                           <button onClick={() => { setSelectedProposalId(proposal.id); setView("detail"); setActiveDetailTab("requirement"); }}
-                            className="p-1.5 text-gray-500 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition" title="View">
+                            className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer" title="View">
                             <FiEye className="size-4" />
                           </button>
                           <button onClick={() => navigate(`/proposals/${proposal.id}/edit`)}
-                            className="p-1.5 text-gray-500 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition" title="Edit">
+                            className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer" title="Edit">
                             <FiEdit className="size-4" />
                           </button>
                           <button onClick={() => handleExportPDF(proposal)}
-                            className="p-1.5 text-gray-500 hover:text-cyan-600 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition" title="Export PDF">
+                            className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer" title="Export PDF">
                             <FiDownload className="size-4" />
                           </button>
                         </div>

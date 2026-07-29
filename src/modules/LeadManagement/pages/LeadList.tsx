@@ -642,21 +642,21 @@ export default function LeadList() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => navigate(`/leads/${lead.id}`)}
-                              className="p-1.5 text-gray-500 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition cursor-pointer"
+                              className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
                               title="View"
                             >
                               <FiEye className="size-4" />
                             </button>
                             <button
                               onClick={() => navigate(`/leads/${lead.id}/edit`)}
-                              className="p-1.5 text-gray-500 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition cursor-pointer"
+                              className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
                               title="Edit"
                             >
                               <FiEdit className="size-4" />
                             </button>
                             <button
                               onClick={() => handleOpenDelete(lead)}
-                              className="p-1.5 text-gray-500 hover:text-error-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition cursor-pointer"
+                              className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
                               title="Delete"
                             >
                               <FiTrash2 className="size-4" />
@@ -713,21 +713,21 @@ export default function LeadList() {
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button
                           onClick={() => navigate(`/leads/${lead.id}`)}
-                          className="p-2 text-gray-400 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition cursor-pointer"
+                          className="p-2 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
                           title="View"
                         >
                           <FiEye className="size-4" />
                         </button>
                         <button
                           onClick={() => navigate(`/leads/${lead.id}/edit`)}
-                          className="p-2 text-gray-400 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition cursor-pointer"
+                          className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
                           title="Edit"
                         >
                           <FiEdit className="size-4" />
                         </button>
                         <button
                           onClick={() => handleOpenDelete(lead)}
-                          className="p-2 text-gray-400 hover:text-error-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition cursor-pointer"
+                          className="p-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
                           title="Delete"
                         >
                           <FiTrash2 className="size-4" />

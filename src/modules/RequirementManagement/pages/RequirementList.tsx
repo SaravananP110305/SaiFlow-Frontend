@@ -344,9 +344,9 @@ export default function RequirementList() {
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-600 dark:text-gray-400">{req.date}</TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-end">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => handleOpenView(req)} className="p-1.5 text-gray-500 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition cursor-pointer" title="View"><FiEye className="size-4" /></button>
-                        <button onClick={() => handleOpenEdit(req)} className="p-1.5 text-gray-500 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition cursor-pointer" title="Edit"><FiEdit className="size-4" /></button>
-                        <button onClick={() => handleOpenDelete(req)} className="p-1.5 text-gray-500 hover:text-error-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition cursor-pointer" title="Delete"><FiTrash2 className="size-4" /></button>
+                        <button onClick={() => handleOpenView(req)} className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer" title="View"><FiEye className="size-4" /></button>
+                        <button onClick={() => handleOpenEdit(req)} className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer" title="Edit"><FiEdit className="size-4" /></button>
+                        <button onClick={() => handleOpenDelete(req)} className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer" title="Delete"><FiTrash2 className="size-4" /></button>
                       </div>
                     </TableCell>
                   </TableRow>

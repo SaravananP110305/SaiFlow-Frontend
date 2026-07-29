@@ -341,9 +341,9 @@ export default function TaskList() {
                     <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">{formatDate(t.dueDate)}</TableCell>
                     <TableCell className="px-5 py-4 text-sm text-end">
                       <div className="flex justify-end items-center gap-2">
-                        <button onClick={() => handleOpenView(t)} className="text-gray-500 hover:text-brand-500 p-1"><FiEye size={16} /></button>
-                        <button onClick={() => handleOpenEdit(t)} className="text-gray-500 hover:text-warning-500 p-1"><FiEdit size={16} /></button>
-                        <button onClick={() => handleOpenDelete(t)} className="text-gray-500 hover:text-error-500 p-1"><FiTrash2 size={16} /></button>
+                        <button onClick={() => handleOpenView(t)} className="text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 p-1.5 rounded-lg transition" title="View"><FiEye size={16} /></button>
+                        <button onClick={() => handleOpenEdit(t)} className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 p-1.5 rounded-lg transition" title="Edit"><FiEdit size={16} /></button>
+                        <button onClick={() => handleOpenDelete(t)} className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 p-1.5 rounded-lg transition" title="Delete"><FiTrash2 size={16} /></button>
                       </div>
                     </TableCell>
                   </TableRow>

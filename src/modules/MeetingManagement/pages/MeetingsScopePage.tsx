@@ -371,21 +371,21 @@ export default function MeetingsScopePage({
           <div className="flex items-center gap-1">
             <button
               onClick={() => openRescheduleModal(meeting)}
-              className="p-1.5 text-brand-500 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-lg transition cursor-pointer"
+              className="p-1.5 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-lg transition cursor-pointer"
               title="Reschedule meeting"
             >
               <FiRefreshCw className="size-4" />
             </button>
             <button
               onClick={() => openCompleteModal(meeting)}
-              className="p-1.5 text-success-500 hover:text-success-600 hover:bg-success-50 dark:hover:bg-success-500/10 rounded-lg transition cursor-pointer"
+              className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
               title="Complete meeting"
             >
               <FiCheckCircle className="size-4" />
             </button>
             <button
               onClick={() => openCancelModal(meeting)}
-              className="p-1.5 text-error-500 hover:text-error-600 hover:bg-error-50 dark:hover:bg-error-500/10 rounded-lg transition cursor-pointer"
+              className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
               title="Cancel meeting"
             >
               <FiXCircle className="size-4" />
@@ -397,21 +397,21 @@ export default function MeetingsScopePage({
           <div className="flex items-center gap-1">
             <button
               onClick={() => openRescheduleModal(meeting)}
-              className="p-1.5 text-brand-500 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-lg transition cursor-pointer"
+              className="p-1.5 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-lg transition cursor-pointer"
               title="Reschedule meeting"
             >
               <FiRefreshCw className="size-4" />
             </button>
             <button
               onClick={() => openCompleteModal(meeting)}
-              className="p-1.5 text-success-500 hover:text-success-600 hover:bg-success-50 dark:hover:bg-success-500/10 rounded-lg transition cursor-pointer"
+              className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
               title="Complete meeting"
             >
               <FiCheckCircle className="size-4" />
             </button>
             <button
               onClick={() => openCancelModal(meeting)}
-              className="p-1.5 text-error-500 hover:text-error-600 hover:bg-error-50 dark:hover:bg-error-500/10 rounded-lg transition cursor-pointer"
+              className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
               title="Cancel meeting"
             >
               <FiXCircle className="size-4" />
@@ -422,7 +422,7 @@ export default function MeetingsScopePage({
         return (
           <button
             onClick={() => openProposalConfirmModal(meeting)}
-            className="p-1.5 text-brand-500 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-lg transition cursor-pointer"
+            className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10 rounded-lg transition cursor-pointer"
             title="Create business proposal"
           >
             <FiFileText className="size-4" />
@@ -599,7 +599,7 @@ export default function MeetingsScopePage({
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => navigate(`/meetings/${meeting.id}`)}
-                          className="p-1.5 text-gray-400 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition cursor-pointer"
+                          className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
                           title="View Details"
                         >
                           <FiEye className="size-4" />
