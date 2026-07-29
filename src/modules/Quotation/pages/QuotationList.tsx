@@ -457,12 +457,12 @@ export default function QuotationList() {
                 {(Object.keys(STATUS_CONFIG) as ProposalStatus[])
                   .filter((st) => st !== "Converted")
                   .map((st) => (
-                  <li key={st}>
-                    <button onClick={() => { setStatusFilter(st); setCurrentPage(1); setIsStatusFilterOpen(false); }}
-                      className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${statusFilter === st ? "bg-brand-500 text-white" : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"}`}>
-                      {STATUS_CONFIG[st].label}
-                    </button>
-                  </li>
+                    <li key={st}>
+                      <button onClick={() => { setStatusFilter(st); setCurrentPage(1); setIsStatusFilterOpen(false); }}
+                        className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${statusFilter === st ? "bg-brand-500 text-white" : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"}`}>
+                        {STATUS_CONFIG[st].label}
+                      </button>
+                    </li>
                   ))}
               </ul>
             </div>
@@ -606,15 +606,14 @@ export default function QuotationList() {
                           {activeStatusDropdown === proposal.id && STATUS_TRANSITIONS[proposal.status].length > 0 && (
                             <div
                               ref={statusDropdownRef}
-                              className={`absolute left-0 z-[100] w-52 p-1.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl ${
-                                index >= paginatedProposals.length - 2 && paginatedProposals.length > 2
-                                  ? "bottom-full mb-1"
-                                  : "top-full mt-1"
-                              }`}
+                              className={`absolute left-0 z-[100] w-52 p-1.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl ${index >= paginatedProposals.length - 2 && paginatedProposals.length > 2
+                                ? "bottom-full mb-1"
+                                : "top-full mt-1"
+                                }`}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700 mb-1">
-                                Change status
+                              <div className="px-2 py-1.5 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase border-b border-gray-100 dark:border-gray-700 mb-1">
+                                Change Status
                               </div>
                               {STATUS_TRANSITIONS[proposal.status].map((action) => (
                                 <button
@@ -623,17 +622,16 @@ export default function QuotationList() {
                                     setActiveStatusDropdown(null);
                                     handleStatusAction(action.key, proposal);
                                   }}
-                                  className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer ${
-                                    action.key === "reject"
-                                      ? "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 font-medium"
-                                      : action.key === "approved" || action.key === "convert"
+                                  className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer ${action.key === "reject"
+                                    ? "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 font-medium"
+                                    : action.key === "approved" || action.key === "convert"
                                       ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 font-medium"
                                       : action.key === "negotiate"
-                                      ? "text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 font-medium"
-                                      : action.key === "review"
-                                      ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 font-medium"
-                                      : "text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-medium"
-                                  }`}
+                                        ? "text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 font-medium"
+                                        : action.key === "review"
+                                          ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 font-medium"
+                                          : "text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-medium"
+                                    }`}
                                 >
                                   <span className="shrink-0">{action.icon}</span>
                                   <span className="flex-1 text-left">{action.label}</span>
@@ -645,11 +643,10 @@ export default function QuotationList() {
                           {/* No transitions available badge */}
                           {activeStatusDropdown === proposal.id && STATUS_TRANSITIONS[proposal.status].length === 0 && (
                             <div
-                              className={`absolute left-0 z-[100] w-48 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl text-center ${
-                                index >= paginatedProposals.length - 2 && paginatedProposals.length > 2
-                                  ? "bottom-full mb-1"
-                                  : "top-full mt-1"
-                              }`}
+                              className={`absolute left-0 z-[100] w-48 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl text-center ${index >= paginatedProposals.length - 2 && paginatedProposals.length > 2
+                                ? "bottom-full mb-1"
+                                : "top-full mt-1"
+                                }`}
                             >
                               <p className="text-xs text-gray-400 dark:text-gray-500">No more transitions</p>
                             </div>
@@ -870,8 +867,8 @@ export default function QuotationList() {
           {tabs.map((tab) => (
             <button key={tab.key} onClick={() => setActiveDetailTab(tab.key)}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition cursor-pointer ${activeDetailTab === tab.key
-                  ? "text-brand-600 border-brand-500 dark:text-brand-400 dark:border-brand-400"
-                  : "text-gray-500 border-transparent hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                ? "text-brand-600 border-brand-500 dark:text-brand-400 dark:border-brand-400"
+                : "text-gray-500 border-transparent hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                 }`}>
               {tab.icon}
               {tab.label}
