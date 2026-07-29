@@ -140,7 +140,8 @@ function getTimeAgo(dateStr: string): string {
   if (days === 1) return "Yesterday";
   if (days < 7) return `${days} days ago`;
   if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-  return formatDate(dateStr);
+  if (days < 365) return `${Math.floor(days / 30)} months ago`;
+  return `${Math.floor(days / 365)} years ago`;
 }
 
 // ─── Main Component ─────────────────────────────────────────────────────────
@@ -514,6 +515,7 @@ export default function QuotationList() {
                   { key: "leadName", label: "Lead Contact" },
                   { key: null, label: "Amount" },
                   { key: "status", label: "Status" },
+                  { key: "createdAt", label: "Created Date" },
                   { key: "updatedAt", label: "Last Updated" },
                   { key: null, label: "Actions" },
                 ].map((col) => (
@@ -644,9 +646,11 @@ export default function QuotationList() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">
-                        <div>{formatDate(proposal.updatedAt)}</div>
-                        <div className="text-xs">{getTimeAgo(proposal.updatedAt)}</div>
+                      <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        {formatDate(proposal.createdAt || proposal.updatedAt)}
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{getTimeAgo(proposal.updatedAt)}</span>
                       </TableCell>
                       <TableCell className="px-5 py-4 text-theme-sm text-center">
                         <div className="flex items-center justify-center gap-1.5"
@@ -670,7 +674,7 @@ export default function QuotationList() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} className="px-5 py-12 text-center">
+                  <TableCell colSpan={10} className="px-5 py-12 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <FiFileText className="size-10 text-gray-300 dark:text-gray-600" />
                       <p className="text-sm text-gray-500 dark:text-gray-400">No proposals found.</p>
