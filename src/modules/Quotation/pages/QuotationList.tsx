@@ -1124,7 +1124,7 @@ export function exportProposalToPDF(proposal: Proposal, showToast: (msg: string,
     // ── Helper: Page Header (brand bar) ─────────────────────────────────────
     const addPageHeader = () => {
       // Brand color bar
-      pdf.setFillColor(59, 130, 246);
+      pdf.setFillColor(255, 57, 81);
       pdf.rect(0, 0, pageWidth, 12, "F");
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(7);
@@ -1164,7 +1164,7 @@ export function exportProposalToPDF(proposal: Proposal, showToast: (msg: string,
     // Title section with background
     pdf.setFillColor(249, 250, 251);
     pdf.rect(margin, y - 3, pageWidth - margin * 2, 30, "F");
-    pdf.setDrawColor(59, 130, 246);
+    pdf.setDrawColor(255, 57, 81);
     pdf.setLineWidth(0.3);
     pdf.rect(margin, y - 3, pageWidth - margin * 2, 30, "S");
 
@@ -1187,7 +1187,7 @@ export function exportProposalToPDF(proposal: Proposal, showToast: (msg: string,
     // ── Helper: Styled section title ────────────────────────────────────────
     const sectionTitle = (title: string) => {
       checkPageBreak(14);
-      pdf.setFillColor(59, 130, 246);
+      pdf.setFillColor(255, 57, 81);
       pdf.rect(margin, y - 2, pageWidth - margin * 2, 8, "F");
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(9);
@@ -1299,7 +1299,7 @@ export function exportProposalToPDF(proposal: Proposal, showToast: (msg: string,
       const colWidth = pageWidth - margin * 2;
 
       checkPageBreak(24);
-      pdf.setFillColor(59, 130, 246);
+      pdf.setFillColor(255, 57, 81);
       pdf.rect(margin, y - 3, colWidth, 6, "F");
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(7);
@@ -1360,9 +1360,9 @@ export function exportProposalToPDF(proposal: Proposal, showToast: (msg: string,
       y += 5;
 
       // Total (highlighted)
-      pdf.setFillColor(239, 246, 255);
+      pdf.setFillColor(254, 242, 242);
       pdf.rect(totalX - 3, y - 2.5, pageWidth - margin - totalX + 6, 8, "F");
-      pdf.setTextColor(59, 130, 246);
+      pdf.setTextColor(255, 57, 81);
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "bold");
       pdf.text("TOTAL:", totalX, y + 2);
