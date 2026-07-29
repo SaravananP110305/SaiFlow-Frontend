@@ -606,7 +606,11 @@ export default function QuotationList() {
                           {activeStatusDropdown === proposal.id && STATUS_TRANSITIONS[proposal.status].length > 0 && (
                             <div
                               ref={statusDropdownRef}
-                              className="absolute left-0 top-full mt-1 z-[100] w-56 p-1.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl"
+                              className={`absolute left-0 z-[100] w-52 p-1.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl ${
+                                index >= paginatedProposals.length - 2 && paginatedProposals.length > 2
+                                  ? "bottom-full mb-1"
+                                  : "top-full mt-1"
+                              }`}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700 mb-1">
@@ -640,7 +644,13 @@ export default function QuotationList() {
 
                           {/* No transitions available badge */}
                           {activeStatusDropdown === proposal.id && STATUS_TRANSITIONS[proposal.status].length === 0 && (
-                            <div className="absolute left-0 top-full mt-1 z-[100] w-48 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl text-center">
+                            <div
+                              className={`absolute left-0 z-[100] w-48 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl text-center ${
+                                index >= paginatedProposals.length - 2 && paginatedProposals.length > 2
+                                  ? "bottom-full mb-1"
+                                  : "top-full mt-1"
+                              }`}
+                            >
                               <p className="text-xs text-gray-400 dark:text-gray-500">No more transitions</p>
                             </div>
                           )}
