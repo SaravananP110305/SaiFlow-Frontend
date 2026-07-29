@@ -16,6 +16,7 @@ import {
   MdSupportAgent,
   MdReceiptLong,
   MdBusiness,
+  MdDns,
 } from "react-icons/md";
 import { ChevronDownIcon } from "../icons";
 import logo from "/images/logo/Saiflow.png"
@@ -40,7 +41,7 @@ const navItems: NavItem[] = [
   },
   {
     name: "Master",
-    icon: <MdSettings className="size-5" />,
+    icon: <MdDns className="size-5" />,
     subItems: [
       { name: "Country", path: "/master/countries" },
       { name: "State", path: "/master/states" },
