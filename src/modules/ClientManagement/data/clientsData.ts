@@ -1,3 +1,12 @@
+export interface HandoverDetails {
+  projectManager: string;
+  startDate: string;
+  targetDate?: string;
+  notes: string;
+  kickoffDate?: string;
+  completedAt?: string;
+}
+
 export interface Client {
   id: number;
   name: string; // Contact Name
@@ -44,6 +53,7 @@ export interface Client {
   latestProposalNo?: string;
   proposalStatus?: string;
   handoverStatus: "Pending" | "Onboarded";
+  handoverDetails?: HandoverDetails;
 }
 
 export const initialClients: Client[] = [

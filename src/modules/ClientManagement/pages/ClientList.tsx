@@ -21,7 +21,9 @@ import { FiEye,
   FiUser,
 } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
-import { Client, initialClients } from "../data/clientsData";
+import { Modal } from "../../../components/ui/modal";
+import DatePicker from "../../../components/form/date-picker";
+import { Client, initialClients, HandoverDetails } from "../data/clientsData";
 import { Proposal, initialProposals } from "../../Quotation/data/quotationsData";
 import { exportProposalToPDF } from "../../Quotation/pages/QuotationList";
 
@@ -91,21 +93,78 @@ export default function ClientList() {
     exportProposalToPDF(proposal, showToast);
   };
 
-  // ── Onboarding / Handover Toggle ───────────────────────────────────────────
+  // ── Project Handover Modal State ─────────────────────────────────────────
+  const [handoverModal, setHandoverModal] = useState<{ open: boolean; client: Client | null }>({
+    open: false,
+    client: null,
+  });
+  const [handoverPM, setHandoverPM] = useState("");
+  const [handoverStartDate, setHandoverStartDate] = useState("");
+  const [handoverTargetDate, setHandoverTargetDate] = useState("");
+  const [handoverNotes, setHandoverNotes] = useState("");
+  const [handoverKickoffDate, setHandoverKickoffDate] = useState("");
+  const [handoverError, setHandoverError] = useState("");
 
-  const toggleOnboardingStatus = (client: Client) => {
-    const newStatus = client.handoverStatus === "Onboarded" ? "Pending" : "Onboarded";
+  const [showHandoverConfirm, setShowHandoverConfirm] = useState(false);
+
+  const openHandoverModal = (client: Client) => {
+    setHandoverModal({ open: true, client });
+    setHandoverPM(
+      client.handoverDetails?.projectManager || client.relationshipManager || client.assignedEmployee || ""
+    );
+    setHandoverStartDate(
+      client.handoverDetails?.startDate || new Date().toISOString().split("T")[0]
+    );
+    setHandoverTargetDate(client.handoverDetails?.targetDate || "");
+    setHandoverNotes(client.handoverDetails?.notes || "");
+    setHandoverKickoffDate(client.handoverDetails?.kickoffDate || "");
+    setHandoverError("");
+    setShowHandoverConfirm(false);
+  };
+
+  const closeHandoverModal = () => {
+    setHandoverModal({ open: false, client: null });
+    setShowHandoverConfirm(false);
+  };
+
+  const handleSaveHandover = () => {
+    const { client } = handoverModal;
+    if (!client) return;
+
+    if (!handoverPM.trim() || !handoverNotes.trim() || !handoverStartDate) {
+      setHandoverError("Project Manager, Start Date, and Handover Notes are required.");
+      return;
+    }
+
+    setShowHandoverConfirm(true);
+  };
+
+  const executeSaveHandover = () => {
+    const { client } = handoverModal;
+    if (!client) return;
+
+    const updatedDetails: HandoverDetails = {
+      projectManager: handoverPM.trim(),
+      startDate: handoverStartDate,
+      targetDate: handoverTargetDate || undefined,
+      notes: handoverNotes.trim(),
+      kickoffDate: handoverKickoffDate || undefined,
+      completedAt: new Date().toISOString(),
+    };
+
     const updated = clients.map((c) =>
       c.id === client.id
         ? {
             ...c,
-            handoverStatus: newStatus as "Pending" | "Onboarded",
+            handoverStatus: "Onboarded" as const,
+            handoverDetails: updatedDetails,
           }
         : c
     );
     setClients(updated);
     setStorage("saiflow_clients", updated);
-    showToast(`Client "${client.company}" status updated to ${newStatus}`, "success");
+    showToast(`Project handover details for "${client.company}" saved successfully.`, "success");
+    closeHandoverModal();
   };
 
 
@@ -444,9 +503,9 @@ export default function ClientList() {
                   <FiDownload className="size-4" />
                 </button>
                 <button
-                  onClick={() => toggleOnboardingStatus(client)}
+                  onClick={() => openHandoverModal(client)}
                   className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-lg border border-indigo-200 dark:border-indigo-800/50 transition cursor-pointer"
-                  title={client.handoverStatus === "Onboarded" ? "Mark Pending" : "Mark Onboarded"}
+                  title="Handover project details"
                 >
                   <FiShield className="size-4" />
                 </button>
@@ -477,6 +536,151 @@ export default function ClientList() {
         />
       )}
 
+      {/* ── Project Handover Details Modal ── */}
+      <Modal isOpen={handoverModal.open} onClose={closeHandoverModal} className="max-w-[540px] m-4">
+        <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
+          <div className="mb-6 space-y-4">
+            <div>
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1 flex items-center gap-2">
+                <FiShield className="size-5 text-brand-500" /> Project handover details
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Enter project management and scope handover details for{" "}
+                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  {handoverModal.client?.company}
+                </span>.
+              </p>
+            </div>
+
+            {/* Client summary box */}
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5 dark:border-white/[0.05] dark:bg-white/[0.03]">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500 font-medium">Contact: <strong className="text-gray-700 dark:text-gray-300">{handoverModal.client?.name}</strong></span>
+                <span className="text-gray-500 font-mono">{handoverModal.client?.phone}</span>
+              </div>
+            </div>
+
+            {/* Form Fields */}
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Assigned Project Manager / Lead <span className="text-error-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Jane Smith"
+                  value={handoverPM}
+                  onChange={(e) => {
+                    setHandoverPM(e.target.value);
+                    if (handoverError) setHandoverError("");
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    Project Start Date <span className="text-error-500">*</span>
+                  </label>
+                  <DatePicker
+                    id="handover-start-date"
+                    defaultDate={handoverStartDate}
+                    onChange={(_: Date[], dateStr: string) => {
+                      setHandoverStartDate(dateStr);
+                      if (handoverError) setHandoverError("");
+                    }}
+                    placeholder="Select start date"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    Target Delivery Date
+                  </label>
+                  <DatePicker
+                    id="handover-target-date"
+                    defaultDate={handoverTargetDate}
+                    onChange={(_: Date[], dateStr: string) => setHandoverTargetDate(dateStr)}
+                    placeholder="Select delivery date"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Handover Notes & Scope Summary <span className="text-error-500">*</span>
+                </label>
+                <textarea
+                  value={handoverNotes}
+                  onChange={(e) => {
+                    setHandoverNotes(e.target.value);
+                    if (handoverError) setHandoverError("");
+                  }}
+                  placeholder="Enter key deliverables, repository link, client expectations, or handover instructions..."
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Kickoff Meeting Date (Optional)
+                </label>
+                <DatePicker
+                  id="handover-kickoff-date"
+                  defaultDate={handoverKickoffDate}
+                  onChange={(_: Date[], dateStr: string) => setHandoverKickoffDate(dateStr)}
+                  placeholder="Select kickoff date"
+                />
+              </div>
+
+              {handoverError && (
+                <p className="text-xs text-error-500 font-medium">{handoverError}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100 dark:border-white/[0.05]">
+            <Button size="sm" variant="outline" onClick={closeHandoverModal} className="w-1/2">
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSaveHandover} className="w-1/2">
+              Complete handover
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Handover Confirmation Modal ── */}
+      <Modal isOpen={showHandoverConfirm} onClose={() => setShowHandoverConfirm(false)} className="max-w-[460px] m-4">
+        <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
+          <div className="mb-6 space-y-3 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+              <FiShield className="size-6" />
+            </div>
+            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Confirm project handover
+            </h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Are you sure you want to complete project handover for{" "}
+              <span className="font-semibold text-gray-700 dark:text-gray-300">
+                {handoverModal.client?.company}
+              </span>? Assigned project lead:{" "}
+              <span className="font-semibold text-gray-700 dark:text-gray-300">
+                {handoverPM}
+              </span>.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100 dark:border-white/[0.05]">
+            <Button size="sm" variant="outline" onClick={() => setShowHandoverConfirm(false)} className="w-1/2">
+              Cancel
+            </Button>
+            <Button size="sm" onClick={executeSaveHandover} className="w-1/2">
+              Confirm handover
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
     </>
   );
