@@ -147,7 +147,7 @@ export default function FollowUps() {
 
   // Modal state for completing follow-ups
   const [selectedItemForComplete, setSelectedItemForComplete] = useState<FollowUp | null>(null);
-  const [completeOutcome, setCompleteOutcome] = useState<"Interested" | "Reschedule" | "Not Interested" | null>(null);
+  const [completeOutcome, setCompleteOutcome] = useState<"Interested" | "Call Later" | "Not Interested" | null>(null);
   const [completeSummary, setCompleteSummary] = useState("");
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
@@ -220,7 +220,7 @@ export default function FollowUps() {
 
       showToast(`Follow-up completed! Lead moved to Qualified.`, "success");
       resetCompleteModal();
-    } else if (completeOutcome === "Reschedule") {
+    } else if (completeOutcome === "Call Later") {
       if (!completeSummary.trim()) {
         showToast("Please enter a summary/reason for rescheduling.", "error");
         return;
@@ -541,7 +541,7 @@ export default function FollowUps() {
                         <button
                           onClick={() => navigate(`/contacts/follow-ups/${item.leadId}`)}
                           title="View lead details"
-                          className="flex items-center justify-center h-8 w-8 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5 transition cursor-pointer"
+                          className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
                         >
                           <FiEye className="size-4" />
                         </button>
@@ -549,17 +549,17 @@ export default function FollowUps() {
                           <>
                             <button
                               onClick={() => handleOpenCompleteModal(item)}
-                              title="Mark as Completed"
-                              className="flex items-center justify-center h-8 w-8 rounded-lg bg-success-500 text-white hover:bg-success-600 transition cursor-pointer"
+                              title="Log contact outcome"
+                              className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
                             >
                               <FiCheckCircle className="size-4" />
                             </button>
                             <button
                               onClick={() => handleOpenMissedModal(item)}
-                              title="Mark as Missed & Reschedule"
-                              className="flex items-center justify-center h-8 w-8 rounded-lg bg-error-500 text-white hover:bg-error-600 transition cursor-pointer"
+                              title="Call Later / Reschedule"
+                              className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
                             >
-                              <FiXCircle className="size-4" />
+                              <FiClock className="size-4" />
                             </button>
                           </>
                         )}
@@ -567,17 +567,17 @@ export default function FollowUps() {
                           <>
                             <button
                               onClick={() => handleOpenCompleteModal(item)}
-                              title="Mark as Completed"
-                              className="flex items-center justify-center h-8 w-8 rounded-lg bg-success-500 text-white hover:bg-success-600 transition cursor-pointer"
+                              title="Log contact outcome"
+                              className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
                             >
                               <FiCheckCircle className="size-4" />
                             </button>
                             <button
                               onClick={() => handleOpenMissedModal(item)}
-                              title="Reschedule"
-                              className="flex items-center justify-center h-8 w-8 rounded-lg bg-warning-500 text-white hover:bg-warning-600 transition cursor-pointer"
+                              title="Call Later / Reschedule"
+                              className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
                             >
-                              <FiXCircle className="size-4" />
+                              <FiClock className="size-4" />
                             </button>
                           </>
                         )}
@@ -648,7 +648,7 @@ export default function FollowUps() {
               Select Call Outcome <span className="text-error-500">*</span>
             </label>
             <div className="grid grid-cols-3 gap-2.5">
-              {/* Button 1: Interest */}
+              {/* Button 1: Interested */}
               <button
                 type="button"
                 onClick={() => setCompleteOutcome("Interested")}
@@ -659,21 +659,21 @@ export default function FollowUps() {
                 }`}
               >
                 <FiCheckCircle className={`size-5 ${completeOutcome === "Interested" ? "text-success-600 dark:text-success-400" : "text-gray-400"}`} />
-                <span>Interest</span>
+                <span>Interested</span>
               </button>
 
-              {/* Button 2: Reschedule */}
+              {/* Button 2: Call Later */}
               <button
                 type="button"
-                onClick={() => setCompleteOutcome("Reschedule")}
+                onClick={() => setCompleteOutcome("Call Later")}
                 className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-medium transition cursor-pointer text-center gap-1.5 ${
-                  completeOutcome === "Reschedule"
+                  completeOutcome === "Call Later"
                     ? "border-warning-500 bg-warning-50 text-warning-700 dark:border-warning-500 dark:bg-warning-950/40 dark:text-warning-400 ring-2 ring-warning-500/20 font-semibold"
                     : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700/50"
                 }`}
               >
-                <FiClock className={`size-5 ${completeOutcome === "Reschedule" ? "text-warning-600 dark:text-warning-400" : "text-gray-400"}`} />
-                <span>Reschedule</span>
+                <FiClock className={`size-5 ${completeOutcome === "Call Later" ? "text-warning-600 dark:text-warning-400" : "text-gray-400"}`} />
+                <span>Call Later</span>
               </button>
 
               {/* Button 3: Not Interested */}
@@ -697,7 +697,7 @@ export default function FollowUps() {
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 {completeOutcome === "Interested" && <>Summary / Notes <span className="text-gray-400 font-normal">(optional)</span></>}
-                {completeOutcome === "Reschedule" && <>Reason for rescheduling <span className="text-error-500">*</span></>}
+                {completeOutcome === "Call Later" && <>Reason for follow-up <span className="text-error-500">*</span></>}
                 {completeOutcome === "Not Interested" && <>Reason for declining interest <span className="text-error-500">*</span></>}
               </label>
               <textarea
@@ -706,7 +706,7 @@ export default function FollowUps() {
                 placeholder={
                   completeOutcome === "Interested"
                     ? "E.g., Client agreed to schedule a product demo next week..."
-                    : completeOutcome === "Reschedule"
+                    : completeOutcome === "Call Later"
                     ? "E.g., Client is in a meeting, requested callback later today..."
                     : "E.g., Client selected another vendor due to price..."
                 }
@@ -715,7 +715,7 @@ export default function FollowUps() {
               />
             </div>
 
-            {completeOutcome === "Reschedule" && (
+            {completeOutcome === "Call Later" && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <DatePicker
@@ -761,13 +761,13 @@ export default function FollowUps() {
               className={
                 completeOutcome === "Interested"
                   ? "bg-success-600 hover:bg-success-700 text-white"
-                  : completeOutcome === "Reschedule"
+                  : completeOutcome === "Call Later"
                   ? "bg-warning-600 hover:bg-warning-700 text-white"
                   : "bg-error-600 hover:bg-error-700 text-white"
               }
             >
               {completeOutcome === "Interested" && "Confirm Interested (Qualify)"}
-              {completeOutcome === "Reschedule" && "Confirm Reschedule"}
+              {completeOutcome === "Call Later" && "Confirm Call Later"}
               {completeOutcome === "Not Interested" && "Confirm Not Interested"}
             </Button>
           </div>

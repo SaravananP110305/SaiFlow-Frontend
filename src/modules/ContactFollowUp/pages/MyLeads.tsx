@@ -437,10 +437,17 @@ export default function MyLeads() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => navigate(`/contacts/${lead.id}`)}
-                          title="View details"
-                          className="flex items-center justify-center h-8 w-8 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5 transition cursor-pointer"
+                          title="View lead details"
+                          className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
                         >
                           <FiEye className="size-4" />
+                        </button>
+                        <button
+                          onClick={() => handleOpenContactModal(lead)}
+                          title="Log contact outcome"
+                          className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
+                        >
+                          <FiCheckCircle className="size-4" />
                         </button>
                       </div>
                     </TableCell>
