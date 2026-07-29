@@ -19,7 +19,7 @@ import {
   FiLayers,
   FiUsers,
   FiCheckCircle,
-  FiDollarSign,
+  FiCreditCard,
   FiPhoneCall,
   FiClock,
   FiUserCheck,
@@ -250,8 +250,8 @@ export default function Dashboard() {
       },
       {
         label: "Potential Revenue",
-        value: `$${pipelineValue.toLocaleString()}`,
-        icon: <FiDollarSign className="text-warning-500 w-5 h-5" />,
+        value: `₹${pipelineValue.toLocaleString("en-IN")}`,
+        icon: <FiCreditCard className="text-warning-500 w-5 h-5" />,
       },
     ];
   }, [rawLeads, clients, proposals]);

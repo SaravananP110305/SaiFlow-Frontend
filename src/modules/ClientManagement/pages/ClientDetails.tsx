@@ -15,7 +15,6 @@ import {
   FiCalendar,
   FiArrowLeft,
   FiActivity,
-  FiDollarSign,
   FiCreditCard,
   FiExternalLink,
   FiShield,
@@ -183,7 +182,7 @@ export default function ClientDetails() {
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <InfoCard icon={<FiCalendar className="size-4" />} label="Client Since" value={client.clientSince || "2024-01-10"} />
                 <InfoCard icon={<FiCreditCard className="size-4" />} label="Payment Terms" value={client.paymentTerms || "Net 30"} />
-                <InfoCard icon={<FiDollarSign className="size-4" />} label="Credit Limit (INR)" value={client.creditLimit ? `₹${Number(client.creditLimit).toLocaleString()}` : "₹500,000"} />
+                <InfoCard icon={<FiCreditCard className="size-4" />} label="Credit Limit (INR)" value={client.creditLimit ? `₹${Number(client.creditLimit).toLocaleString()}` : "₹500,000"} />
                 <InfoCard icon={<FiMail className="size-4" />} label="Preferred Communication" value={client.preferredCommunication || "Email"} />
               </div>
             </div>

@@ -138,7 +138,7 @@ export function exportToExcel(
  * Format currency for USD display
  */
 export function formatCurrencyUSD(amount: number): string {
-  return "$" + amount.toLocaleString("en-US");
+  return "₹" + amount.toLocaleString("en-IN");
 }
 
 /**

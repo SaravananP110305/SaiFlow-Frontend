@@ -30,7 +30,7 @@ import {
   FiSend,
   FiRefreshCw,
   FiFileText,
-  FiDollarSign,
+  FiCreditCard,
   FiList,
   FiActivity,
   FiArrowLeft,
@@ -118,7 +118,7 @@ function generateId(arr: { id: number }[]): number {
 }
 
 function formatCurrency(amount: number): string {
-  return "$" + amount.toLocaleString("en-US");
+  return "₹" + amount.toLocaleString("en-IN");
 }
 
 function formatDate(dateStr: string): string {
@@ -711,7 +711,7 @@ export default function QuotationList() {
 
     const tabs = [
       { key: "requirement" as const, label: "Requirement", icon: <FiList className="size-4" /> },
-      { key: "estimation" as const, label: "Estimation", icon: <FiDollarSign className="size-4" /> },
+      { key: "estimation" as const, label: "Estimation", icon: <FiCreditCard className="size-4" /> },
       { key: "quotation" as const, label: "Quotation", icon: <FiFileText className="size-4" /> },
       { key: "workflow" as const, label: "Workflow", icon: <FiActivity className="size-4" /> },
     ];
