@@ -57,6 +57,7 @@ import {
   PROJECT_CATEGORIES,
   COMPANY_TYPES,
   PAYMENT_TYPES,
+  FOLLOWUP_TYPES,
 } from "./modules/Master/data/masterData";
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -513,6 +514,20 @@ export default function App() {
                     itemNamePlural="payment types"
                     initialData={PAYMENT_TYPES}
                     storageKey="saiflow_master_payment_types"
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/master/followup-types"
+              element={
+                <ProtectedRoute allowedRoles={["Administrator"]}>
+                  <MasterConfigPage
+                    pageTitle="Follow-up type"
+                    itemNameSingular="follow-up type"
+                    itemNamePlural="follow-up types"
+                    initialData={FOLLOWUP_TYPES}
+                    storageKey="saiflow_master_followup_types"
                   />
                 </ProtectedRoute>
               }

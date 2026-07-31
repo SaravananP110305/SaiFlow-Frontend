@@ -55,6 +55,7 @@ const navItems: NavItem[] = [
       { name: "Service", path: "/master/services" },
       { name: "Company type", path: "/master/company-types" },
       { name: "Payment type", path: "/master/payment-types" },
+      { name: "Follow-up type", path: "/master/followup-types" },
     ],
   },
   {

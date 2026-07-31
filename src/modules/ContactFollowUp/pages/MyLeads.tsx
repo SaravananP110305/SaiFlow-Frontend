@@ -68,6 +68,15 @@ export default function MyLeads() {
   const [savedOutcome, setSavedOutcome] = useState<string | null>(null);
   const [callLaterDate, setCallLaterDate] = useState("");
   const [callLaterTime, setCallLaterTime] = useState("");
+  const [callLaterType, setCallLaterType] = useState("Call");
+
+  const followUpTypeOptions = useMemo(() => {
+    const stored = getStorage<any[]>("saiflow_master_followup_types", []);
+    if (stored && stored.length > 0) {
+      return stored.filter((t) => t.status === "Active").map((t) => t.name);
+    }
+    return ["Call", "Meeting", "Email", "WhatsApp"];
+  }, []);
 
   const handleOpenContactModal = (lead: Lead) => {
     setSelectedLeadForContact(lead);
@@ -75,6 +84,7 @@ export default function MyLeads() {
     setContactSummary("");
     setCallLaterDate("");
     setCallLaterTime("");
+    setCallLaterType("Call");
     contactModal.openModal();
   };
 
@@ -94,6 +104,10 @@ export default function MyLeads() {
       }
       if (!callLaterTime) {
         showToast("Please select a follow-up time.", "error");
+        return;
+      }
+      if (!callLaterType) {
+        showToast("Please select a follow-up type.", "error");
         return;
       }
     }
@@ -129,6 +143,7 @@ export default function MyLeads() {
           ...(contactResult === "Call Later" && {
             nextFollowUpDate: callLaterDate,
             followUpTime: callLaterTime,
+            followUpType: callLaterType,
           }),
         };
       }
@@ -152,6 +167,7 @@ export default function MyLeads() {
         time: callLaterTime || "12:00",
         reason: contactSummary,
         status: "Scheduled" as const,
+        followUpType: callLaterType,
       };
       const updatedFollowUps = [...followupsList, newFollowUp];
       setStorage("saiflow_followups", updatedFollowUps);
@@ -578,31 +594,62 @@ export default function MyLeads() {
 
                 {/* Call Later extra fields */}
                 {contactResult === "Call Later" && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-4">
                     <div>
-                      <DatePicker
-                        id="call-later-date"
-                        label="Follow-up date"
-                        required={true}
-                        defaultDate={callLaterDate}
-                        onChange={(_, dateStr) => setCallLaterDate(dateStr)}
-                      />
-                      {!callLaterDate && (
-                        <span className="mt-1 text-xs text-error-500 block">Required</span>
-                      )}
+                      <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        Follow-up Type <span className="text-error-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={callLaterType}
+                          onChange={(e) => setCallLaterType(e.target.value)}
+                          className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
+                          style={{
+                            backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                            backgroundPosition: "right 0.75rem center",
+                            backgroundSize: "1.1rem",
+                            backgroundRepeat: "no-repeat",
+                          }}
+                        >
+                          {followUpTypeOptions.map((type) => (
+                            <option
+                              key={type}
+                              value={type}
+                              className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 py-1"
+                            >
+                              {type}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <DatePicker
-                        id="call-later-time"
-                        mode="time"
-                        label="Follow-up time"
-                        required={true}
-                        defaultDate={callLaterTime}
-                        onChange={(_, timeStr) => setCallLaterTime(timeStr)}
-                      />
-                      {!callLaterTime && (
-                        <span className="mt-1 text-xs text-error-500 block">Required</span>
-                      )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <DatePicker
+                          id="call-later-date"
+                          label="Follow-up date"
+                          required={true}
+                          defaultDate={callLaterDate}
+                          onChange={(_, dateStr) => setCallLaterDate(dateStr)}
+                        />
+                        {!callLaterDate && (
+                          <span className="mt-1 text-xs text-error-500 block">Required</span>
+                        )}
+                      </div>
+                      <div>
+                        <DatePicker
+                          id="call-later-time"
+                          mode="time"
+                          label="Follow-up time"
+                          required={true}
+                          defaultDate={callLaterTime}
+                          onChange={(_, timeStr) => setCallLaterTime(timeStr)}
+                        />
+                        {!callLaterTime && (
+                          <span className="mt-1 text-xs text-error-500 block">Required</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

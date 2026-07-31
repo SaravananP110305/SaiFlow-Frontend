@@ -151,12 +151,22 @@ export default function FollowUps() {
   const [completeSummary, setCompleteSummary] = useState("");
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleType, setRescheduleType] = useState("Call");
 
   // Modal state for missed / reschedule
   const [selectedItemForMissed, setSelectedItemForMissed] = useState<FollowUp | null>(null);
   const [missedSummary, setMissedSummary] = useState("");
   const [missedDate, setMissedDate] = useState("");
   const [missedTime, setMissedTime] = useState("");
+  const [missedType, setMissedType] = useState("Call");
+
+  const followUpTypeOptions = useMemo(() => {
+    const stored = getStorage<any[]>("saiflow_master_followup_types", []);
+    if (stored && stored.length > 0) {
+      return stored.filter((t) => t.status === "Active").map((t) => t.name);
+    }
+    return ["Call", "Meeting", "Email", "WhatsApp"];
+  }, []);
 
   const resetCompleteModal = () => {
     setSelectedItemForComplete(null);
@@ -164,6 +174,7 @@ export default function FollowUps() {
     setCompleteSummary("");
     setRescheduleDate("");
     setRescheduleTime("");
+    setRescheduleType("Call");
   };
 
   const handleOpenCompleteModal = (item: FollowUp) => {
@@ -172,6 +183,7 @@ export default function FollowUps() {
     setCompleteSummary("");
     setRescheduleDate("");
     setRescheduleTime("");
+    setRescheduleType(item.followUpType || "Call");
   };
 
   const handleOpenMissedModal = (item: FollowUp) => {
@@ -179,6 +191,7 @@ export default function FollowUps() {
     setMissedSummary("");
     setMissedDate("");
     setMissedTime("");
+    setMissedType(item.followUpType || "Call");
 
     // Per workflow: Missed → Change status to Rescheduled
     const leadsList = getStorage<Lead[]>("saiflow_leads", initialLeads);
@@ -244,6 +257,7 @@ export default function FollowUps() {
               date: rescheduleDate,
               time: rescheduleTime,
               reason: summary,
+              followUpType: rescheduleType,
             }
           : f
       );
@@ -258,6 +272,7 @@ export default function FollowUps() {
               status: "Scheduled" as const,
               nextFollowUpDate: rescheduleDate,
               followUpTime: rescheduleTime,
+              followUpType: rescheduleType,
               summary: summary,
               notes: l.notes ? `${l.notes}\n[Follow-up Rescheduled] ${summary}` : `[Follow-up Rescheduled] ${summary}`
             }
@@ -316,6 +331,10 @@ export default function FollowUps() {
       showToast("Please select a new follow-up time.", "error");
       return;
     }
+    if (!missedType) {
+      showToast("Please select a follow-up type.", "error");
+      return;
+    }
 
     const updatedList = followupsList.map((f) =>
       f.id === selectedItemForMissed.id
@@ -325,6 +344,7 @@ export default function FollowUps() {
             date: missedDate,
             time: missedTime,
             reason: missedSummary.trim(),
+            followUpType: missedType,
           }
         : f
     );
@@ -340,6 +360,7 @@ export default function FollowUps() {
             status: "Scheduled" as const,
             nextFollowUpDate: missedDate,
             followUpTime: missedTime,
+            followUpType: missedType,
             summary: missedSummary.trim(),
             notes: l.notes ? `${l.notes}\n[Follow-up Rescheduled] ${missedSummary.trim()}` : `[Follow-up Rescheduled] ${missedSummary.trim()}`,
           }
@@ -352,6 +373,7 @@ export default function FollowUps() {
     setMissedSummary("");
     setMissedDate("");
     setMissedTime("");
+    setMissedType("Call");
   };
 
   return (
@@ -485,6 +507,9 @@ export default function FollowUps() {
                   {renderSortHeader("Time", "time")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                  {renderSortHeader("Type", "followUpType" as any)}
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Assigned to", "assignedTo")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
@@ -527,6 +552,15 @@ export default function FollowUps() {
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                       {formatTime(item.time)}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                      {item.followUpType ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-700 dark:bg-white/[0.04] dark:text-gray-300 border border-gray-150 dark:border-white/[0.05]">
+                          {item.followUpType}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                       {item.assignedTo}
@@ -716,31 +750,57 @@ export default function FollowUps() {
             </div>
 
             {completeOutcome === "Call Later" && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <DatePicker
-                    id="modal-reschedule-date"
-                    label="New follow-up date"
-                    required={true}
-                    defaultDate={rescheduleDate}
-                    onChange={(_, dateStr) => setRescheduleDate(dateStr)}
-                  />
-                  {!rescheduleDate && (
-                    <span className="mt-1 text-xs text-error-500 block">Required</span>
-                  )}
+                  <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    Follow-up Type <span className="text-error-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={rescheduleType}
+                      onChange={(e) => setRescheduleType(e.target.value)}
+                      className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundPosition: "right 0.75rem center",
+                        backgroundSize: "1.1rem",
+                        backgroundRepeat: "no-repeat",
+                      }}
+                    >
+                      {followUpTypeOptions.map((type) => (
+                        <option key={type} value={type} className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 py-1">
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <DatePicker
-                    id="modal-reschedule-time"
-                    mode="time"
-                    label="New follow-up time"
-                    required={true}
-                    defaultDate={rescheduleTime}
-                    onChange={(_, timeStr) => setRescheduleTime(timeStr)}
-                  />
-                  {!rescheduleTime && (
-                    <span className="mt-1 text-xs text-error-500 block">Required</span>
-                  )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <DatePicker
+                      id="modal-reschedule-date"
+                      label="New follow-up date"
+                      required={true}
+                      defaultDate={rescheduleDate}
+                      onChange={(_, dateStr) => setRescheduleDate(dateStr)}
+                    />
+                    {!rescheduleDate && (
+                      <span className="mt-1 text-xs text-error-500 block">Required</span>
+                    )}
+                  </div>
+                  <div>
+                    <DatePicker
+                      id="modal-reschedule-time"
+                      mode="time"
+                      label="New follow-up time"
+                      required={true}
+                      defaultDate={rescheduleTime}
+                      onChange={(_, timeStr) => setRescheduleTime(timeStr)}
+                    />
+                    {!rescheduleTime && (
+                      <span className="mt-1 text-xs text-error-500 block">Required</span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -777,7 +837,7 @@ export default function FollowUps() {
       {/* Missed / Reschedule Modal */}
       <Modal
         isOpen={!!selectedItemForMissed}
-        onClose={() => { setSelectedItemForMissed(null); setMissedSummary(""); setMissedDate(""); setMissedTime(""); }}
+        onClose={() => { setSelectedItemForMissed(null); setMissedSummary(""); setMissedDate(""); setMissedTime(""); setMissedType("Call"); }}
         className="max-w-[500px] m-4"
       >
         <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
@@ -824,6 +884,31 @@ export default function FollowUps() {
               />
             </div>
 
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                Follow-up Type <span className="text-error-500">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={missedType}
+                  onChange={(e) => setMissedType(e.target.value)}
+                  className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                    backgroundPosition: "right 0.75rem center",
+                    backgroundSize: "1.1rem",
+                    backgroundRepeat: "no-repeat",
+                  }}
+                >
+                  {followUpTypeOptions.map((type) => (
+                    <option key={type} value={type} className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 py-1">
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <DatePicker
@@ -851,7 +936,7 @@ export default function FollowUps() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => { setSelectedItemForMissed(null); setMissedSummary(""); setMissedDate(""); setMissedTime(""); }}
+              onClick={() => { setSelectedItemForMissed(null); setMissedSummary(""); setMissedDate(""); setMissedTime(""); setMissedType("Call"); }}
             >
               Cancel
             </Button>

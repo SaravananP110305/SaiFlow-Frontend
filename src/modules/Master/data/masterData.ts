@@ -374,3 +374,10 @@ export const LOST_REASONS: MasterItem[] = [
   { id: 5, name: "Timeline Mismatch", status: "Active" },
   { id: 6, name: "Lost Contact", status: "Inactive" },
 ];
+
+export const FOLLOWUP_TYPES: MasterItem[] = [
+  { id: 1, name: "Call", status: "Active" },
+  { id: 2, name: "Meeting", status: "Active" },
+  { id: 3, name: "Email", status: "Active" },
+  { id: 4, name: "WhatsApp", status: "Active" },
+];

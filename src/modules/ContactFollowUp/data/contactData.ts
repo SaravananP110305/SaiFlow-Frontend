@@ -15,6 +15,7 @@ export interface FollowUp {
   time: string;        // HH:MM
   reason: string;
   status: "Scheduled" | "Completed" | "Missed";
+  followUpType?: string;
   completedSummary?: string; // Summary notes when marked as completed
 }
 
@@ -56,6 +57,7 @@ export const initialFollowUps: FollowUp[] = [
     time: "10:00",
     reason: "Pending decision",
     status: "Scheduled",
+    followUpType: "Call",
   },
   {
     id: 2,
@@ -68,6 +70,7 @@ export const initialFollowUps: FollowUp[] = [
     time: "14:30",
     reason: "Technical evaluation",
     status: "Scheduled",
+    followUpType: "Meeting",
   },
   {
     id: 3,
