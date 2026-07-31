@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
 import Input from "../../../components/form/input/InputField";
@@ -436,7 +435,12 @@ export default function Dashboard() {
         title="Dashboard | SaiFlow"
         description="SaiFlow CRM dashboard — overview of leads, clients, and pipeline."
       />
-      <PageBreadcrumb pageTitle="Dashboard" />
+      {/* ── PAGE TITLE ─────────────────────────────────────── */}
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90">
+          Dashboard
+        </h2>
+      </div>
 
       {/* ── 4 KPI METRICS ──────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4 md:gap-6">
