@@ -1,11 +1,9 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
-import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
-import { Modal } from "../../../components/ui/modal";
-import { useModal } from "../../../hooks/useModal";
 import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
 import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
 import { Pagination } from "../../../components/ui/pagination/Pagination";
@@ -23,6 +21,7 @@ import {
   FiPhoneCall,
   FiClock,
   FiUserCheck,
+  FiEye,
 } from "react-icons/fi";
 import { getStorage, setStorage } from "../../../utils/storage";
 import { initialLeads as sourceLeads, Lead as SourceLead, ASSIGNEES } from "../../LeadManagement/data/leadsData";
@@ -33,6 +32,7 @@ import { useToast } from "../../../hooks/useToast";
 import { formatTime } from "../../../utils/dateFormatter";
 
 interface Lead {
+  id: number;
   sNo: number;
   company: string;
   contactPerson: string;
@@ -41,15 +41,19 @@ interface Lead {
   assignedTo: string;
 }
 
+interface CallLead extends SourceLead {
+  sNo: number;
+}
+
 export default function Dashboard() {
   const { showToast } = useToast();
-  const { isOpen, openModal, closeModal } = useModal();
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const navigate = useNavigate();
 
   // ── Dynamic lists from storage ──────────────────────────────
   const rawLeads = getStorage<SourceLead[]>("saiflow_leads", sourceLeads);
   const localLeads = useMemo<Lead[]>(() => {
     return rawLeads.map((l, index) => ({
+      id: l.id,
       sNo: index + 1,
       company: l.company,
       contactPerson: l.contactPerson,
@@ -75,18 +79,77 @@ export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  const handleViewLead = (lead: Lead) => {
-    setSelectedLead(lead);
-    openModal();
-  };
+  // ── Today's call table state ─────────────────────────────────
+  const [callSearchQuery, setCallSearchQuery] = useState("");
+  const [callStatusFilter, setCallStatusFilter] = useState("all");
+  const [callAssigneeFilter, setCallAssigneeFilter] = useState("all");
+  const [callCurrentPage, setCallCurrentPage] = useState(1);
+  const [callRowsPerPage, setCallRowsPerPage] = useState(5);
+  const [callSortField, setCallSortField] = useState<keyof CallLead>("sNo");
+  const [callSortOrder, setCallSortOrder] = useState<"asc" | "desc">("asc");
+  const [isCallStatusOpen, setIsCallStatusOpen] = useState(false);
+  const [isCallAssigneeOpen, setIsCallAssigneeOpen] = useState(false);
 
   // ── Today Lead Calls & Reassign Action ────────────────────────
-  const todayCalls = useMemo(() => {
+  const todayCalls = useMemo<CallLead[]>(() => {
     const list = rawLeads.filter(
       (l) => l.status === "Scheduled" || l.status === "Contacted" || l.status === "New"
     );
-    return list.length > 0 ? list.slice(0, 5) : rawLeads.slice(0, 5);
+    const base = list.length > 0 ? list : rawLeads.slice(0, 5);
+    return base.map((l, index) => ({ ...l, sNo: index + 1 }));
   }, [rawLeads]);
+
+  const filteredTodayCalls = useMemo(() => {
+    let result = [...todayCalls];
+
+    if (callSearchQuery.trim()) {
+      const query = callSearchQuery.toLowerCase();
+      result = result.filter(
+        (lead) =>
+          lead.company.toLowerCase().includes(query) ||
+          lead.contactPerson.toLowerCase().includes(query) ||
+          lead.phone.toLowerCase().includes(query) ||
+          lead.assignedTo.toLowerCase().includes(query) ||
+          `sf-lead-${String(lead.id).padStart(4, "0")}`
+            .toLowerCase()
+            .includes(query)
+      );
+    }
+
+    if (callStatusFilter !== "all") {
+      result = result.filter((lead) => lead.status === callStatusFilter);
+    }
+
+    if (callAssigneeFilter !== "all") {
+      result = result.filter((lead) => lead.assignedTo === callAssigneeFilter);
+    }
+
+    result.sort((a, b) => {
+      const aVal = a[callSortField];
+      const bVal = b[callSortField];
+
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return callSortOrder === "asc" ? aVal - bVal : bVal - aVal;
+      }
+
+      const strA = String(aVal).toLowerCase();
+      const strB = String(bVal).toLowerCase();
+
+      if (strA < strB) return callSortOrder === "asc" ? -1 : 1;
+      if (strA > strB) return callSortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [todayCalls, callSearchQuery, callStatusFilter, callAssigneeFilter, callSortField, callSortOrder]);
+
+  const paginatedTodayCalls = useMemo(() => {
+    const startIndex = (callCurrentPage - 1) * callRowsPerPage;
+    return filteredTodayCalls.slice(startIndex, startIndex + callRowsPerPage);
+  }, [filteredTodayCalls, callCurrentPage, callRowsPerPage]);
+
+  const todayCallsTotal = filteredTodayCalls.length;
+  const todayCallsTotalPages = Math.ceil(todayCallsTotal / callRowsPerPage);
 
   const handleReassignCall = (leadId: number, targetAssignee: string) => {
     if (!targetAssignee) return;
@@ -133,6 +196,16 @@ export default function Dashboard() {
     setCurrentPage(1);
   };
 
+  const handleCallSort = (field: keyof CallLead) => {
+    if (callSortField === field) {
+      setCallSortOrder(callSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setCallSortField(field);
+      setCallSortOrder("asc");
+    }
+    setCallCurrentPage(1);
+  };
+
   const statusOptions = [
     { value: "all", label: "All statuses" },
     { value: "New", label: "New" },
@@ -141,6 +214,13 @@ export default function Dashboard() {
     { value: "Proposal sent", label: "Proposal sent" },
     { value: "Won", label: "Won" },
     { value: "Lost", label: "Lost" },
+  ];
+
+  const callStatusOptions = [
+    { value: "all", label: "All statuses" },
+    { value: "New", label: "New" },
+    { value: "Contacted", label: "Contacted" },
+    { value: "Scheduled", label: "Scheduled" },
   ];
 
   const assigneeOptions = [
@@ -215,6 +295,32 @@ export default function Dashboard() {
           />
           <ChevronDownIcon
             className={`w-3 h-3 transition-colors ${isActive && sortOrder === "desc"
+              ? "text-brand-500"
+              : "text-gray-300 dark:text-gray-600"
+              }`}
+          />
+        </span>
+      </button>
+    );
+  };
+
+  const renderCallSortHeader = (label: string, field: keyof CallLead) => {
+    const isActive = callSortField === field;
+    return (
+      <button
+        onClick={() => handleCallSort(field)}
+        className="flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer"
+      >
+        {label}
+        <span className="flex flex-col">
+          <ChevronUpIcon
+            className={`w-3 h-3 -mb-1 transition-colors ${isActive && callSortOrder === "asc"
+              ? "text-brand-500"
+              : "text-gray-300 dark:text-gray-600"
+              }`}
+          />
+          <ChevronDownIcon
+            className={`w-3 h-3 transition-colors ${isActive && callSortOrder === "desc"
               ? "text-brand-500"
               : "text-gray-300 dark:text-gray-600"
               }`}
@@ -391,123 +497,57 @@ export default function Dashboard() {
 
       {/* ── TASK 2: TODAY LEAD CALL REASSIGNING FEATURE ─────────────────── */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 mb-6 dark:border-gray-800 dark:bg-white/[0.03]">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-          <div>
-            <h3 className="text-base font-semibold text-gray-800 dark:text-white flex items-center gap-2">
-              <FiPhoneCall className="text-brand-500 size-5" />
-              Today's lead calls
-            </h3>
-          </div>
-          <Badge size="sm" color="primary">
-            {todayCalls.length} calls scheduled
-          </Badge>
+        <div className="mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
+          <h3 className="text-base font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+            <FiPhoneCall className="text-brand-500 size-5" />
+            Today's lead calls
+          </h3>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-100 dark:divide-white/[0.05]">
-            <thead>
-              <tr className="bg-gray-50/50 dark:bg-gray-900/50">
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">Lead ID</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">Company</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">Contact person</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">Scheduled time</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">Current assignee</th>
-                <th className="px-4 py-2.5 text-end text-xs font-semibold text-gray-500 dark:text-gray-400">Quick reassign</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {todayCalls.map((lead) => (
-                <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
-                  <td className="px-4 py-3 text-xs font-mono text-gray-500 dark:text-gray-400">
-                    SF-LEAD-{String(lead.id).padStart(4, "0")}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-800 dark:text-white/90">
-                    {lead.company}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
-                    {lead.contactPerson}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-medium">
-                      <FiClock className="size-3 text-gray-400" />
-                      {formatTime(lead.followUpTime || "10:00 AM")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    <Badge size="sm" color="light">
-                      <FiUserCheck className="size-3 mr-1 inline" />
-                      {lead.assignedTo}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-end">
-                    <select
-                      value=""
-                      onChange={(e) => handleReassignCall(lead.id, e.target.value)}
-                      className="h-8.5 w-36 appearance-none rounded-lg border border-gray-200 bg-white px-2.5 py-1 pr-7 text-xs font-medium text-gray-700 shadow-theme-xs transition-all hover:border-brand-300 focus:border-brand-500 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 cursor-pointer"
-                      style={{
-                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-                        backgroundPosition: 'right 0.4rem center',
-                        backgroundSize: '1.1rem',
-                        backgroundRepeat: 'no-repeat'
-                      }}
-                    >
-                      <option value="" disabled className="text-gray-400 dark:bg-gray-900 dark:text-gray-500">
-                        Reassign to...
-                      </option>
-                      {ASSIGNEES.filter((a) => a !== lead.assignedTo).map((assignee) => (
-                        <option
-                          key={assignee}
-                          value={assignee}
-                          className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 py-1"
-                        >
-                          {assignee}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ── RECENT LEADS TABLE ─────────────────────────────── */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-800 dark:text-white/90">
-          Recent leads
-        </h3>
-
+        {/* Search & filter toolbar */}
         <div className="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center w-full lg:w-auto">
             <div className="w-full sm:w-64">
               <Input
                 type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                placeholder="Search calls..."
+                value={callSearchQuery}
+                onChange={(e) => {
+                  setCallSearchQuery(e.target.value);
+                  setCallCurrentPage(1);
+                }}
               />
             </div>
             <div className="flex items-center gap-3">
               <div className="relative">
                 <button
-                  onClick={() => { setIsStatusOpen(!isStatusOpen); setIsAssigneeOpen(false); }}
+                  onClick={() => {
+                    setIsCallStatusOpen(!isCallStatusOpen);
+                    setIsCallAssigneeOpen(false);
+                  }}
                   className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-55 dark:hover:bg-white/5"
                 >
-                  <span>{statusOptions.find((o) => o.value === statusFilter)?.label || "Filter by status"}</span>
+                  <span>
+                    {callStatusOptions.find((o) => o.value === callStatusFilter)?.label ||
+                      "Filter by status"}
+                  </span>
                   <ChevronDownIcon className="w-4 h-4 text-gray-500" />
                 </button>
                 <Dropdown
-                  isOpen={isStatusOpen}
-                  onClose={() => setIsStatusOpen(false)}
+                  isOpen={isCallStatusOpen}
+                  onClose={() => setIsCallStatusOpen(false)}
                   className="left-0 right-auto w-40 p-1 mt-2"
                 >
                   <ul className="flex flex-col gap-0.5">
-                    {statusOptions.map((opt) => (
+                    {callStatusOptions.map((opt) => (
                       <li key={opt.value}>
                         <DropdownItem
-                          onItemClick={() => { setStatusFilter(opt.value); setCurrentPage(1); setIsStatusOpen(false); }}
-                          className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${statusFilter === opt.value
+                          onItemClick={() => {
+                            setCallStatusFilter(opt.value);
+                            setCallCurrentPage(1);
+                            setIsCallStatusOpen(false);
+                          }}
+                          className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${callStatusFilter === opt.value
                             ? "bg-brand-500 text-white font-medium"
                             : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                             }`}
@@ -522,23 +562,33 @@ export default function Dashboard() {
 
               <div className="relative">
                 <button
-                  onClick={() => { setIsAssigneeOpen(!isAssigneeOpen); setIsStatusOpen(false); }}
+                  onClick={() => {
+                    setIsCallAssigneeOpen(!isCallAssigneeOpen);
+                    setIsCallStatusOpen(false);
+                  }}
                   className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-55 dark:hover:bg-white/5"
                 >
-                  <span>{assigneeOptions.find((o) => o.value === assigneeFilter)?.label || "Filter by assignee"}</span>
+                  <span>
+                    {assigneeOptions.find((o) => o.value === callAssigneeFilter)?.label ||
+                      "Filter by assignee"}
+                  </span>
                   <ChevronDownIcon className="w-4 h-4 text-gray-500" />
                 </button>
                 <Dropdown
-                  isOpen={isAssigneeOpen}
-                  onClose={() => setIsAssigneeOpen(false)}
+                  isOpen={isCallAssigneeOpen}
+                  onClose={() => setIsCallAssigneeOpen(false)}
                   className="left-0 right-auto w-44 p-1 mt-2"
                 >
                   <ul className="flex flex-col gap-0.5">
                     {assigneeOptions.map((opt) => (
                       <li key={opt.value}>
                         <DropdownItem
-                          onItemClick={() => { setAssigneeFilter(opt.value); setCurrentPage(1); setIsAssigneeOpen(false); }}
-                          className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${assigneeFilter === opt.value
+                          onItemClick={() => {
+                            setCallAssigneeFilter(opt.value);
+                            setCallCurrentPage(1);
+                            setIsCallAssigneeOpen(false);
+                          }}
+                          className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${callAssigneeFilter === opt.value
                             ? "bg-brand-500 text-white font-medium"
                             : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                             }`}
@@ -554,8 +604,194 @@ export default function Dashboard() {
           </div>
         </div>
 
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100 dark:divide-white/[0.05]">
+            <thead>
+              <tr className="bg-gray-50/50 dark:bg-gray-900/50">
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("S.No", "sNo")}</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Lead ID", "id")}</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Company", "company")}</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Contact person", "contactPerson")}</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Scheduled time", "followUpTime")}</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Current assignee", "assignedTo")}</th>
+                <th className="px-4 py-2.5 text-end text-xs font-semibold text-gray-500 dark:text-gray-400">Quick reassign</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+              {paginatedTodayCalls.length > 0 ? (
+                paginatedTodayCalls.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                    <td className="px-4 py-3 text-start text-xs text-gray-500 dark:text-gray-400">
+                      {lead.sNo}
+                    </td>
+                    <td className="px-4 py-3 text-xs font-mono text-gray-500 dark:text-gray-400">
+                      SF-LEAD-{String(lead.id).padStart(4, "0")}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-800 dark:text-white/90">
+                      {lead.company}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
+                      {lead.contactPerson}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-medium">
+                        <FiClock className="size-3 text-gray-400" />
+                        {formatTime(lead.followUpTime || "10:00 AM")}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      <Badge size="sm" color="light">
+                        <FiUserCheck className="size-3 mr-1 inline" />
+                        {lead.assignedTo}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-end">
+                      <select
+                        value=""
+                        onChange={(e) => handleReassignCall(lead.id, e.target.value)}
+                        className="h-8.5 w-36 appearance-none rounded-lg border border-gray-200 bg-white px-2.5 py-1 pr-7 text-xs font-medium text-gray-700 shadow-theme-xs transition-all hover:border-brand-300 focus:border-brand-500 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 cursor-pointer"
+                        style={{
+                          backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                          backgroundPosition: 'right 0.4rem center',
+                          backgroundSize: '1.1rem',
+                          backgroundRepeat: 'no-repeat'
+                        }}
+                      >
+                        <option value="" disabled className="text-gray-400 dark:bg-gray-900 dark:text-gray-500">
+                          Reassign to...
+                        </option>
+                        {ASSIGNEES.filter((a) => a !== lead.assignedTo).map((assignee) => (
+                          <option
+                            key={assignee}
+                            value={assignee}
+                            className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 py-1"
+                          >
+                            {assignee}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    No calls match your search criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {todayCallsTotal > 0 && (
+          <Pagination
+            currentPage={callCurrentPage}
+            totalPages={todayCallsTotalPages}
+            totalItems={todayCallsTotal}
+            rowsPerPage={callRowsPerPage}
+            onPageChange={setCallCurrentPage}
+            onRowsPerPageChange={(rows) => {
+              setCallRowsPerPage(rows);
+              setCallCurrentPage(1);
+            }}
+            itemName="calls"
+          />
+        )}
+      </div>
+
+      {/* ── RECENT LEADS TABLE ─────────────────────────────── */}
+      <div className="space-y-4">
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-          <div className="max-w-full overflow-x-auto">
+          {/* Section header */}
+          <div className="flex items-center gap-2 p-4 pb-3 border-b border-gray-100 dark:border-gray-800">
+            <h3 className="text-base font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+              <FiLayers className="text-brand-500 size-5" />
+              Recent leads
+            </h3>
+          </div>
+
+          {/* Search & filter toolbar */}
+          <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center w-full lg:w-auto">
+              <div className="w-full sm:w-64">
+                <Input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <button
+                    onClick={() => { setIsStatusOpen(!isStatusOpen); setIsAssigneeOpen(false); }}
+                    className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-55 dark:hover:bg-white/5"
+                  >
+                    <span>{statusOptions.find((o) => o.value === statusFilter)?.label || "Filter by status"}</span>
+                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                  </button>
+                  <Dropdown
+                    isOpen={isStatusOpen}
+                    onClose={() => setIsStatusOpen(false)}
+                    className="left-0 right-auto w-40 p-1 mt-2"
+                  >
+                    <ul className="flex flex-col gap-0.5">
+                      {statusOptions.map((opt) => (
+                        <li key={opt.value}>
+                          <DropdownItem
+                            onItemClick={() => { setStatusFilter(opt.value); setCurrentPage(1); setIsStatusOpen(false); }}
+                            className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${statusFilter === opt.value
+                              ? "bg-brand-500 text-white font-medium"
+                              : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
+                              }`}
+                          >
+                            {opt.label}
+                          </DropdownItem>
+                        </li>
+                      ))}
+                    </ul>
+                  </Dropdown>
+                </div>
+
+                <div className="relative">
+                  <button
+                    onClick={() => { setIsAssigneeOpen(!isAssigneeOpen); setIsStatusOpen(false); }}
+                    className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-55 dark:hover:bg-white/5"
+                  >
+                    <span>{assigneeOptions.find((o) => o.value === assigneeFilter)?.label || "Filter by assignee"}</span>
+                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                  </button>
+                  <Dropdown
+                    isOpen={isAssigneeOpen}
+                    onClose={() => setIsAssigneeOpen(false)}
+                    className="left-0 right-auto w-44 p-1 mt-2"
+                  >
+                    <ul className="flex flex-col gap-0.5">
+                      {assigneeOptions.map((opt) => (
+                        <li key={opt.value}>
+                          <DropdownItem
+                            onItemClick={() => { setAssigneeFilter(opt.value); setCurrentPage(1); setIsAssigneeOpen(false); }}
+                            className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${assigneeFilter === opt.value
+                              ? "bg-brand-500 text-white font-medium"
+                              : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
+                              }`}
+                          >
+                            {opt.label}
+                          </DropdownItem>
+                        </li>
+                      ))}
+                    </ul>
+                  </Dropdown>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-full overflow-x-auto px-4">
             <table className="min-w-full">
               <thead className="border-b border-gray-100 dark:border-white/[0.05] sticky top-0 bg-white dark:bg-gray-900 z-10">
                 <tr>
@@ -596,9 +832,13 @@ export default function Dashboard() {
                       </td>
                       <td className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">{lead.assignedTo}</td>
                       <td className="px-5 py-4 text-theme-sm">
-                        <Button size="sm" variant="outline" onClick={() => handleViewLead(lead)} className="h-8 py-0 px-3 text-xs">
-                          View
-                        </Button>
+                        <button
+                          onClick={() => navigate(`/leads/${lead.id}`)}
+                          className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
+                          title="View"
+                        >
+                          <FiEye className="size-4" />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -627,47 +867,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── LEAD DETAILS MODAL ─────────────────────────────── */}
-      <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[500px] m-4">
-        <div className="no-scrollbar relative w-full overflow-y-auto rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
-          <div className="pr-10 border-b border-gray-150 pb-4 mb-4 dark:border-gray-800">
-            <h4 className="text-xl font-semibold text-gray-800 dark:text-white/90">Lead details</h4>
-          </div>
-          {selectedLead && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-xs text-gray-400 block">S.No</span>
-                  <span className="text-sm font-medium text-gray-800 dark:text-white/90">{selectedLead.sNo}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-400 block">Company</span>
-                  <span className="text-sm font-medium text-gray-800 dark:text-white/90">{selectedLead.company}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-400 block">Contact person</span>
-                  <span className="text-sm font-medium text-gray-800 dark:text-white/90">{selectedLead.contactPerson}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-400 block">Phone</span>
-                  <span className="text-sm font-medium text-gray-800 dark:text-white/90">{selectedLead.phone}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-400 block">Status</span>
-                  <Badge size="sm" color={getStatusColor(selectedLead.status)}>{selectedLead.status}</Badge>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-400 block">Assigned to</span>
-                  <span className="text-sm font-medium text-gray-800 dark:text-white/90">{selectedLead.assignedTo}</span>
-                </div>
-              </div>
-            </div>
-          )}
-          <div className="flex items-center justify-end mt-6">
-            <Button size="sm" onClick={closeModal}>Close</Button>
-          </div>
-        </div>
-      </Modal>
     </>
   );
 }
