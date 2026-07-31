@@ -11,7 +11,8 @@ import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import { ChevronDownIcon } from "../../../icons";
 import Button from "../../../components/ui/button/Button";
-import { FiEye,
+import {
+  FiEye,
   FiDownload,
   FiShield,
   FiCheckCircle,
@@ -72,6 +73,20 @@ export default function ClientList() {
 
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+
+  // ── Employees / Project Managers ───────────────────────────────────────────
+  const employeesList = useMemo(() => {
+    const storedUsers = getStorage<any[]>("saiflow_users", []);
+    if (storedUsers && storedUsers.length > 0) {
+      return storedUsers.filter((u) => u.status === "Active" || u.status === undefined);
+    }
+    return [
+      { id: 1, name: "Jane Smith", role: "Business Development Manager" },
+      { id: 2, name: "John Doe", role: "Administrator" },
+      { id: 3, name: "Alice Johnson", role: "Business Development Executive" },
+      { id: 4, name: "Robert Lee", role: "Presales Consultant" },
+    ];
+  }, []);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -155,10 +170,10 @@ export default function ClientList() {
     const updated = clients.map((c) =>
       c.id === client.id
         ? {
-            ...c,
-            handoverStatus: "Onboarded" as const,
-            handoverDetails: updatedDetails,
-          }
+          ...c,
+          handoverStatus: "Onboarded" as const,
+          handoverDetails: updatedDetails,
+        }
         : c
     );
     setClients(updated);
@@ -390,11 +405,10 @@ export default function ClientList() {
           return (
             <div
               key={client.id}
-              className={`relative rounded-2xl border bg-white p-5 dark:bg-white/[0.03] transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between ${
-                isSelected
-                  ? "border-brand-500 dark:border-brand-500/50 ring-1 ring-brand-500/20"
-                  : "border-gray-200 dark:border-white/[0.05]"
-              }`}
+              className={`relative rounded-2xl border bg-white p-5 dark:bg-white/[0.03] transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between ${isSelected
+                ? "border-brand-500 dark:border-brand-500/50 ring-1 ring-brand-500/20"
+                : "border-gray-200 dark:border-white/[0.05]"
+                }`}
             >
               {/* Card Header */}
               <div className="flex items-start justify-between gap-3 mb-4">
@@ -419,7 +433,7 @@ export default function ClientList() {
                     </span>
                   </div>
                 </div>
-                
+
                 {/* Handover Status Badge */}
                 <div className="shrink-0">
                   <Badge size="sm" color={HANDOVER_STATUS_COLORS[client.handoverStatus] || "warning"}>
@@ -564,17 +578,37 @@ export default function ClientList() {
             <div className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
-                  Assigned Project Manager / Lead <span className="text-error-500">*</span>
+                  Assigned Project Manager / Team Lead <span className="text-error-500">*</span>
                 </label>
-                <Input
-                  type="text"
-                  placeholder="e.g. Jane Smith"
-                  value={handoverPM}
-                  onChange={(e) => {
-                    setHandoverPM(e.target.value);
-                    if (handoverError) setHandoverError("");
-                  }}
-                />
+                <div className="relative">
+                  <select
+                    value={handoverPM}
+                    onChange={(e) => {
+                      setHandoverPM(e.target.value);
+                      if (handoverError) setHandoverError("");
+                    }}
+                    className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundPosition: "right 0.75rem center",
+                      backgroundSize: "1.1rem",
+                      backgroundRepeat: "no-repeat",
+                    }}
+                  >
+                    <option value="" disabled className="text-gray-400 dark:bg-gray-900 dark:text-gray-500">
+                      Select Project Manager...
+                    </option>
+                    {employeesList.map((emp) => (
+                      <option
+                        key={emp.id}
+                        value={emp.name}
+                        className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 py-1"
+                      >
+                        {emp.name} {emp.role ? `(${emp.role})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
