@@ -228,9 +228,9 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
   const location = useLocation();
   const { showToast } = useToast();
 
-  const isFromFollowUps = isFollowUpView || location.pathname.startsWith("/contacts/follow-ups");
-  const backTarget = isFromFollowUps ? "/contacts/follow-ups" : "/contacts/my-leads";
-  const backLabel = isFromFollowUps ? "Back to follow-ups" : "Back to my leads";
+  const isFromFollowUps = isFollowUpView || location.pathname.startsWith("/connect/follow-ups");
+  const backTarget = isFromFollowUps ? "/connect/follow-ups" : "/connect/contacts";
+  const backLabel = isFromFollowUps ? "Back to follow-ups" : "Back to Contacts";
 
   // Get the currently logged-in user
   const loggedInUser = getStorage<any>("saiflow_logged_in_user", {
@@ -639,7 +639,7 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
                 </div>
               </div>
             ) : (
-              <div 
+              <div
                 className="max-h-[150px] overflow-y-auto pr-2 custom-visible-scrollbar"
                 style={{
                   scrollbarWidth: 'thin',
@@ -717,7 +717,7 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
               No activities recorded yet.
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-              Activities will appear here when you contact this lead from the My Leads page.
+              Activities will appear here when you contact this lead from the Contact page.
             </p>
           </div>
         )}

@@ -537,7 +537,7 @@ export default function FollowUps() {
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm font-medium whitespace-nowrap">
                       <button
-                        onClick={() => navigate(`/contacts/follow-ups/${item.leadId}`)}
+                        onClick={() => navigate(`/connect/follow-ups/${item.leadId}`)}
                         className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors font-medium cursor-pointer text-left"
                         title="View lead details"
                       >
@@ -573,7 +573,7 @@ export default function FollowUps() {
                     <TableCell className="px-5 py-4 text-end whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => navigate(`/contacts/follow-ups/${item.leadId}`)}
+                          onClick={() => navigate(`/connect/follow-ups/${item.leadId}`)}
                           title="View lead details"
                           className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
                         >

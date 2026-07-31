@@ -48,7 +48,7 @@ export const sidebarStructure = [
   { name: "Dashboard", key: "dashboard" },
   { name: "Manage Users", key: "users", subItems: ["User Roles", "Users"] },
   { name: "Leads", key: "leads" },
-  { name: "Connect", key: "connect", subItems: ["All Leads", "Follow-ups"] },
+  { name: "Connect", key: "connect", subItems: ["Contacts", "Follow-ups"] },
   { name: "Meetings", key: "meetings" },
   { name: "Proposals", key: "proposals" },
   { name: "Clients", key: "clients" },

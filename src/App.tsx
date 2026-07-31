@@ -155,7 +155,7 @@ export default function App() {
               }
             />
             <Route
-              path="/contacts"
+              path="/connect"
               element={
                 <ProtectedRoute allowedRoles={allowedRoles}>
                   <MyLeads />
@@ -163,7 +163,7 @@ export default function App() {
               }
             />
             <Route
-              path="/contacts/my-leads"
+              path="/connect/contacts"
               element={
                 <ProtectedRoute allowedRoles={allowedRoles}>
                   <MyLeads />
@@ -171,7 +171,7 @@ export default function App() {
               }
             />
             <Route
-              path="/contacts/follow-ups"
+              path="/connect/follow-ups"
               element={
                 <ProtectedRoute allowedRoles={allowedRoles}>
                   <FollowUps />
@@ -179,7 +179,7 @@ export default function App() {
               }
             />
             <Route
-              path="/contacts/follow-ups/:id"
+              path="/connect/follow-ups/:id"
               element={
                 <ProtectedRoute allowedRoles={allowedRoles}>
                   <ContactLeadDetail isFollowUpView={true} />
@@ -187,7 +187,7 @@ export default function App() {
               }
             />
             <Route
-              path="/contacts/:id"
+              path="/connect/:id"
               element={
                 <ProtectedRoute allowedRoles={allowedRoles}>
                   <ContactLeadDetail />
@@ -350,7 +350,7 @@ export default function App() {
             />
 
             {/* Master Routes */}
-             <Route
+            <Route
               path="/master/countries"
               element={
                 <ProtectedRoute allowedRoles={["Administrator"]}>

@@ -183,7 +183,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       const id = parts[2];
       const isEdit = parts[3] === "edit";
       const isView = parts[3] === "view";
-      
+
       const roles = getStorage<any[]>("saiflow_roles", []);
       const role = roles.find((r) => String(r.id) === String(id));
       const roleLabel = role ? role.roleName : `Role #${id}`;
@@ -215,27 +215,27 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       } else {
         breadcrumbs.push({ label: leadName });
       }
-    } else if (pathname === "/contacts/my-leads") {
-      breadcrumbs.push({ label: "Connect", to: "/contacts/my-leads" });
-      breadcrumbs.push({ label: "All Leads" });
-    } else if (pathname === "/contacts/follow-ups") {
-      breadcrumbs.push({ label: "Connect", to: "/contacts/my-leads" });
+    } else if (pathname === "/connect/contacts") {
+      breadcrumbs.push({ label: "Connect", to: "/connect/contacts" });
+      breadcrumbs.push({ label: "Contacts" });
+    } else if (pathname === "/connect/follow-ups") {
+      breadcrumbs.push({ label: "Connect", to: "/connect/contacts" });
       breadcrumbs.push({ label: "Follow-ups" });
-    } else if (pathname.startsWith("/contacts/follow-ups/")) {
+    } else if (pathname.startsWith("/connect/follow-ups/")) {
       const parts = pathname.split("/");
       const id = parts[3];
       const leadName = getLeadName(id);
 
-      breadcrumbs.push({ label: "Connect", to: "/contacts/my-leads" });
-      breadcrumbs.push({ label: "Follow-ups", to: "/contacts/follow-ups" });
+      breadcrumbs.push({ label: "Connect", to: "/connect/contacts" });
+      breadcrumbs.push({ label: "Follow-ups", to: "/connect/follow-ups" });
       breadcrumbs.push({ label: leadName });
-    } else if (pathname.startsWith("/contacts/")) {
+    } else if (pathname.startsWith("/connect/")) {
       const parts = pathname.split("/");
       const id = parts[2];
       const leadName = getLeadName(id);
 
-      breadcrumbs.push({ label: "Connect", to: "/contacts/my-leads" });
-      breadcrumbs.push({ label: "All Leads", to: "/contacts/my-leads" });
+      breadcrumbs.push({ label: "Connect", to: "/connect/contacts" });
+      breadcrumbs.push({ label: "Contacts", to: "/connect/contacts" });
       breadcrumbs.push({ label: leadName });
     } else if (pathname === "/meetings") {
       breadcrumbs.push({ label: "Meetings" });

@@ -5,8 +5,6 @@ import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
 import Input from "../../../components/form/input/InputField";
 import DatePicker from "../../../components/form/date-picker";
-import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
-import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import {
   Table,
@@ -21,6 +19,7 @@ import {
   FiCheckCircle,
   FiClock,
   FiXCircle,
+  FiPhone,
 } from "react-icons/fi";
 import { getStatusColor, getPriorityColor, type Lead, initialLeads } from "../../LeadManagement/data/leadsData";
 import { getStorage, setStorage } from "../../../utils/storage";
@@ -28,7 +27,6 @@ import { useToast } from "../../../hooks/useToast";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
 import Button from "../../../components/ui/button/Button";
-
 
 export default function MyLeads() {
   const navigate = useNavigate();
@@ -50,12 +48,10 @@ export default function MyLeads() {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<keyof Lead>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"new" | "contacted">("new");
 
   type ContactResult = "Interested" | "Call Later" | "Not Interested";
@@ -78,9 +74,35 @@ export default function MyLeads() {
     return ["Call", "Meeting", "Email", "WhatsApp"];
   }, []);
 
-  const handleOpenContactModal = (lead: Lead) => {
+  // Update a lead in both localStorage and the current view, keeping the
+  // full list in storage intact (only the visible subset is kept in state).
+  const updateLead = (leadId: number, updater: (l: Lead) => Lead) => {
+    const allLeads = getStorage<Lead[]>("saiflow_leads", initialLeads);
+    const updatedAll = allLeads.map((l) => (l.id === leadId ? updater(l) : l));
+    setStorage("saiflow_leads", updatedAll);
+    setLeads(isAdmin ? updatedAll : updatedAll.filter((l) => l.assignedTo === currentUserName));
+  };
+
+  // New Leads: clicking the call icon marks the lead as Contacted and
+  // moves it to the Contacted Leads page.
+  const handleCallLead = (lead: Lead) => {
+    const note = "[Contact] Called the lead.";
+    updateLead(lead.id, (l) => ({
+      ...l,
+      status: "Contacted" as const,
+      notes: l.notes ? `${l.notes}\n${note}` : note,
+      summary: "Called the lead.",
+      lastContactResult: "Contacted",
+    }));
+
+    showToast(`${lead.company} marked as Contacted — moved to Contacted Leads.`, "success");
+    setActiveTab("contacted");
+    setCurrentPage(1);
+  };
+
+  const handleOpenOutcomeModal = (lead: Lead, result: ContactResult) => {
     setSelectedLeadForContact(lead);
-    setContactResult(null);
+    setContactResult(result);
     setContactSummary("");
     setCallLaterDate("");
     setCallLaterTime("");
@@ -90,11 +112,6 @@ export default function MyLeads() {
 
   const handleSaveContactOutcome = () => {
     if (!selectedLeadForContact) return;
-
-    if (!contactSummary.trim()) {
-      showToast("Please enter a summary.", "error");
-      return;
-    }
 
     // Validate Call Later fields
     if (contactResult === "Call Later") {
@@ -128,29 +145,26 @@ export default function MyLeads() {
       return;
     }
 
-    // Update the lead in storage
-    const summaryNote = contactSummary
-      ? `[Contact] ${contactResult}: ${contactSummary}`
+    const summary =
+      contactSummary.trim() ||
+      (contactResult === "Call Later" ? "Call back requested." : "No summary provided.");
+    const summaryNote = contactSummary.trim()
+      ? `[Contact] ${contactResult}: ${contactSummary.trim()}`
       : `[Contact] ${contactResult}`;
-    const updatedLeads = leads.map((l) => {
-      if (l.id === selectedLeadForContact.id) {
-        return {
-          ...l,
-          status: newStatus as any,
-          notes: l.notes ? `${l.notes}\n${summaryNote}` : summaryNote,
-          summary: contactSummary,
-          lastContactResult: contactResult,
-          ...(contactResult === "Call Later" && {
-            nextFollowUpDate: callLaterDate,
-            followUpTime: callLaterTime,
-            followUpType: callLaterType,
-          }),
-        };
-      }
-      return l;
-    });
-    setLeads(updatedLeads);
-    setStorage("saiflow_leads", updatedLeads);
+
+    // Update the lead in both storage and the current view
+    updateLead(selectedLeadForContact.id, (l) => ({
+      ...l,
+      status: newStatus as any,
+      notes: l.notes ? `${l.notes}\n${summaryNote}` : summaryNote,
+      summary,
+      lastContactResult: contactResult,
+      ...(contactResult === "Call Later" && {
+        nextFollowUpDate: callLaterDate,
+        followUpTime: callLaterTime,
+        followUpType: callLaterType,
+      }),
+    }));
 
     // If Call Later, create a follow-up record in saiflow_followups
     if (contactResult === "Call Later" && callLaterDate) {
@@ -165,7 +179,7 @@ export default function MyLeads() {
         assignedTo: selectedLeadForContact.assignedTo,
         date: callLaterDate,
         time: callLaterTime || "12:00",
-        reason: contactSummary,
+        reason: summary,
         status: "Scheduled" as const,
         followUpType: callLaterType,
       };
@@ -178,13 +192,6 @@ export default function MyLeads() {
     contactModal.closeModal();
     successModal.openModal();
   };
-
-  const statusOptions = [
-    { value: "all", label: "All statuses" },
-    { value: "Contacted", label: "Contacted" },
-    { value: "Qualified", label: "Qualified" },
-    { value: "Lost", label: "Lost" },
-  ];
 
   const handleSort = (field: keyof Lead) => {
     if (sortField === field) {
@@ -201,7 +208,7 @@ export default function MyLeads() {
     if (activeTab === "new") {
       result = result.filter((l) => l.status === "New");
     } else {
-      result = result.filter((l) => l.status === "Contacted" || l.status === "Qualified" || l.status === "Lost");
+      result = result.filter((l) => l.status === "Contacted");
     }
 
     if (searchQuery.trim()) {
@@ -214,10 +221,6 @@ export default function MyLeads() {
           l.phone.toLowerCase().includes(q) ||
           l.status.toLowerCase().includes(q)
       );
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter((l) => l.status === statusFilter);
     }
 
     result.sort((a, b) => {
@@ -234,7 +237,7 @@ export default function MyLeads() {
     });
 
     return result;
-  }, [leads, activeTab, searchQuery, statusFilter, sortField, sortOrder]);
+  }, [leads, activeTab, searchQuery, sortField, sortOrder]);
 
   const paginatedLeads = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
@@ -269,10 +272,10 @@ export default function MyLeads() {
   return (
     <>
       <PageMeta
-        title={isAdmin ? "All Leads | SaiFlow" : "My Leads | SaiFlow"}
-        description={isAdmin ? "View all leads in SaiFlow CRM." : "View and contact your leads in SaiFlow CRM."}
+        title={isAdmin ? "Contacts | SaiFlow" : "Contacts | SaiFlow"}
+        description={isAdmin ? "View Contacts in SaiFlow CRM." : "View and contact your leads in SaiFlow CRM."}
       />
-      <PageBreadcrumb pageTitle={isAdmin ? "All Leads" : "My Leads"} />
+      <PageBreadcrumb pageTitle={isAdmin ? "Contacts" : "Contacts"} />
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 dark:border-white/[0.05] mb-5">
@@ -280,13 +283,11 @@ export default function MyLeads() {
           onClick={() => {
             setActiveTab("new");
             setCurrentPage(1);
-            setStatusFilter("all");
           }}
-          className={`pb-3 text-sm font-semibold border-b-2 px-4 cursor-pointer transition-colors ${
-            activeTab === "new"
-              ? "border-brand-500 text-brand-500 dark:border-brand-400 dark:text-brand-400"
-              : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
-          }`}
+          className={`pb-3 text-sm font-semibold border-b-2 px-4 cursor-pointer transition-colors ${activeTab === "new"
+            ? "border-brand-500 text-brand-500 dark:border-brand-400 dark:text-brand-400"
+            : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+            }`}
         >
           {isAdmin ? "New Leads" : "My New Leads"}
         </button>
@@ -294,13 +295,11 @@ export default function MyLeads() {
           onClick={() => {
             setActiveTab("contacted");
             setCurrentPage(1);
-            setStatusFilter("all");
           }}
-          className={`pb-3 text-sm font-semibold border-b-2 px-4 cursor-pointer transition-colors ${
-            activeTab === "contacted"
-              ? "border-brand-500 text-brand-500 dark:border-brand-400 dark:text-brand-400"
-              : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
-          }`}
+          className={`pb-3 text-sm font-semibold border-b-2 px-4 cursor-pointer transition-colors ${activeTab === "contacted"
+            ? "border-brand-500 text-brand-500 dark:border-brand-400 dark:text-brand-400"
+            : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+            }`}
         >
           {isAdmin ? "Contacted Leads" : "My Contacted Leads"}
         </button>
@@ -317,47 +316,6 @@ export default function MyLeads() {
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             />
           </div>
-
-          {activeTab === "contacted" && (
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setIsStatusOpen(!isStatusOpen);
-                }}
-                className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
-              >
-                <span className="truncate">
-                  {statusOptions.find((o) => o.value === statusFilter)?.label}
-                </span>
-                <ChevronDownIcon className="w-4 h-4 text-gray-500 shrink-0 ml-1" />
-              </button>
-            <Dropdown
-              isOpen={isStatusOpen}
-              onClose={() => setIsStatusOpen(false)}
-              className="left-0 right-auto w-44 p-1 mt-2"
-            >
-              <ul className="flex flex-col gap-0.5">
-                {statusOptions.map((opt) => (
-                  <li key={opt.value}>
-                    <DropdownItem
-                      onItemClick={() => {
-                        setStatusFilter(opt.value);
-                        setCurrentPage(1);
-                        setIsStatusOpen(false);
-                      }}
-                      className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${statusFilter === opt.value
-                        ? "bg-brand-500 text-white font-medium"
-                        : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
-                        }`}
-                    >
-                      {opt.label}
-                    </DropdownItem>
-                  </li>
-                ))}
-              </ul>
-            </Dropdown>
-          </div>
-          )}
         </div>
       </div>
 
@@ -423,21 +381,9 @@ export default function MyLeads() {
                       {lead.phone}
                     </TableCell>
                     <TableCell className="px-5 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => handleOpenContactModal(lead)}
-                        title="Click to change status"
-                        className="group inline-flex items-center cursor-pointer rounded-full transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none"
-                      >
-                        <Badge
-                          size="sm"
-                          color={getStatusColor(lead.status)}
-                          endIcon={
-                            <ChevronDownIcon className="w-3 h-3 opacity-70 group-hover:opacity-100 transition-transform duration-200 group-hover:translate-y-0.5" />
-                          }
-                        >
-                          <span className="font-semibold">{lead.status}</span>
-                        </Badge>
-                      </button>
+                      <Badge size="sm" color={getStatusColor(lead.status)}>
+                        <span className="font-semibold">{lead.status}</span>
+                      </Badge>
                     </TableCell>
                     {activeTab === "new" && (
                       <TableCell className="px-5 py-4 whitespace-nowrap">
@@ -450,22 +396,46 @@ export default function MyLeads() {
                       {lead.assignedTo}
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <div className="flex items-center gap-2">
+                      {activeTab === "new" ? (
                         <button
-                          onClick={() => navigate(`/contacts/${lead.id}`)}
-                          title="View lead details"
-                          className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
+                          onClick={() => handleCallLead(lead)}
+                          title="Call lead — mark as Contacted"
+                          className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
                         >
-                          <FiEye className="size-4" />
+                          <FiPhone className="size-4" />
                         </button>
-                        <button
-                          onClick={() => handleOpenContactModal(lead)}
-                          title="Log contact outcome"
-                          className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
-                        >
-                          <FiCheckCircle className="size-4" />
-                        </button>
-                      </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => navigate(`/connect/${lead.id}`)}
+                            title="View lead details"
+                            className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
+                          >
+                            <FiEye className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenOutcomeModal(lead, "Interested")}
+                            title="Mark as Interested"
+                            className="p-1.5 text-success-600 hover:text-success-700 hover:bg-success-50 dark:text-success-400 dark:hover:bg-success-500/10 rounded-lg transition cursor-pointer"
+                          >
+                            <FiCheckCircle className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenOutcomeModal(lead, "Call Later")}
+                            title="Call Later — schedule follow-up"
+                            className="p-1.5 text-warning-600 hover:text-warning-700 hover:bg-warning-50 dark:text-warning-400 dark:hover:bg-warning-500/10 rounded-lg transition cursor-pointer"
+                          >
+                            <FiClock className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenOutcomeModal(lead, "Not Interested")}
+                            title="Mark as Not Interested"
+                            className="p-1.5 text-error-600 hover:text-error-700 hover:bg-error-50 dark:text-error-400 dark:hover:bg-error-500/10 rounded-lg transition cursor-pointer"
+                          >
+                            <FiXCircle className="size-4" />
+                          </button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -493,181 +463,129 @@ export default function MyLeads() {
         )}
       </div>
 
-      {/* Contact Outcome Modal */}
+      {/* Outcome Modal (outcome is preset by the clicked action) */}
       <Modal isOpen={contactModal.isOpen} onClose={contactModal.closeModal} className="max-w-[500px] m-4">
         <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
-          {/* Step 1: Select outcome */}
-          {contactResult === null && (
-            <>
-              <div className="pr-10 border-b border-gray-150 pb-4 mb-6 dark:border-gray-800">
-                <h4 className="text-xl font-semibold text-gray-800 dark:text-white/90">
-                  Log contact outcome
-                </h4>
-              </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                Select the client response after the communication attempt:
-              </p>
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => setContactResult("Interested")}
-                  className="flex items-center justify-between w-full rounded-xl border border-gray-200 px-4 py-3.5 hover:bg-success-50 dark:hover:bg-success-500/10 hover:border-success-500 transition text-left cursor-pointer group"
-                >
-                  <div>
-                    <span className="block text-sm font-semibold text-gray-800 dark:text-white/90 group-hover:text-success-600 dark:group-hover:text-success-400">
-                      Interested
-                    </span>
-                    <span className="block text-xs text-gray-400 mt-0.5">
-                      Client is interested, mark lead as Qualified.
-                    </span>
-                  </div>
-                  <FiCheckCircle className="size-5 text-gray-300 group-hover:text-success-500 transition" />
-                </button>
+          {/* Header */}
+          <div className="pr-10 border-b border-gray-150 pb-4 mb-6 dark:border-gray-800">
+            <div className="flex items-center gap-2">
+              {contactResult === "Interested" && <FiCheckCircle className="size-5 text-success-500" />}
+              {contactResult === "Call Later" && <FiClock className="size-5 text-warning-500" />}
+              {contactResult === "Not Interested" && <FiXCircle className="size-5 text-error-500" />}
+              <h4 className="text-xl font-semibold text-gray-800 dark:text-white/90">
+                {contactResult === "Interested" && "Mark as Interested"}
+                {contactResult === "Call Later" && "Schedule follow-up"}
+                {contactResult === "Not Interested" && "Mark as Not Interested"}
+              </h4>
+            </div>
+          </div>
 
-                <button
-                  onClick={() => setContactResult("Call Later")}
-                  className="flex items-center justify-between w-full rounded-xl border border-gray-200 px-4 py-3.5 hover:bg-warning-50 dark:hover:bg-warning-500/10 hover:border-warning-500 transition text-left cursor-pointer group"
-                >
-                  <div>
-                    <span className="block text-sm font-semibold text-gray-800 dark:text-white/90 group-hover:text-warning-600 dark:group-hover:text-warning-400">
-                      Call Later
-                    </span>
-                    <span className="block text-xs text-gray-400 mt-0.5">
-                      Client is busy, schedule a callback follow-up.
-                    </span>
-                  </div>
-                  <FiClock className="size-5 text-gray-300 group-hover:text-warning-500 transition" />
-                </button>
-
-                <button
-                  onClick={() => setContactResult("Not Interested")}
-                  className="flex items-center justify-between w-full rounded-xl border border-gray-200 px-4 py-3.5 hover:bg-error-50 dark:hover:bg-error-500/10 hover:border-error-500 transition text-left cursor-pointer group"
-                >
-                  <div>
-                    <span className="block text-sm font-semibold text-gray-800 dark:text-white/90 group-hover:text-error-600 dark:group-hover:text-error-400">
-                      Not Interested
-                    </span>
-                    <span className="block text-xs text-gray-400 mt-0.5">
-                      Client declined interest, provide reason details.
-                    </span>
-                  </div>
-                  <FiXCircle className="size-5 text-gray-300 group-hover:text-error-500 transition" />
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* Step 2: Summary + confirm */}
-          {contactResult !== null && (
-            <>
-              <div className="pr-10 border-b border-gray-150 pb-4 mb-6 dark:border-gray-800">
-                <div className="flex items-center gap-2">
-                  {contactResult === "Interested" && <FiCheckCircle className="size-5 text-success-500" />}
-                  {contactResult === "Call Later" && <FiClock className="size-5 text-warning-500" />}
-                  {contactResult === "Not Interested" && <FiXCircle className="size-5 text-error-500" />}
-                  <h4 className="text-xl font-semibold text-gray-800 dark:text-white/90">
-                    {contactResult === "Interested" && "Interested"}
-                    {contactResult === "Call Later" && "Schedule follow-up"}
-                    {contactResult === "Not Interested" && "Not interested"}
-                  </h4>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {/* Summary field */}
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Summary <span className="text-error-500">*</span>
-                  </label>
-                  <textarea
-                    value={contactSummary}
-                    onChange={(e) => setContactSummary(e.target.value)}
-                    placeholder={
-                      contactResult === "Interested"
-                        ? "Describe what the client was interested in..."
-                        : contactResult === "Call Later"
-                          ? "Why does the client need more time?..."
-                          : "Provide reason details for declining..."
-                    }
-                    className="w-full min-h-[100px] rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                  />
-                </div>
-
-                {/* Call Later extra fields */}
-                {contactResult === "Call Later" && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        Follow-up Type <span className="text-error-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <select
-                          value={callLaterType}
-                          onChange={(e) => setCallLaterType(e.target.value)}
-                          className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
-                          style={{
-                            backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-                            backgroundPosition: "right 0.75rem center",
-                            backgroundSize: "1.1rem",
-                            backgroundRepeat: "no-repeat",
-                          }}
-                        >
-                          {followUpTypeOptions.map((type) => (
-                            <option
-                              key={type}
-                              value={type}
-                              className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 py-1"
-                            >
-                              {type}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <DatePicker
-                          id="call-later-date"
-                          label="Follow-up date"
-                          required={true}
-                          defaultDate={callLaterDate}
-                          onChange={(_, dateStr) => setCallLaterDate(dateStr)}
-                        />
-                        {!callLaterDate && (
-                          <span className="mt-1 text-xs text-error-500 block">Required</span>
-                        )}
-                      </div>
-                      <div>
-                        <DatePicker
-                          id="call-later-time"
-                          mode="time"
-                          label="Follow-up time"
-                          required={true}
-                          defaultDate={callLaterTime}
-                          onChange={(_, timeStr) => setCallLaterTime(timeStr)}
-                        />
-                        {!callLaterTime && (
-                          <span className="mt-1 text-xs text-error-500 block">Required</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+          {/* Lead info banner */}
+          {selectedLeadForContact && (
+            <div className="mb-5 rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3.5 border border-gray-150 dark:border-gray-700/60">
+              <div className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                {selectedLeadForContact.company}
+                {selectedLeadForContact.contactPerson && (
+                  <span className="font-normal text-gray-500 dark:text-gray-400"> ({selectedLeadForContact.contactPerson})</span>
                 )}
               </div>
-
-              <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-100 dark:border-white/[0.05]">
-                <Button size="sm" variant="outline" onClick={() => setContactResult(null)}>
-                  Back
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSaveContactOutcome}
-                >
-                  Save
-                </Button>
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {selectedLeadForContact.phone}
               </div>
-            </>
+            </div>
           )}
+
+          <div className="space-y-4">
+            {/* Summary field (optional) */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Summary
+              </label>
+              <textarea
+                value={contactSummary}
+                onChange={(e) => setContactSummary(e.target.value)}
+                placeholder={
+                  contactResult === "Interested"
+                    ? "Describe what the client was interested in..."
+                    : contactResult === "Call Later"
+                      ? "Why does the client need more time?..."
+                      : "Provide reason details for declining..."
+                }
+                className="w-full min-h-[100px] rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              />
+            </div>
+
+            {/* Call Later extra fields */}
+            {contactResult === "Call Later" && (
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    Follow-up Type <span className="text-error-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={callLaterType}
+                      onChange={(e) => setCallLaterType(e.target.value)}
+                      className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundPosition: "right 0.75rem center",
+                        backgroundSize: "1.1rem",
+                        backgroundRepeat: "no-repeat",
+                      }}
+                    >
+                      {followUpTypeOptions.map((type) => (
+                        <option
+                          key={type}
+                          value={type}
+                          className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 py-1"
+                        >
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <DatePicker
+                      id="call-later-date"
+                      label="Follow-up date"
+                      required={true}
+                      defaultDate={callLaterDate}
+                      onChange={(_, dateStr) => setCallLaterDate(dateStr)}
+                    />
+                    {!callLaterDate && (
+                      <span className="mt-1 text-xs text-error-500 block">Required</span>
+                    )}
+                  </div>
+                  <div>
+                    <DatePicker
+                      id="call-later-time"
+                      mode="time"
+                      label="Follow-up time"
+                      required={true}
+                      defaultDate={callLaterTime}
+                      onChange={(_, timeStr) => setCallLaterTime(timeStr)}
+                    />
+                    {!callLaterTime && (
+                      <span className="mt-1 text-xs text-error-500 block">Required</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-100 dark:border-white/[0.05]">
+            <Button size="sm" variant="outline" onClick={contactModal.closeModal}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSaveContactOutcome}>
+              Save
+            </Button>
+          </div>
         </div>
       </Modal>
 

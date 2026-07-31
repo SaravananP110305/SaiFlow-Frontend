@@ -62,7 +62,7 @@ export default function LeadList() {
   const [sortField, setSortField] = useState<keyof Lead>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  
+
   const [industryFilter, setIndustryFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [isIndustryOpen, setIsIndustryOpen] = useState(false);
@@ -301,14 +301,14 @@ export default function LeadList() {
         <span className="flex flex-col">
           <ChevronUpIcon
             className={`w-3 h-3 -mb-1 transition-colors ${isActive && sortOrder === "asc"
-                ? "text-brand-500"
-                : "text-gray-300 dark:text-gray-600"
+              ? "text-brand-500"
+              : "text-gray-300 dark:text-gray-600"
               }`}
           />
           <ChevronDownIcon
             className={`w-3 h-3 transition-colors ${isActive && sortOrder === "desc"
-                ? "text-brand-500"
-                : "text-gray-300 dark:text-gray-600"
+              ? "text-brand-500"
+              : "text-gray-300 dark:text-gray-600"
               }`}
           />
         </span>
@@ -320,7 +320,7 @@ export default function LeadList() {
     <>
       <PageMeta
         title="Leads | SaiFlow"
-        description="View and manage all leads in SaiFlow CRM."
+        description="View and manage Contact in SaiFlow CRM."
       />
       <PageBreadcrumb pageTitle="Leads" />
 
@@ -369,8 +369,8 @@ export default function LeadList() {
                           setIsAssigneeOpen(false);
                         }}
                         className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${assigneeFilter === opt.value
-                            ? "bg-brand-500 text-white font-medium"
-                            : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
+                          ? "bg-brand-500 text-white font-medium"
+                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                           }`}
                       >
                         {opt.label}
@@ -411,8 +411,8 @@ export default function LeadList() {
                           setIsIndustryOpen(false);
                         }}
                         className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${industryFilter === opt.value
-                            ? "bg-brand-500 text-white font-medium"
-                            : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
+                          ? "bg-brand-500 text-white font-medium"
+                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                           }`}
                       >
                         {opt.label}
@@ -453,8 +453,8 @@ export default function LeadList() {
                           setIsSourceOpen(false);
                         }}
                         className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${sourceFilter === opt.value
-                            ? "bg-brand-500 text-white font-medium"
-                            : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
+                          ? "bg-brand-500 text-white font-medium"
+                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                           }`}
                       >
                         {opt.label}
@@ -843,8 +843,8 @@ export default function LeadList() {
               if (file) setUploadedFile(file);
             }}
             className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed py-10 px-6 text-center transition-colors cursor-pointer ${dragOver
-                ? "border-brand-400 bg-brand-50 dark:bg-brand-500/10"
-                : "border-gray-200 hover:border-brand-300 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-white/5"
+              ? "border-brand-400 bg-brand-50 dark:bg-brand-500/10"
+              : "border-gray-200 hover:border-brand-300 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-white/5"
               }`}
             onClick={() => document.getElementById("excel-file-input")?.click()}
           >

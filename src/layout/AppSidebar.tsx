@@ -75,8 +75,8 @@ const navItems: NavItem[] = [
     name: "Connect",
     icon: <MdCall className="size-5" />,
     subItems: [
-      { name: "Contact", path: "/contacts/my-leads" },
-      { name: "Follow-ups", path: "/contacts/follow-ups" },
+      { name: "Contacts", path: "/connect/contacts" },
+      { name: "Follow-ups", path: "/connect/follow-ups" },
     ],
   },
   {
@@ -168,7 +168,7 @@ const AppSidebar: React.FC = () => {
   const isMasterPath = location.pathname.startsWith("/master/");
   const isUserMgmtPath = location.pathname.startsWith("/users") || location.pathname.startsWith("/roles");
   const isLeadMgmtPath = location.pathname.startsWith("/leads");
-  const isConnectPath = location.pathname.startsWith("/contacts");
+  const isConnectPath = location.pathname.startsWith("/connect");
   const isReportsPath = location.pathname.startsWith("/reports");
 
   const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
@@ -186,7 +186,7 @@ const AppSidebar: React.FC = () => {
       setOpenSubMenus({ "Manage Users": true });
     } else if (location.pathname.startsWith("/leads")) {
       setOpenSubMenus({ "Leads": true });
-    } else if (location.pathname.startsWith("/contacts")) {
+    } else if (location.pathname.startsWith("/connect")) {
       setOpenSubMenus({ "Connect": true });
     } else if (location.pathname.startsWith("/reports")) {
       setOpenSubMenus({ "Reports": true });
@@ -209,11 +209,11 @@ const AppSidebar: React.FC = () => {
     (subItems?: { path: string }[]) => {
       if (!subItems) return false;
       return subItems.some((sub) => {
-        if (sub.path === "/contacts/my-leads") {
-          return location.pathname.startsWith("/contacts") && !location.pathname.startsWith("/contacts/follow-ups");
+        if (sub.path === "/connect/contacts") {
+          return location.pathname.startsWith("/connect") && !location.pathname.startsWith("/connect/follow-ups");
         }
-        if (sub.path === "/contacts/follow-ups") {
-          return location.pathname.startsWith("/contacts/follow-ups");
+        if (sub.path === "/connect/follow-ups") {
+          return location.pathname.startsWith("/connect/follow-ups");
         }
         return location.pathname.startsWith(sub.path);
       });
@@ -305,10 +305,10 @@ const AppSidebar: React.FC = () => {
                         <ul className="pl-9 flex flex-col gap-1 pb-1">
                           {subItems.map((sub) => {
                             const subActive =
-                              sub.path === "/contacts/my-leads"
-                                ? location.pathname.startsWith("/contacts") && !location.pathname.startsWith("/contacts/follow-ups")
-                                : sub.path === "/contacts/follow-ups"
-                                  ? location.pathname.startsWith("/contacts/follow-ups")
+                              sub.path === "/connect/contacts"
+                                ? location.pathname.startsWith("/connect") && !location.pathname.startsWith("/connect/follow-ups")
+                                : sub.path === "/connect/follow-ups"
+                                  ? location.pathname.startsWith("/connect/follow-ups")
                                   : location.pathname.startsWith(sub.path);
                             return (
                               <li key={sub.name}>
