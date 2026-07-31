@@ -3,9 +3,9 @@ import { useNavigate } from "react-router";
 import { getStorage, setStorage } from "../../../utils/storage";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
-import Badge from "../../../components/ui/badge/Badge";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
+import Switch from "../../../components/form/switch/Switch";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
 import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
@@ -259,6 +259,16 @@ export default function UserRoleManagement() {
     deleteModal.closeModal();
   };
 
+  const handleToggleStatus = (role: Role, checked: boolean) => {
+    const newStatus: Role["status"] = checked ? "Active" : "Inactive";
+    const updated = roles.map((r) =>
+      r.id === role.id ? { ...r, status: newStatus } : r
+    );
+    setRoles(updated);
+    setStorage("saiflow_roles", updated);
+    showToast(`"${role.roleName}" marked as ${newStatus}.`, "success");
+  };
+
   // Sorting columns
   const handleSort = (field: keyof Role) => {
     if (sortField === field) {
@@ -466,9 +476,15 @@ export default function UserRoleManagement() {
                       {role.roleName}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 text-center">
-                      <Badge size="sm" color={role.status === "Active" ? "success" : "error"}>
-                        {role.status}
-                      </Badge>
+                      <div className="flex items-center justify-center">
+                        <Switch
+                          key={`${role.id}-${role.status}`}
+                          label=""
+                          defaultChecked={role.status === "Active"}
+                          color="success"
+                          onChange={(checked) => handleToggleStatus(role, checked)}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 text-center">
                       <div className="flex items-center justify-center gap-2">

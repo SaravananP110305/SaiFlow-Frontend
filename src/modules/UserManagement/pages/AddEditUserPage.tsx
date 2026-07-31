@@ -30,7 +30,6 @@ interface UserFormValues {
   phone: string;
   role: string;
   department: string;
-  status: "Active" | "Inactive";
   password?: string;
   confirmPassword?: string;
 }
@@ -79,7 +78,6 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
       phone: "",
       role: "",
       department: "",
-      status: "Active",
       password: "",
       confirmPassword: "",
     },
@@ -100,7 +98,6 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
           phone: found.phone.replace(/\D/g, "").slice(-10),
           role: found.role,
           department: found.department || "",
-          status: found.status,
         });
       } else {
         showToast("User not found.", "error");
@@ -116,7 +113,6 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
         phone: "",
         role: "",
         department: "",
-        status: "Active",
         password: "",
         confirmPassword: "",
       });
@@ -138,7 +134,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
         phone: data.phone.trim(),
         role: data.role,
         department: data.department,
-        status: data.status,
+        status: "Active",
         password: data.password?.trim() || "Password@123",
       };
       const updated = [...users, newUser];
@@ -154,7 +150,6 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
               phone: data.phone.trim(),
               role: data.role,
               department: data.department,
-              status: data.status,
             }
           : u
       );
@@ -415,32 +410,6 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                 )}
               </div>
 
-              {/* Status */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Status <span className="text-error-500">*</span>
-                </label>
-                <Controller
-                  name="status"
-                  control={control}
-                  rules={{ required: "Status is required" }}
-                  render={({ field: { value, onChange } }) => (
-                    <Select
-                      options={[
-                        { value: "Active", label: "Active" },
-                        { value: "Inactive", label: "Inactive" },
-                      ]}
-                      placeholder="Select status"
-                      defaultValue={value}
-                      disabled={mode === "view"}
-                      onChange={onChange}
-                    />
-                  )}
-                />
-                {errors.status && (
-                  <span className="mt-1.5 text-xs text-error-600 block">{errors.status.message}</span>
-                )}
-              </div>
             </div>
           </div>
 

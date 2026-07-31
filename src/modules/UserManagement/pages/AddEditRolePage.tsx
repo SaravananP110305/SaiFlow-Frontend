@@ -5,7 +5,6 @@ import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
-import Select from "../../../components/form/Select";
 import Checkbox from "../../../components/form/input/Checkbox";
 import { getStorage, setStorage } from "../../../utils/storage";
 import { useToast } from "../../../hooks/useToast";
@@ -26,7 +25,6 @@ import {
 
 interface RoleFormValues {
   roleName: string;
-  status: "Active" | "Inactive";
   permissions: Permission[];
 }
 
@@ -53,7 +51,6 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
   } = useForm<RoleFormValues>({
     defaultValues: {
       roleName: "",
-      status: "Active",
       permissions: defaultPermissionsList,
     },
   });
@@ -68,7 +65,6 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
         setRole(found);
         reset({
           roleName: found.roleName,
-          status: found.status,
           permissions: syncPermissions(found.permissions),
         });
       } else {
@@ -79,7 +75,6 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
     } else {
       reset({
         roleName: "",
-        status: "Active",
         permissions: defaultPermissionsList.map((p) => ({ ...p })),
       });
     }
@@ -109,7 +104,7 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
       const newRole: Role = {
         id: nextId,
         roleName: data.roleName.trim(),
-        status: data.status,
+        status: "Active",
         permissions: data.permissions,
       };
       const updated = [...roles, newRole];
@@ -121,7 +116,6 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
           ? {
             ...r,
             roleName: data.roleName.trim(),
-            status: data.status,
             permissions: data.permissions,
           }
           : r
@@ -185,30 +179,6 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
                   <span className="mt-1.5 text-xs text-error-600 block">{errors.roleName.message}</span>
                 )}
               </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Status <span className="text-error-500">*</span>
-                </label>
-                <Controller
-                  name="status"
-                  control={control}
-                  rules={{ required: "Status is required" }}
-                  render={({ field: { value, onChange } }) => (
-                    <Select
-                      options={[
-                        { value: "Active", label: "Active" },
-                        { value: "Inactive", label: "Inactive" },
-                      ]}
-                      placeholder="Select status"
-                      defaultValue={value}
-                      disabled={mode === "view"}
-                      onChange={onChange}
-                    />
-                  )}
-                />
-              </div>
-
 
             </div>
           </div>

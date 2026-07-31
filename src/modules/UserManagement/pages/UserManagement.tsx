@@ -3,9 +3,9 @@ import { useNavigate } from "react-router";
 import { getStorage, setStorage } from "../../../utils/storage";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
-import Badge from "../../../components/ui/badge/Badge";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
+import Switch from "../../../components/form/switch/Switch";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
 import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
@@ -127,6 +127,16 @@ export default function UserManagement() {
     deleteModal.closeModal();
   };
 
+  const handleToggleStatus = (user: User, checked: boolean) => {
+    const newStatus: User["status"] = checked ? "Active" : "Inactive";
+    const updated = users.map((u) =>
+      u.id === user.id ? { ...u, status: newStatus } : u
+    );
+    setUsers(updated);
+    setStorage("saiflow_users", updated);
+    showToast(`"${user.name}" marked as ${newStatus}.`, "success");
+  };
+
   // Sorting columns
   const handleSort = (field: keyof User) => {
     if (sortField === field) {
@@ -195,12 +205,13 @@ export default function UserManagement() {
   const totalPages = Math.ceil(totalItems / rowsPerPage);
 
   // Sorting header icons indicator renderer
-  const renderSortHeader = (label: string, field: keyof User) => {
+  const renderSortHeader = (label: string, field: keyof User, centered = false) => {
     const isActive = sortField === field;
     return (
       <button
         onClick={() => handleSort(field)}
-        className="flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer"
+        className={`flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer ${centered ? "mx-auto justify-center" : ""
+          }`}
       >
         {label}
         <span className="flex flex-col">
@@ -396,9 +407,9 @@ export default function UserManagement() {
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400"
                 >
-                  {renderSortHeader("Status", "status")}
+                  {renderSortHeader("Status", "status", true)}
                 </TableCell>
                 <TableCell
                   isHeader
@@ -436,10 +447,16 @@ export default function UserManagement() {
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">
                       {user.department}
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">
-                      <Badge size="sm" color={user.status === "Active" ? "success" : "error"}>
-                        {user.status}
-                      </Badge>
+                    <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 text-center">
+                      <div className="flex items-center justify-center">
+                        <Switch
+                          key={`${user.id}-${user.status}`}
+                          label=""
+                          defaultChecked={user.status === "Active"}
+                          color="success"
+                          onChange={(checked) => handleToggleStatus(user, checked)}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">
                       <div className="flex items-center gap-2">
