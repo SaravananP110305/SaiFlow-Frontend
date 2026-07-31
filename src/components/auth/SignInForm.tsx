@@ -4,15 +4,14 @@ import { useForm, Controller } from "react-hook-form";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
-import Checkbox from "../form/input/Checkbox";
 import Button from "../ui/button/Button";
 import { useToast } from "../../hooks/useToast";
 import { getStorage, setStorage } from "../../utils/storage";
+import logo from "/images/logo/Saiflow.png";
 
 interface SignInFormValues {
   email: string;
   password: string;
-  keepLoggedIn: boolean;
 }
 
 export default function SignInForm() {
@@ -29,7 +28,6 @@ export default function SignInForm() {
     defaultValues: {
       email: "",
       password: "",
-      keepLoggedIn: false,
     },
   });
 
@@ -89,14 +87,14 @@ export default function SignInForm() {
   };
 
   return (
-    <div className="flex flex-col justify-center flex-1 w-full max-w-md px-6 mx-auto lg:px-0">
-      <div className="mb-8">
-        <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-          Sign in
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Enter your credentials to access your account.
-        </p>
+    <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8 dark:border-gray-700 dark:bg-gray-900/50">
+      {/* SaiFlow logo */}
+      <div className="flex justify-center mb-8">
+        <img
+          src={logo}
+          alt="Logo"
+          className="w-32 h-auto dark:invert dark:hue-rotate-180"
+        />
       </div>
 
       <form onSubmit={handleSubmit(onSubmit, onError)}>
@@ -160,27 +158,6 @@ export default function SignInForm() {
             {errors.password && (
               <span className="mt-1.5 text-xs text-error-600 block">{errors.password.message}</span>
             )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Controller
-                name="keepLoggedIn"
-                control={control}
-                render={({ field: { value, onChange } }) => (
-                  <Checkbox checked={value} onChange={onChange} />
-                )}
-              />
-              <span className="block font-normal text-gray-700 text-theme-sm dark:text-gray-400">
-                Keep me logged in
-              </span>
-            </div>
-            {/*<Link
-              to="/forgot-password"
-              className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400"
-            >
-              Forgot password?
-            </Link>*/}
           </div>
 
           <Button type="submit" className="w-full" size="sm">

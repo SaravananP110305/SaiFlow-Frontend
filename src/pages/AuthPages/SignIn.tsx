@@ -9,7 +9,7 @@ export default function SignIn() {
         title="Sign In | SaiFlow"
         description="Sign in to your SaiFlow account to manage leads and schedule meetings."
       />
-      <AuthLayout>
+      <AuthLayout hideLogo>
         <SignInForm />
       </AuthLayout>
     </>

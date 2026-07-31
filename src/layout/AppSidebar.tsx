@@ -74,7 +74,7 @@ const navItems: NavItem[] = [
     name: "Connect",
     icon: <MdCall className="size-5" />,
     subItems: [
-      { name: "All Leads", path: "/contacts/my-leads" },
+      { name: "Contact", path: "/contacts/my-leads" },
       { name: "Follow-ups", path: "/contacts/follow-ups" },
     ],
   },
@@ -328,7 +328,7 @@ const AppSidebar: React.FC = () => {
                                       <span className="inline-flex rounded-full h-2 w-2 bg-gray-300 dark:bg-gray-700"></span>
                                     )}
                                   </span>
-                                  {sub.name === "All Leads" && !isAdmin ? "My Leads" : sub.name}
+                                  {sub.name}
                                 </Link>
                               </li>
                             );
