@@ -141,7 +141,6 @@ export default function AddEditMasterPage() {
   const config = type ? MASTER_CONFIGS[type] : null;
 
   const [name, setName] = useState("");
-  const [status, setStatus] = useState<"Active" | "Inactive">("Active");
   const [parentId, setParentId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [parentError, setParentError] = useState<string | null>(null);
@@ -159,7 +158,6 @@ export default function AddEditMasterPage() {
       const item = items.find((i) => String(i.id) === String(id));
       if (item) {
         setName(item.name);
-        setStatus(item.status);
         if (item.countryId) setParentId(item.countryId);
         else if (item.stateId) setParentId(item.stateId);
         else if (item.departmentId) setParentId(item.departmentId);
@@ -215,7 +213,6 @@ export default function AddEditMasterPage() {
         const updatedItem: any = {
           ...updated[idx],
           name: name.trim(),
-          status,
         };
         if (config.parentType) {
           updatedItem[parentKey] = Number(parentId);
@@ -228,7 +225,7 @@ export default function AddEditMasterPage() {
       const newItem: any = {
         id: nextId,
         name: name.trim(),
-        status,
+        status: "Active",
       };
       if (config.parentType) {
         newItem[parentKey] = Number(parentId);
@@ -324,20 +321,6 @@ export default function AddEditMasterPage() {
               )}
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Status <span className="text-error-500">*</span>
-              </label>
-              <Select
-                options={[
-                  { value: "Active", label: "Active" },
-                  { value: "Inactive", label: "Inactive" },
-                ]}
-                placeholder="Select status"
-                defaultValue={status}
-                onChange={(val) => setStatus(val as "Active" | "Inactive")}
-              />
-            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/[0.05]">

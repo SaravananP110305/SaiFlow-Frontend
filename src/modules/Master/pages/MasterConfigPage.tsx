@@ -3,8 +3,8 @@ import { useNavigate, useLocation } from "react-router";
 import { getStorage, setStorage } from "../../../utils/storage";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
-import Badge from "../../../components/ui/badge/Badge";
 import Button from "../../../components/ui/button/Button";
+import Switch from "../../../components/form/switch/Switch";
 import Input from "../../../components/form/input/InputField";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
@@ -103,6 +103,16 @@ export default function MasterConfigPage({
     deleteModal.openModal();
   };
 
+  const handleToggleStatus = (item: MasterItem, checked: boolean) => {
+    const newStatus: MasterItem["status"] = checked ? "Active" : "Inactive";
+    const updated = items.map((i) =>
+      i.id === item.id ? { ...i, status: newStatus } : i
+    );
+    setItems(updated);
+    setStorage(storageKey, updated);
+    showToast(`"${item.name}" marked as ${newStatus}.`, "success");
+  };
+
   const handleDeleteConfirm = () => {
     if (selectedItem) {
       const currentLeads = getStorage<any[]>("saiflow_leads", []);
@@ -111,20 +121,20 @@ export default function MasterConfigPage({
         const clients = getStorage<any[]>("saiflow_clients", []);
         const users = getStorage<any[]>("saiflow_users", []);
         isUsed = currentLeads.some((l) => l.country === selectedItem.name) ||
-                 clients.some((c) => c.country === selectedItem.name) ||
-                 users.some((u) => u.country === selectedItem.name);
+          clients.some((c) => c.country === selectedItem.name) ||
+          users.some((u) => u.country === selectedItem.name);
       } else if (storageKey === "saiflow_master_states") {
         const clients = getStorage<any[]>("saiflow_clients", []);
         const users = getStorage<any[]>("saiflow_users", []);
         isUsed = currentLeads.some((l) => l.state === selectedItem.name) ||
-                 clients.some((c) => c.state === selectedItem.name) ||
-                 users.some((u) => u.state === selectedItem.name);
+          clients.some((c) => c.state === selectedItem.name) ||
+          users.some((u) => u.state === selectedItem.name);
       } else if (storageKey === "saiflow_master_cities") {
         const clients = getStorage<any[]>("saiflow_clients", []);
         const users = getStorage<any[]>("saiflow_users", []);
         isUsed = currentLeads.some((l) => l.city === selectedItem.name) ||
-                 clients.some((c) => c.city === selectedItem.name) ||
-                 users.some((u) => u.city === selectedItem.name);
+          clients.some((c) => c.city === selectedItem.name) ||
+          users.some((u) => u.city === selectedItem.name);
       } else if (storageKey === "saiflow_master_departments") {
         const users = getStorage<any[]>("saiflow_users", []);
         isUsed = users.some((u) => u.department === selectedItem.name);
@@ -132,14 +142,14 @@ export default function MasterConfigPage({
         const users = getStorage<any[]>("saiflow_users", []);
         const clients = getStorage<any[]>("saiflow_clients", []);
         isUsed = users.some((u) => u.designation === selectedItem.name) ||
-                 clients.some((c) => c.designation === selectedItem.name) ||
-                 currentLeads.some((l) => l.designation === selectedItem.name);
+          clients.some((c) => c.designation === selectedItem.name) ||
+          currentLeads.some((l) => l.designation === selectedItem.name);
       } else if (storageKey === "saiflow_master_lead_sources") {
         isUsed = currentLeads.some((l) => l.source === selectedItem.name);
       } else if (storageKey === "saiflow_master_industries") {
         const clients = getStorage<any[]>("saiflow_clients", []);
         isUsed = currentLeads.some((l) => l.industry === selectedItem.name) ||
-                 clients.some((c) => c.industry === selectedItem.name);
+          clients.some((c) => c.industry === selectedItem.name);
       } else if (storageKey === "saiflow_master_priorities") {
         isUsed = currentLeads.some((l) => l.priority === selectedItem.name);
       } else if (storageKey === "saiflow_master_payment_types") {
@@ -225,25 +235,22 @@ export default function MasterConfigPage({
     return (
       <button
         onClick={() => handleSort(field)}
-        className={`flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer ${
-          centered ? "mx-auto justify-center" : ""
-        }`}
+        className={`flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer ${centered ? "mx-auto justify-center" : ""
+          }`}
       >
         {label}
         <span className="flex flex-col">
           <ChevronUpIcon
-            className={`w-3 h-3 -mb-1 transition-colors ${
-              isActive && sortOrder === "asc"
+            className={`w-3 h-3 -mb-1 transition-colors ${isActive && sortOrder === "asc"
                 ? "text-brand-500"
                 : "text-gray-300 dark:text-gray-600"
-            }`}
+              }`}
           />
           <ChevronDownIcon
-            className={`w-3 h-3 transition-colors ${
-              isActive && sortOrder === "desc"
+            className={`w-3 h-3 transition-colors ${isActive && sortOrder === "desc"
                 ? "text-brand-500"
                 : "text-gray-300 dark:text-gray-600"
-            }`}
+              }`}
           />
         </span>
       </button>
@@ -260,8 +267,8 @@ export default function MasterConfigPage({
       <PageBreadcrumb pageTitle={pageTitle} />
 
       {/* Control Panel Area above Table */}
-      <div className="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center w-full lg:w-auto">
+      <div className="flex flex-col gap-4 mb-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center w-full md:w-auto">
           <div className="w-full sm:w-64">
             <Input
               type="text"
@@ -303,11 +310,10 @@ export default function MasterConfigPage({
                         setCurrentPage(1);
                         setIsStatusFilterOpen(false);
                       }}
-                      className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${
-                        statusFilter === opt.value
+                      className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${statusFilter === opt.value
                           ? "bg-brand-500 text-white font-medium"
                           : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
-                      }`}
+                        }`}
                     >
                       {opt.label}
                     </DropdownItem>
@@ -319,7 +325,7 @@ export default function MasterConfigPage({
         </div>
 
         {/* Primary Action Button */}
-        <div>
+        <div className="shrink-0">
           <Button
             size="sm"
             onClick={handleOpenCreate}
@@ -334,19 +340,19 @@ export default function MasterConfigPage({
       {/* Table Container */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="max-w-full overflow-x-auto custom-scrollbar">
-          <Table>
+          <Table className="w-full">
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] sticky top-0 bg-white dark:bg-gray-900 z-10">
               <TableRow>
-                <TableCell isHeader className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[100px]">
+                <TableCell isHeader className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[70px]">
                   {renderSortHeader("S.No", "id", true)}
                 </TableCell>
-                <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
+                <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[45%]">
                   {renderSortHeader("Name", "name")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[180px]">
                   {renderSortHeader("Status", "status", true)}
                 </TableCell>
-                <TableCell isHeader className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[180px]">
+                <TableCell isHeader className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[120px]">
                   Action
                 </TableCell>
               </TableRow>
@@ -358,19 +364,22 @@ export default function MasterConfigPage({
                     key={item.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                   >
-                    <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 text-center">
+                    <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 text-center w-[70px]">
                       {item.id}
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 font-medium">
+                    <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 font-medium w-[45%]">
                       {item.name}
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 text-center">
-                      <Badge
-                        size="sm"
-                        color={item.status === "Active" ? "success" : "error"}
-                      >
-                        {item.status}
-                      </Badge>
+                    <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 text-center w-[180px]">
+                      <div className="flex items-center justify-center">
+                        <Switch
+                          key={`${item.id}-${item.status}`}
+                          label=""
+                          defaultChecked={item.status === "Active"}
+                          color="success"
+                          onChange={(checked) => handleToggleStatus(item, checked)}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 text-center">
                       <div className="flex items-center justify-center gap-2">
