@@ -311,21 +311,29 @@
 
   &::-webkit-scrollbar-track {
     border-radius: 9999px;
-    background: transparent;
+    background: #f8fafc;
   }
 
   &::-webkit-scrollbar-thumb {
-    background-color: transparent;
+    background-color: #cbd5e1;
     border-radius: 9999px;
     transition: background-color 0.3s ease;
   }
 
   &:hover::-webkit-scrollbar-thumb {
-    background-color: #e5e7eb;
+    background-color: #94a3b8;
   }
 }
-.dark .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background-color: #374151;
+.dark .custom-scrollbar {
+  &::-webkit-scrollbar-track {
+    background: #1e293b;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #475569;
+  }
+  &:hover::-webkit-scrollbar-thumb {
+    background-color: #64748b;
+  }
 }
 
 @layer utilities {
