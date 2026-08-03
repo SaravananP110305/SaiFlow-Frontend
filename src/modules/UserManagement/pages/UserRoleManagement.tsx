@@ -21,11 +21,19 @@ import {
   TableRow,
   TableCell,
 } from "../../../components/ui/table";
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-} from "../../../icons";
+import { ChevronDownIcon, ChevronUpIcon } from "../../../icons";
 import { FiEye, FiEdit, FiTrash2, FiPlus } from "react-icons/fi";
+
+export const permissionActions = [
+  "view",
+  "create",
+  "edit",
+  "delete",
+  "assign",
+  "approve",
+] as const;
+
+export type PermissionAction = (typeof permissionActions)[number];
 
 export interface Permission {
   menu: string;
@@ -36,6 +44,8 @@ export interface Permission {
   create: boolean;
   edit: boolean;
   delete: boolean;
+  assign: boolean;
+  approve: boolean;
 }
 
 export interface Role {
@@ -46,72 +56,102 @@ export interface Role {
   permissions: Permission[];
 }
 
-export const sidebarStructure = [
-  { name: "Dashboard", key: "dashboard" },
-  { name: "Manage Users", key: "users", subItems: ["User Roles", "Users"] },
-  { name: "Leads", key: "leads" },
-  { name: "Connect", key: "connect", subItems: ["Contacts", "Follow-ups"] },
-  { name: "Meetings", key: "meetings" },
-  { name: "Proposals", key: "proposals" },
-  { name: "Clients", key: "clients" },
-  { name: "Reports", key: "reports", subItems: ["Lead report", "Meeting report", "Employee report", "Follow-up report", "Proposal report", "Client report"] },
-  { name: "Settings", key: "settings" }
+interface PermissionModuleConfig {
+  name: string;
+  key: string;
+  actions: PermissionAction[];
+  subItems?: string[];
+}
+
+export const permissionModules: PermissionModuleConfig[] = [
+  { name: "Dashboard", key: "dashboard", actions: ["view"] },
+  { name: "Manage Users", key: "users", actions: ["view", "create", "edit", "delete"], subItems: ["User Roles", "Users"] },
+  { name: "Roles", key: "roles", actions: ["view", "create", "edit", "delete"] },
+  { name: "Leads", key: "leads", actions: ["view", "create", "edit", "delete", "assign"] },
+  { name: "Connect", key: "connect", actions: ["view", "create", "edit", "delete"], subItems: ["Contacts", "Follow-ups"] },
+  { name: "Meetings", key: "meetings", actions: ["view", "create", "edit", "delete"] },
+  { name: "Proposals", key: "proposals", actions: ["view", "create", "edit", "delete", "approve"] },
+  { name: "Clients", key: "clients", actions: ["view", "create", "edit", "approve"] },
+  {
+    name: "Reports",
+    key: "reports",
+    actions: ["view"],
+    subItems: [
+      "Lead report",
+      "Meeting report",
+      "Employee report",
+      "Follow-up report",
+      "Proposal report",
+      "Client report",
+    ],
+  },
+  { name: "Settings", key: "settings", actions: ["view", "edit"] },
 ];
+
+export const sidebarStructure = permissionModules.map(({ name, key, subItems }) => ({
+  name,
+  key,
+  subItems,
+}));
+
+const createEmptyPermission = (
+  menu: string,
+  key: string,
+  overrides?: Partial<Permission>
+): Permission => ({
+  menu,
+  key,
+  view: false,
+  create: false,
+  edit: false,
+  delete: false,
+  assign: false,
+  approve: false,
+  ...overrides,
+});
 
 export const buildDefaultPermissions = (): Permission[] => {
   const list: Permission[] = [];
-  sidebarStructure.forEach(item => {
-    list.push({
-      menu: item.name,
-      key: item.key,
-      view: false,
-      create: false,
-      edit: false,
-      delete: false
+
+  permissionModules.forEach((item) => {
+    list.push(createEmptyPermission(item.name, item.key));
+    item.subItems?.forEach((subItem) => {
+      list.push(
+        createEmptyPermission(
+          subItem,
+          `${item.key}_${subItem.toLowerCase().replace(/\s+/g, "_")}`,
+          {
+            parentKey: item.key,
+            isSubMenu: true,
+          }
+        )
+      );
     });
-    if (item.subItems) {
-      item.subItems.forEach(sub => {
-        list.push({
-          menu: sub,
-          key: `${item.key}_${sub.toLowerCase().replace(/\s+/g, "_")}`,
-          parentKey: item.key,
-          isSubMenu: true,
-          view: false,
-          create: false,
-          edit: false,
-          delete: false
-        });
-      });
-    }
   });
+
   return list;
 };
 
 const defaultPermissionsList = buildDefaultPermissions();
 
-
-
 export const syncPermissions = (savedPermissions: Permission[]): Permission[] => {
   if (!savedPermissions || !Array.isArray(savedPermissions)) {
-    return defaultPermissionsList.map(p => ({ ...p }));
+    return defaultPermissionsList.map((permission) => ({ ...permission }));
   }
 
-  return defaultPermissionsList.map(defaultPerm => {
-    const saved = savedPermissions.find(p => p.key === defaultPerm.key) || savedPermissions.find(p => p.menu === defaultPerm.menu);
-    if (saved) {
-      return {
-        ...defaultPerm,
-        view: saved.view,
-        create: saved.create,
-        edit: saved.edit,
-        delete: saved.delete
-      };
-    }
-    return { ...defaultPerm };
+  return defaultPermissionsList.map((defaultPermission) => {
+    const savedPermission =
+      savedPermissions.find((permission) => permission.key === defaultPermission.key) ??
+      savedPermissions.find((permission) => permission.menu === defaultPermission.menu);
+
+    return savedPermission
+      ? {
+        ...defaultPermission,
+        ...savedPermission,
+      }
+      : { ...defaultPermission };
   });
 };
-
-
 
 export default function UserRoleManagement() {
   const navigate = useNavigate();
@@ -129,38 +169,35 @@ export default function UserRoleManagement() {
   const [sortField, setSortField] = useState<keyof Role>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-  // Dropdown states
   const [statusFilter, setStatusFilter] = useState("all");
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
 
-  // Modal states
   const deleteModal = useModal();
-
-  // Active items mapping
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 
   const fetchRoles = async () => {
     setLoading(true);
     try {
-      const res = await roleService.getRoles({
+      const response = await roleService.getRoles({
         paginate: true,
         page: currentPage,
         limit: rowsPerPage,
-        search: debouncedSearchQuery || undefined
+        search: debouncedSearchQuery || undefined,
       });
 
-      const rawRoles = res.data || [];
-      const adapted = rawRoles.map((role: any) => ({
-        id: role.id,
-        roleName: role.name,
-        description: role.description || "",
-        status: "Active",
-        permissions: []
-      }));
-      setRoles(adapted);
-      setTotalItems(res.meta?.total || 0);
-      setTotalPages(res.meta?.totalPages || 0);
-    } catch (err) {
+      const rawRoles = response.data || [];
+      setRoles(
+        rawRoles.map((role: any) => ({
+          id: role.id,
+          roleName: role.name,
+          description: role.description || "",
+          status: "Active",
+          permissions: [],
+        }))
+      );
+      setTotalItems(response.meta?.total || 0);
+      setTotalPages(response.meta?.totalPages || 0);
+    } catch {
       showToast("Failed to fetch roles from backend.", "error");
     } finally {
       setLoading(false);
@@ -171,7 +208,6 @@ export default function UserRoleManagement() {
     fetchRoles();
   }, [currentPage, rowsPerPage, debouncedSearchQuery]);
 
-  // Handlers
   const handleOpenView = (role: Role) => {
     navigate(`/roles/${role.id}/view`);
   };
@@ -193,10 +229,10 @@ export default function UserRoleManagement() {
     if (selectedRole) {
       try {
         await roleService.deleteRole(selectedRole.id);
-        setRoles((prev) => prev.filter((r) => r.id !== selectedRole.id));
+        setRoles((previousRoles) => previousRoles.filter((role) => role.id !== selectedRole.id));
         showToast("Role deleted successfully.", "success");
-      } catch (err: any) {
-        showToast(err.response?.data?.message || "Failed to delete role.", "error");
+      } catch (error: any) {
+        showToast(error.response?.data?.message || "Failed to delete role.", "error");
       }
     }
     deleteModal.closeModal();
@@ -204,14 +240,12 @@ export default function UserRoleManagement() {
 
   const handleToggleStatus = (role: Role, checked: boolean) => {
     const newStatus: Role["status"] = checked ? "Active" : "Inactive";
-    const updated = roles.map((r) =>
-      r.id === role.id ? { ...r, status: newStatus } : r
+    setRoles((previousRoles) =>
+      previousRoles.map((item) => (item.id === role.id ? { ...item, status: newStatus } : item))
     );
-    setRoles(updated);
-    showToast(`Role status toggle is simulated locally.`, "warning");
+    showToast("Role status toggle is simulated locally.", "warning");
   };
 
-  // Sorting columns
   const handleSort = (field: keyof Role) => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -222,36 +256,33 @@ export default function UserRoleManagement() {
     setCurrentPage(1);
   };
 
-  // Filters & Sorting calculations
   const processedRoles = useMemo(() => {
-    let result = [...roles];
+    const sortedRoles = [...roles];
 
-    // 3. Sort column values
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
+    sortedRoles.sort((a, b) => {
+      const aValue = a[sortField];
+      const bValue = b[sortField];
 
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
+      if (typeof aValue === "number" && typeof bValue === "number") {
+        return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
       }
 
-      const strA = String(aVal).toLowerCase();
-      const strB = String(bVal).toLowerCase();
+      const normalizedA = String(aValue).toLowerCase();
+      const normalizedB = String(bValue).toLowerCase();
 
-      if (strA < strB) return sortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder === "asc" ? 1 : -1;
+      if (normalizedA < normalizedB) return sortOrder === "asc" ? -1 : 1;
+      if (normalizedA > normalizedB) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
 
-    return result;
+    return sortedRoles;
   }, [roles, sortField, sortOrder]);
 
-  // Paginated elements calculation (delegated to server)
   const paginatedRoles = processedRoles;
 
-  // Sorting header icons indicator renderer
   const renderSortHeader = (label: string, field: keyof Role, centered = false) => {
     const isActive = sortField === field;
+
     return (
       <button
         onClick={() => handleSort(field)}
@@ -261,11 +292,15 @@ export default function UserRoleManagement() {
         {label}
         <span className="flex flex-col">
           <ChevronUpIcon
-            className={`w-3 h-3 -mb-1 transition-colors ${isActive && sortOrder === "asc" ? "text-brand-500" : "text-gray-300 dark:text-gray-600"
+            className={`w-3 h-3 -mb-1 transition-colors ${isActive && sortOrder === "asc"
+                ? "text-brand-500"
+                : "text-gray-300 dark:text-gray-600"
               }`}
           />
           <ChevronDownIcon
-            className={`w-3 h-3 transition-colors ${isActive && sortOrder === "desc" ? "text-brand-500" : "text-gray-300 dark:text-gray-600"
+            className={`w-3 h-3 transition-colors ${isActive && sortOrder === "desc"
+                ? "text-brand-500"
+                : "text-gray-300 dark:text-gray-600"
               }`}
           />
         </span>
@@ -279,10 +314,8 @@ export default function UserRoleManagement() {
         title="User Role Management | SaiFlow"
         description="Manage user roles and permissions in SaiFlow CRM."
       />
-      {/* Page Title & Breadcrumb */}
       <PageBreadcrumb pageTitle="User Role Management" />
 
-      {/* Control Area above Table */}
       <div className="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center w-full lg:w-auto">
           <div className="w-full sm:w-64">
@@ -290,14 +323,13 @@ export default function UserRoleManagement() {
               type="text"
               placeholder="Search..."
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
                 setCurrentPage(1);
               }}
             />
           </div>
 
-          {/* Custom Dropdown Filter for Status */}
           <div className="relative">
             <button
               onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
@@ -316,20 +348,20 @@ export default function UserRoleManagement() {
                   { value: "all", label: "All statuses" },
                   { value: "Active", label: "Active" },
                   { value: "Inactive", label: "Inactive" },
-                ].map((opt) => (
-                  <li key={opt.value}>
+                ].map((option) => (
+                  <li key={option.value}>
                     <DropdownItem
                       onItemClick={() => {
-                        setStatusFilter(opt.value);
+                        setStatusFilter(option.value);
                         setCurrentPage(1);
                         setIsStatusFilterOpen(false);
                       }}
-                      className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${statusFilter === opt.value
-                        ? "bg-brand-500 text-white font-medium"
-                        : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
+                      className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${statusFilter === option.value
+                          ? "bg-brand-500 text-white font-medium"
+                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                         }`}
                     >
-                      {opt.label}
+                      {option.label}
                     </DropdownItem>
                   </li>
                 ))}
@@ -338,8 +370,7 @@ export default function UserRoleManagement() {
           </div>
         </div>
 
-        {/* Primary Action Button */}
-        {hasPermission('roles', 'create') && (
+        {hasPermission("roles", "create") && (
           <div>
             <Button
               size="sm"
@@ -353,7 +384,6 @@ export default function UserRoleManagement() {
         )}
       </div>
 
-      {/* Table Container */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="max-w-full overflow-x-auto custom-scrollbar">
           <Table>
@@ -412,7 +442,7 @@ export default function UserRoleManagement() {
                         <Switch
                           key={`${role.id}-${role.status}`}
                           label=""
-                          defaultChecked={role.status === "Active"}
+                          checked={role.status === "Active"}
                           color="success"
                           onChange={(checked) => handleToggleStatus(role, checked)}
                         />
@@ -427,7 +457,7 @@ export default function UserRoleManagement() {
                         >
                           <FiEye className="size-4" />
                         </button>
-                        {hasPermission('roles', 'edit') && (
+                        {hasPermission("roles", "edit") && (
                           <button
                             onClick={() => handleOpenEdit(role)}
                             className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
@@ -436,7 +466,7 @@ export default function UserRoleManagement() {
                             <FiEdit className="size-4" />
                           </button>
                         )}
-                        {hasPermission('roles', 'delete') && (
+                        {hasPermission("roles", "delete") && (
                           <button
                             onClick={() => handleOpenDelete(role)}
                             className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
@@ -463,7 +493,6 @@ export default function UserRoleManagement() {
           </Table>
         </div>
 
-        {/* Pagination Block */}
         {totalItems > 0 && (
           <Pagination
             currentPage={currentPage}
@@ -480,9 +509,6 @@ export default function UserRoleManagement() {
         )}
       </div>
 
-
-
-      {/* Delete Confirmation Modal */}
       <Modal isOpen={deleteModal.isOpen} onClose={deleteModal.closeModal} className="max-w-[450px] m-4">
         <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
           <div className="mb-6 text-center">

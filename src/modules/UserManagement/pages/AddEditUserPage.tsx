@@ -6,11 +6,11 @@ import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
-import { getStorage } from "../../../utils/storage";
 import { useToast } from "../../../hooks/useToast";
 import { DEPARTMENTS } from "../../Master/data/masterData";
 import { userService } from "../../../services/userService";
 import { roleService } from "../../../services/roleService";
+import { masterService } from "../../../services/masterService";
 
 interface User {
   id: number;
@@ -50,12 +50,16 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<any[]>([]);
+  const [departmentOptions, setDepartmentOptions] = useState<{ value: string; label: string }[]>([]);
 
-  const departmentOptions = useMemo(() => {
-    return getStorage("saiflow_master_departments", DEPARTMENTS)
-      .filter((x: any) => x.status === "Active")
-      .map((x: any) => ({ value: x.name, label: x.name }));
-  }, []);
+  const fallbackDepartmentOptions = useMemo(
+    () =>
+      DEPARTMENTS.filter((item: any) => item.status === "Active").map((item: any) => ({
+        value: item.name,
+        label: item.name,
+      })),
+    []
+  );
 
   const {
     control,
@@ -83,10 +87,22 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
     async function loadData() {
       setLoading(true);
       try {
-        // Fetch active system roles
-        const rolesRes = await roleService.getRoles({ paginate: true });
-        const fetchedRoles = rolesRes.data || [];
+        const [rolesResult, departmentsResult] = await Promise.allSettled([
+          roleService.getRoles({ paginate: true }),
+          masterService.getMasterItems("DEPARTMENT", undefined, { status: "Active" }),
+        ]);
+        if (rolesResult.status !== "fulfilled") {
+          throw rolesResult.reason;
+        }
+        const fetchedRoles = rolesResult.value.data || [];
         setRoles(fetchedRoles);
+        const fetchedDepartments =
+          departmentsResult.status === "fulfilled" && Array.isArray(departmentsResult.value)
+            ? departmentsResult.value.map((item: any) => ({ value: item.name, label: item.name }))
+            : [];
+        setDepartmentOptions(
+          fetchedDepartments.length > 0 ? fetchedDepartments : fallbackDepartmentOptions
+        );
 
         if (mode !== "create" && id) {
           const userRes = await userService.getUserById(Number(id));
@@ -124,7 +140,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
       }
     }
     loadData();
-  }, [id, mode, reset, navigate, showToast]);
+  }, [fallbackDepartmentOptions, id, mode, reset, navigate, showToast]);
 
   const handleSave = async (data: UserFormValues) => {
     if (mode === "view") return;
@@ -139,7 +155,6 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
       email: data.email.trim(),
       phone: data.phone.trim(),
       roleId: Number(data.role),
-      status: "ACTIVE"
     };
 
     try {
@@ -150,7 +165,10 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
         });
         showToast("User created successfully.", "success");
       } else if (mode === "edit" && user) {
-        await userService.updateUser(user.id, payload);
+        await userService.updateUser(user.id, {
+          ...payload,
+          status: user.status,
+        });
         showToast("User updated successfully.", "success");
       }
       navigate("/users");

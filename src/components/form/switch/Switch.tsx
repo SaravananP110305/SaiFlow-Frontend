@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface SwitchProps {
   label: string;
   defaultChecked?: boolean;
+  checked?: boolean;
   disabled?: boolean;
   onChange?: (checked: boolean) => void;
   color?: "blue" | "gray" | "success"; // Prop to toggle color theme
@@ -11,16 +12,26 @@ interface SwitchProps {
 const Switch: React.FC<SwitchProps> = ({
   label,
   defaultChecked = false,
+  checked,
   disabled = false,
   onChange,
   color = "blue", // Default to blue color
 }) => {
-  const [isChecked, setIsChecked] = useState(defaultChecked);
+  const isControlled = checked !== undefined;
+  const [isChecked, setIsChecked] = useState(checked ?? defaultChecked);
+
+  useEffect(() => {
+    if (isControlled) {
+      setIsChecked(checked);
+    }
+  }, [checked, isControlled]);
 
   const handleToggle = () => {
     if (disabled) return;
     const newCheckedState = !isChecked;
-    setIsChecked(newCheckedState);
+    if (!isControlled) {
+      setIsChecked(newCheckedState);
+    }
     if (onChange) {
       onChange(newCheckedState);
     }

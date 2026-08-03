@@ -58,7 +58,7 @@ const adaptUserToFrontend = (backendUser: any): User => {
 export default function UserManagement() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { hasPermission } = useAuth();
+  const { hasPermission, user: loggedInUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [totalItems, setTotalItems] = useState(0);
@@ -155,6 +155,11 @@ export default function UserManagement() {
 
   const handleToggleStatus = async (user: User, checked: boolean) => {
     const newStatus: User["status"] = checked ? "Active" : "Inactive";
+    if (loggedInUser?.id === user.id && newStatus !== "Active") {
+      showToast("You cannot deactivate your own account.", "error");
+      return;
+    }
+
     try {
       await userService.updateUser(user.id, {
         status: checked ? "ACTIVE" : "INACTIVE"
@@ -466,7 +471,7 @@ export default function UserManagement() {
                         <Switch
                           key={`${user.id}-${user.status}`}
                           label=""
-                          defaultChecked={user.status === "Active"}
+                          checked={user.status === "Active"}
                           color="success"
                           onChange={(checked) => handleToggleStatus(user, checked)}
                         />
