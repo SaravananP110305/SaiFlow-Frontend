@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import SignIn from "./pages/AuthPages/SignIn";
-// import SignUp from "./pages/AuthPages/SignUp";
 import ForgotPassword from "./pages/AuthPages/ForgotPassword";
 import ResetPassword from "./pages/AuthPages/ResetPassword";
 import NotFound from "./pages/OtherPage/NotFound";
@@ -90,9 +89,6 @@ export default function App() {
     setStorage("saiflow_meetings", updated);
   };
 
-  const bdeRoles = ["Business Development Manager", "Business Development Executive", "Presales Consultant"];
-  const allowedRoles = ["Administrator", ...bdeRoles];
-
   return (
     <ToastProvider>
       <AuthProvider>
@@ -108,17 +104,15 @@ export default function App() {
             }
           >
             <Route index path="/" element={<Dashboard />} />
-
-            {/* Others Page */}
             <Route path="/profile" element={<UserProfiles />} />
             <Route path="/change-password" element={<ChangePassword />} />
-
-            {/* SaiFlow Feature Module Route Placeholders */}
             <Route path="/dashboard" element={<Dashboard />} />
+
+            {/* Leads Routes */}
             <Route
               path="/leads"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'leads', action: 'view' }}>
                   <LeadList />
                 </ProtectedRoute>
               }
@@ -126,7 +120,7 @@ export default function App() {
             <Route
               path="/leads/add"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'leads', action: 'create' }}>
                   <AddLead />
                 </ProtectedRoute>
               }
@@ -134,7 +128,7 @@ export default function App() {
             <Route
               path="/leads/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'leads', action: 'edit' }}>
                   <AddLead />
                 </ProtectedRoute>
               }
@@ -142,15 +136,17 @@ export default function App() {
             <Route
               path="/leads/:id"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'leads', action: 'view' }}>
                   <LeadDetails />
                 </ProtectedRoute>
               }
             />
+
+            {/* Connect Routes */}
             <Route
               path="/connect"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'connect', action: 'view' }}>
                   <MyLeads />
                 </ProtectedRoute>
               }
@@ -158,7 +154,7 @@ export default function App() {
             <Route
               path="/connect/contacts"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'connect', action: 'view' }}>
                   <MyLeads />
                 </ProtectedRoute>
               }
@@ -166,7 +162,7 @@ export default function App() {
             <Route
               path="/connect/follow-ups"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'connect', action: 'view' }}>
                   <FollowUps />
                 </ProtectedRoute>
               }
@@ -174,7 +170,7 @@ export default function App() {
             <Route
               path="/connect/follow-ups/:id"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'connect', action: 'view' }}>
                   <ContactLeadDetail isFollowUpView={true} />
                 </ProtectedRoute>
               }
@@ -182,16 +178,17 @@ export default function App() {
             <Route
               path="/connect/:id"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'connect', action: 'view' }}>
                   <ContactLeadDetail />
                 </ProtectedRoute>
               }
             />
 
+            {/* Meetings Routes */}
             <Route
               path="/meetings"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'meetings', action: 'view' }}>
                   <MeetingsScopePage
                     meetings={meetings}
                     onDeleteMeeting={handleDeleteMeeting}
@@ -203,7 +200,7 @@ export default function App() {
             <Route
               path="/meetings/add"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'meetings', action: 'create' }}>
                   <MeetingForm onSave={handleSaveMeeting} />
                 </ProtectedRoute>
               }
@@ -211,7 +208,7 @@ export default function App() {
             <Route
               path="/meetings/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'meetings', action: 'edit' }}>
                   <MeetingForm onSave={handleSaveMeeting} />
                 </ProtectedRoute>
               }
@@ -219,7 +216,7 @@ export default function App() {
             <Route
               path="/meetings/:id"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'meetings', action: 'view' }}>
                   <MeetingDetails />
                 </ProtectedRoute>
               }
@@ -230,7 +227,7 @@ export default function App() {
             <Route
               path="/reports/leads"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'reports', action: 'view' }}>
                   <LeadReport />
                 </ProtectedRoute>
               }
@@ -238,7 +235,7 @@ export default function App() {
             <Route
               path="/reports/meetings"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'reports', action: 'view' }}>
                   <MeetingReport />
                 </ProtectedRoute>
               }
@@ -246,7 +243,7 @@ export default function App() {
             <Route
               path="/reports/employees"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'reports', action: 'view' }}>
                   <EmployeeReport />
                 </ProtectedRoute>
               }
@@ -254,7 +251,7 @@ export default function App() {
             <Route
               path="/reports/follow-ups"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'reports', action: 'view' }}>
                   <FollowUpReport />
                 </ProtectedRoute>
               }
@@ -262,7 +259,7 @@ export default function App() {
             <Route
               path="/reports/clients"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'reports', action: 'view' }}>
                   <ClientReport />
                 </ProtectedRoute>
               }
@@ -270,7 +267,7 @@ export default function App() {
             <Route
               path="/reports/proposals"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'reports', action: 'view' }}>
                   <ProposalReport />
                 </ProtectedRoute>
               }
@@ -346,7 +343,7 @@ export default function App() {
             <Route
               path="/master/countries"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Country"
                     itemNameSingular="country"
@@ -360,7 +357,7 @@ export default function App() {
             <Route
               path="/master/states"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="State"
                     itemNameSingular="state"
@@ -374,7 +371,7 @@ export default function App() {
             <Route
               path="/master/cities"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="City"
                     itemNameSingular="city"
@@ -388,7 +385,7 @@ export default function App() {
             <Route
               path="/master/departments"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Department"
                     itemNameSingular="department"
@@ -402,7 +399,7 @@ export default function App() {
             <Route
               path="/master/designations"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Designation"
                     itemNameSingular="designation"
@@ -416,7 +413,7 @@ export default function App() {
             <Route
               path="/master/lead-sources"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Lead source"
                     itemNameSingular="lead source"
@@ -430,7 +427,7 @@ export default function App() {
             <Route
               path="/master/industries"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Industry"
                     itemNameSingular="industry"
@@ -444,7 +441,7 @@ export default function App() {
             <Route
               path="/master/tech-stack"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Tech stack"
                     itemNameSingular="tech"
@@ -458,7 +455,7 @@ export default function App() {
             <Route
               path="/master/priorities"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Priority"
                     itemNameSingular="priority"
@@ -472,7 +469,7 @@ export default function App() {
             <Route
               path="/master/services"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Service"
                     itemNameSingular="service"
@@ -486,7 +483,7 @@ export default function App() {
             <Route
               path="/master/company-types"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Company type"
                     itemNameSingular="company type"
@@ -500,7 +497,7 @@ export default function App() {
             <Route
               path="/master/payment-types"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Payment type"
                     itemNameSingular="payment type"
@@ -514,7 +511,7 @@ export default function App() {
             <Route
               path="/master/followup-types"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Follow-up type"
                     itemNameSingular="follow-up type"
@@ -528,7 +525,7 @@ export default function App() {
             <Route
               path="/master/:type/add"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'create' }}>
                   <AddEditMasterPage />
                 </ProtectedRoute>
               }
@@ -536,7 +533,7 @@ export default function App() {
             <Route
               path="/master/:type/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: 'master', action: 'edit' }}>
                   <AddEditMasterPage />
                 </ProtectedRoute>
               }
@@ -546,7 +543,7 @@ export default function App() {
             <Route
               path="/clients"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'clients', action: 'view' }}>
                   <ClientList />
                 </ProtectedRoute>
               }
@@ -554,7 +551,7 @@ export default function App() {
             <Route
               path="/clients/add"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'clients', action: 'create' }}>
                   <AddClient />
                 </ProtectedRoute>
               }
@@ -562,7 +559,7 @@ export default function App() {
             <Route
               path="/clients/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'clients', action: 'edit' }}>
                   <AddClient />
                 </ProtectedRoute>
               }
@@ -570,17 +567,17 @@ export default function App() {
             <Route
               path="/clients/:id"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'clients', action: 'view' }}>
                   <ClientDetails />
                 </ProtectedRoute>
               }
             />
-            {/* Requirements are now part of Business Proposals */}
+            
             <Route path="/requirements" element={<Navigate to="/proposals" replace />} />
             <Route
               path="/proposals"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'proposals', action: 'view' }}>
                   <QuotationList />
                 </ProtectedRoute>
               }
@@ -588,7 +585,7 @@ export default function App() {
             <Route
               path="/proposals/add"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'proposals', action: 'create' }}>
                   <AddProposal />
                 </ProtectedRoute>
               }
@@ -596,7 +593,7 @@ export default function App() {
             <Route
               path="/proposals/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'proposals', action: 'edit' }}>
                   <AddProposal />
                 </ProtectedRoute>
               }
@@ -604,7 +601,7 @@ export default function App() {
             <Route
               path="/settings"
               element={
-                <ProtectedRoute allowedRoles={allowedRoles}>
+                <ProtectedRoute requiredPermission={{ module: 'settings', action: 'view' }}>
                   <SettingsPage />
                 </ProtectedRoute>
               }
@@ -613,7 +610,6 @@ export default function App() {
 
           {/* Auth Layout */}
           <Route path="/signin" element={<SignIn />} />
-          {/*<Route path="/signup" element={<SignUp />} />*/}
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 

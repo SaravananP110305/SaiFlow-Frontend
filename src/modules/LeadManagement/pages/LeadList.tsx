@@ -556,7 +556,7 @@ export default function LeadList() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {showBulkAssign ? (
+            {showBulkAssign && hasPermission('leads', 'assign') ? (
               <div className="flex items-center gap-2">
                 <select
                   value={bulkAssignee}
@@ -577,12 +577,16 @@ export default function LeadList() {
               </div>
             ) : (
               <>
-                <Button size="sm" variant="outline" onClick={() => setShowBulkAssign(true)}>
-                  Reassign
-                </Button>
-                <Button size="sm" className="bg-error-600 hover:bg-error-700" onClick={handleBulkDelete}>
-                  Delete ({selectedIds.length})
-                </Button>
+                {hasPermission('leads', 'assign') && (
+                  <Button size="sm" variant="outline" onClick={() => setShowBulkAssign(true)}>
+                    Reassign
+                  </Button>
+                )}
+                {hasPermission('leads', 'delete') && (
+                  <Button size="sm" className="bg-error-600 hover:bg-error-700" onClick={handleBulkDelete}>
+                    Delete ({selectedIds.length})
+                  </Button>
+                )}
                 <Button size="sm" variant="outline" onClick={() => setSelectedIds([])}>
                   Clear
                 </Button>
@@ -797,20 +801,24 @@ export default function LeadList() {
                         >
                           <FiEye className="size-4" />
                         </button>
-                        <button
-                          onClick={() => navigate(`/leads/${lead.id}/edit`)}
-                          className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
-                          title="Edit"
-                        >
-                          <FiEdit className="size-4" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenDelete(lead)}
-                          className="p-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-                          title="Delete"
-                        >
-                          <FiTrash2 className="size-4" />
-                        </button>
+                        {hasPermission('leads', 'edit') && (
+                          <button
+                            onClick={() => navigate(`/leads/${lead.id}/edit`)}
+                            className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
+                            title="Edit"
+                          >
+                            <FiEdit className="size-4" />
+                          </button>
+                        )}
+                        {hasPermission('leads', 'delete') && (
+                          <button
+                            onClick={() => handleOpenDelete(lead)}
+                            className="p-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                            title="Delete"
+                          >
+                            <FiTrash2 className="size-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
 

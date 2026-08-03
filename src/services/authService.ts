@@ -1,4 +1,4 @@
-import api, { setAccessToken } from './api';
+import api, { setAccessToken, refreshAccessToken } from './api';
 
 export const authService = {
   login: async (credentials: any) => {
@@ -26,14 +26,7 @@ export const authService = {
   },
 
   refreshToken: async () => {
-    const response = await api.put('/auth/sessions', {}, {
-      skipAuthRefresh: true
-    });
-    const token = response.data?.data?.accessToken;
-    if (token) {
-      setAccessToken(token);
-    }
-    return token;
+    return refreshAccessToken();
   },
 
   changePassword: async (data: any) => {

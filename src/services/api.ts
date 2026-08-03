@@ -82,7 +82,7 @@ const notifyUnauthorized = () => {
   unauthorizedHandler?.();
 };
 
-const refreshAccessToken = async () => {
+export const refreshAccessToken = async () => {
   if (!refreshPromise) {
     refreshPromise = axios
       .put(
