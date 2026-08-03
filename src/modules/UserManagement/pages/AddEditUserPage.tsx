@@ -6,21 +6,26 @@ import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
-import { getStorage, setStorage } from "../../../utils/storage";
+import { getStorage } from "../../../utils/storage";
 import { useToast } from "../../../hooks/useToast";
 import { DEPARTMENTS } from "../../Master/data/masterData";
-
+import { userService } from "../../../services/userService";
+import { roleService } from "../../../services/roleService";
 
 interface User {
   id: number;
   employeeId: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
-  role: string;
-  department: string;
-  status: "Active" | "Inactive";
-  password?: string;
+  roleId: number;
+  status: "ACTIVE" | "INACTIVE";
+  role?: {
+    id: number;
+    name: string;
+    description: string;
+  };
 }
 
 interface UserFormValues {
@@ -34,14 +39,6 @@ interface UserFormValues {
   confirmPassword?: string;
 }
 
-const availableRoles = [
-  "Administrator",
-  "Business Development Manager",
-  "Business Development Executive",
-  "Presales Consultant",
-  "Guest User",
-];
-
 interface AddEditUserPageProps {
   mode: "create" | "edit" | "view";
 }
@@ -52,16 +49,13 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [roles, setRoles] = useState<any[]>([]);
 
   const departmentOptions = useMemo(() => {
     return getStorage("saiflow_master_departments", DEPARTMENTS)
       .filter((x: any) => x.status === "Active")
       .map((x: any) => ({ value: x.name, label: x.name }));
   }, []);
-
-  const generateEmployeeId = (id: number): string => {
-    return `EMP-${String(id).padStart(3, "0")}`;
-  };
 
   const {
     control,
@@ -86,81 +80,87 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
   const watchPassword = watch("password");
 
   useEffect(() => {
-    const users = getStorage<User[]>("saiflow_users", []);
-    if (mode !== "create") {
-      const found = users.find((u) => String(u.id) === String(id));
-      if (found) {
-        setUser(found);
-        reset({
-          employeeId: found.employeeId,
-          name: found.name,
-          email: found.email,
-          phone: found.phone.replace(/\D/g, "").slice(-10),
-          role: found.role,
-          department: found.department || "",
-        });
-      } else {
-        showToast("User not found.", "error");
-        navigate("/users");
-        return;
+    async function loadData() {
+      setLoading(true);
+      try {
+        // Fetch active system roles
+        const rolesRes = await roleService.getRoles({ paginate: true });
+        const fetchedRoles = rolesRes.data || [];
+        setRoles(fetchedRoles);
+
+        if (mode !== "create" && id) {
+          const userRes = await userService.getUserById(Number(id));
+          if (userRes) {
+            setUser(userRes);
+            const name = `${userRes.firstName} ${userRes.lastName}`.trim();
+            reset({
+              employeeId: `EMP-${String(userRes.id).padStart(3, "0")}`,
+              name,
+              email: userRes.email,
+              phone: userRes.phone || "",
+              role: String(userRes.roleId),
+              department: userRes.role?.description || "",
+            });
+          } else {
+            showToast("User not found.", "error");
+            navigate("/users");
+          }
+        } else {
+          reset({
+            employeeId: "Auto-generated",
+            name: "",
+            email: "",
+            phone: "",
+            role: "",
+            department: "",
+            password: "",
+            confirmPassword: "",
+          });
+        }
+      } catch (err) {
+        showToast("Failed to load user or role data from server.", "error");
+      } finally {
+        setLoading(false);
       }
-    } else {
-      const nextId = users.length > 0 ? Math.max(...users.map((u) => u.id)) + 1 : 1;
-      reset({
-        employeeId: generateEmployeeId(nextId),
-        name: "",
-        email: "",
-        phone: "",
-        role: "",
-        department: "",
-        password: "",
-        confirmPassword: "",
-      });
     }
-    setLoading(false);
+    loadData();
   }, [id, mode, reset, navigate, showToast]);
 
-  const handleSave = (data: UserFormValues) => {
+  const handleSave = async (data: UserFormValues) => {
     if (mode === "view") return;
-    const users = getStorage<User[]>("saiflow_users", []);
 
-    if (mode === "create") {
-      const newId = users.length > 0 ? Math.max(...users.map((u) => u.id)) + 1 : 1;
-      const newUser: User = {
-        id: newId,
-        employeeId: generateEmployeeId(newId),
-        name: data.name.trim(),
-        email: data.email.trim(),
-        phone: data.phone.trim(),
-        role: data.role,
-        department: data.department,
-        status: "Active",
-        password: data.password?.trim() || "Password@123",
-      };
-      const updated = [...users, newUser];
-      setStorage("saiflow_users", updated);
-      showToast("User created successfully.", "success");
-    } else if (mode === "edit" && user) {
-      const updated = users.map((u) =>
-        u.id === user.id
-          ? {
-              ...u,
-              name: data.name.trim(),
-              email: data.email.trim(),
-              phone: data.phone.trim(),
-              role: data.role,
-              department: data.department,
-            }
-          : u
-      );
-      setStorage("saiflow_users", updated);
-      showToast("User updated successfully.", "success");
+    const parts = data.name.trim().split(" ");
+    const firstName = parts[0] || "";
+    const lastName = parts.slice(1).join(" ") || "User";
+
+    const payload = {
+      firstName,
+      lastName,
+      email: data.email.trim(),
+      phone: data.phone.trim(),
+      roleId: Number(data.role),
+      status: "ACTIVE"
+    };
+
+    try {
+      if (mode === "create") {
+        await userService.createUser({
+          ...payload,
+          password: data.password || "Password@123"
+        });
+        showToast("User created successfully.", "success");
+      } else if (mode === "edit" && user) {
+        await userService.updateUser(user.id, payload);
+        showToast("User updated successfully.", "success");
+      }
+      navigate("/users");
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to save user details.", "error");
     }
-    navigate("/users");
   };
 
   const handleFormError = () => {
-    showToast("Please fill all required fields.", "error");
+    showToast("Please fill all required fields correctly.", "error");
   };
 
   if (loading) {
@@ -202,34 +202,27 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                     <Input
                       {...field}
                       type="text"
-                      placeholder="Auto-generated"
                       disabled={true}
-                      className="bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+                      placeholder="Auto-generated upon save"
                     />
                   )}
                 />
               </div>
 
-              {/* Employee name */}
+              {/* Name */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Employee name <span className="text-error-500">*</span>
+                  Full name <span className="text-error-500">*</span>
                 </label>
                 <Controller
                   name="name"
                   control={control}
-                  rules={{
-                    required: "Name is required",
-                    pattern: {
-                      value: /^[a-zA-Z\s]+$/,
-                      message: "Letters and spaces only",
-                    },
-                  }}
+                  rules={{ required: "Full name is required" }}
                   render={({ field }) => (
                     <Input
                       {...field}
                       type="text"
-                      placeholder="Enter employee name"
+                      placeholder="Enter full name"
                       disabled={mode === "view"}
                       className={errors.name ? "border-error-500" : ""}
                     />
@@ -271,7 +264,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                   rules={{ required: "User role is required" }}
                   render={({ field: { value, onChange } }) => (
                     <Select
-                      options={availableRoles.map((r) => ({ value: r, label: r }))}
+                      options={roles.map((r) => ({ value: String(r.id), label: r.name }))}
                       placeholder="Select role"
                       defaultValue={value}
                       disabled={mode === "view"}

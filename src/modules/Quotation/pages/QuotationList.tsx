@@ -41,6 +41,7 @@ import {
   FiTrendingUp,
 } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
+import { useAuth } from "../../../context/AuthContext";
 import {
   Proposal,
   ProposalStatus,
@@ -147,8 +148,9 @@ function getTimeAgo(dateStr: string): string {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function QuotationList() {
-  const { showToast } = useToast();
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const { hasPermission } = useAuth();
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [proposals, setProposals] = useState<Proposal[]>(() => {
@@ -468,9 +470,11 @@ export default function QuotationList() {
             </div>
           </div>
         </div>
-        <Button onClick={() => navigate("/proposals/add")} variant="primary" size="sm" startIcon={<FiPlus />}>
-          New Proposal
-        </Button>
+        {hasPermission('proposals', 'create') && (
+          <Button onClick={() => navigate("/proposals/add")} variant="primary" size="sm" startIcon={<FiPlus />}>
+            New Proposal
+          </Button>
+        )}
       </div>
 
       {/* Bulk Actions Toolbar */}
@@ -666,10 +670,12 @@ export default function QuotationList() {
                             className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer" title="View">
                             <FiEye className="size-4" />
                           </button>
-                          <button onClick={() => navigate(`/proposals/${proposal.id}/edit`)}
-                            className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer" title="Edit">
-                            <FiEdit className="size-4" />
-                          </button>
+                          {hasPermission('proposals', 'edit') && (
+                            <button onClick={() => navigate(`/proposals/${proposal.id}/edit`)}
+                              className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer" title="Edit">
+                              <FiEdit className="size-4" />
+                            </button>
+                          )}
                           <button onClick={() => handleExportPDF(proposal)}
                             className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer" title="Export PDF">
                             <FiDownload className="size-4" />

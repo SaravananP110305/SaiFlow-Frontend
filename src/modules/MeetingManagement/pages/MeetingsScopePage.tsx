@@ -28,6 +28,7 @@ import {
   FiFileText,
 } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
+import { useAuth } from "../../../context/AuthContext";
 import { Meeting, getMeetingStatusColor } from "../data/meetingsData";
 import { Lead, initialLeads } from "../../LeadManagement/data/leadsData";
 import { LOST_REASONS } from "../../Master/data/masterData";
@@ -49,6 +50,7 @@ export default function MeetingsScopePage({
 }: MeetingsScopePageProps) {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { hasPermission } = useAuth();
 
   // Filters
   const [activeTab, setActiveTab] = useState<StatusTab>("all");
@@ -461,14 +463,16 @@ export default function MeetingsScopePage({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            size="sm"
-            onClick={() => navigate("/meetings/add")}
-            startIcon={<FiPlus className="size-4" />}
-            className="h-11 px-4"
-          >
-            Schedule Meeting
-          </Button>
+          {hasPermission('meetings', 'create') && (
+            <Button
+              size="sm"
+              onClick={() => navigate("/meetings/add")}
+              startIcon={<FiPlus className="size-4" />}
+              className="h-11 px-4"
+            >
+              Schedule Meeting
+            </Button>
+          )}
         </div>
       </div>
 

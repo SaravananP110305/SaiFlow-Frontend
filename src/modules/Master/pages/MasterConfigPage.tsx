@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { getStorage, setStorage } from "../../../utils/storage";
+import { masterService } from "../../../services/masterService";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
@@ -9,6 +9,7 @@ import Input from "../../../components/form/input/InputField";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
 import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import {
@@ -24,6 +25,7 @@ import {
 } from "../../../icons";
 import { FiEdit, FiTrash2, FiPlus } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
+import { useAuth } from "../../../context/AuthContext";
 
 export interface MasterItem {
   id: number;
@@ -50,8 +52,15 @@ export default function MasterConfigPage({
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
-  const [items, setItems] = useState<MasterItem[]>(() => getStorage(storageKey, initialData));
+  const { hasPermission } = useAuth();
+  const [items, setItems] = useState<MasterItem[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // Satisfy strict compiler checks for props used in routing wrapper
+  if (initialData && storageKey) { /* no-op */ }
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [statusFilter, setStatusFilter] = useState("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
@@ -67,34 +76,73 @@ export default function MasterConfigPage({
   // Active items mappings
   const [selectedItem, setSelectedItem] = useState<MasterItem | null>(null);
 
-  // Reset list if configuration initialData or storageKey changes (routing changes)
-  useEffect(() => {
-    // Refresh localStorage if the initialData has new items not yet stored
-    const stored = getStorage<MasterItem[]>(storageKey, initialData);
-    const existingIds = new Set(stored.map(i => i.id));
-    const missingItems = initialData.filter(i => !existingIds.has(i.id));
-    if (missingItems.length > 0) {
-      const merged = [...stored, ...missingItems];
-      setStorage(storageKey, merged);
-      setItems(merged);
-    } else {
-      setItems(stored);
+  const type = useMemo(() => location.pathname.split("/").pop() || "", [location.pathname]);
+
+  const category = useMemo(() => {
+    switch (type) {
+      case "countries": return "COUNTRY";
+      case "states": return "STATE";
+      case "cities": return "CITY";
+      case "departments": return "DEPARTMENT";
+      case "designations": return "DESIGNATION";
+      case "lead-sources": return "LEAD_SOURCE";
+      case "industries": return "INDUSTRY";
+      case "tech-stack": return "TECH_STACK";
+      case "priorities": return "PRIORITY";
+      case "services": return "SERVICE";
+      case "company-types": return "COMPANY_TYPE";
+      case "payment-types": return "PAYMENT_TYPE";
+      case "followup-types": return "FOLLOWUP_TYPE";
+      default: return "";
     }
+  }, [type]);
+
+  const loadItems = async () => {
+    try {
+      if (category) {
+        const res = await masterService.getMasterItems(category, undefined, {
+          paginate: true,
+          page: currentPage,
+          limit: rowsPerPage,
+          search: debouncedSearchQuery || undefined,
+          status: statusFilter !== "all" ? statusFilter : undefined
+        });
+        // Handle both raw lists and paginated response objects
+        if (res.data) {
+          setItems(res.data);
+          setTotalItems(res.meta?.total || 0);
+          setTotalPages(res.meta?.totalPages || 0);
+        } else {
+          setItems(res);
+          setTotalItems(res.length || 0);
+          setTotalPages(1);
+        }
+      }
+    } catch (err: any) {
+      showToast("Failed to load master items.", "error");
+    }
+  };
+
+  // Reload when query parameters change
+  useEffect(() => {
+    loadItems();
+  }, [category, currentPage, rowsPerPage, debouncedSearchQuery, statusFilter]);
+
+  // Reset page when category changes
+  useEffect(() => {
     setSearchQuery("");
     setStatusFilter("all");
     setCurrentPage(1);
     setSortField("id");
     setSortOrder("asc");
-  }, [initialData, storageKey]);
+  }, [category]);
 
   // Handlers
   const handleOpenCreate = () => {
-    const type = location.pathname.split("/").pop() || "";
     navigate(`/master/${type}/add`);
   };
 
   const handleOpenEdit = (item: MasterItem) => {
-    const type = location.pathname.split("/").pop() || "";
     navigate(`/master/${type}/${item.id}/edit`);
   };
 
@@ -103,70 +151,30 @@ export default function MasterConfigPage({
     deleteModal.openModal();
   };
 
-  const handleToggleStatus = (item: MasterItem, checked: boolean) => {
+  const handleToggleStatus = async (item: MasterItem, checked: boolean) => {
     const newStatus: MasterItem["status"] = checked ? "Active" : "Inactive";
-    const updated = items.map((i) =>
-      i.id === item.id ? { ...i, status: newStatus } : i
-    );
-    setItems(updated);
-    setStorage(storageKey, updated);
-    showToast(`"${item.name}" marked as ${newStatus}.`, "success");
+    try {
+      await masterService.updateMasterItem(item.id, { status: newStatus });
+      const updated = items.map((i) =>
+        i.id === item.id ? { ...i, status: newStatus } : i
+      );
+      setItems(updated);
+      showToast(`"${item.name}" marked as ${newStatus}.`, "success");
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to update status.", "error");
+    }
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedItem) {
-      const currentLeads = getStorage<any[]>("saiflow_leads", []);
-      let isUsed = false;
-      if (storageKey === "saiflow_master_countries") {
-        const clients = getStorage<any[]>("saiflow_clients", []);
-        const users = getStorage<any[]>("saiflow_users", []);
-        isUsed = currentLeads.some((l) => l.country === selectedItem.name) ||
-          clients.some((c) => c.country === selectedItem.name) ||
-          users.some((u) => u.country === selectedItem.name);
-      } else if (storageKey === "saiflow_master_states") {
-        const clients = getStorage<any[]>("saiflow_clients", []);
-        const users = getStorage<any[]>("saiflow_users", []);
-        isUsed = currentLeads.some((l) => l.state === selectedItem.name) ||
-          clients.some((c) => c.state === selectedItem.name) ||
-          users.some((u) => u.state === selectedItem.name);
-      } else if (storageKey === "saiflow_master_cities") {
-        const clients = getStorage<any[]>("saiflow_clients", []);
-        const users = getStorage<any[]>("saiflow_users", []);
-        isUsed = currentLeads.some((l) => l.city === selectedItem.name) ||
-          clients.some((c) => c.city === selectedItem.name) ||
-          users.some((u) => u.city === selectedItem.name);
-      } else if (storageKey === "saiflow_master_departments") {
-        const users = getStorage<any[]>("saiflow_users", []);
-        isUsed = users.some((u) => u.department === selectedItem.name);
-      } else if (storageKey === "saiflow_master_designations") {
-        const users = getStorage<any[]>("saiflow_users", []);
-        const clients = getStorage<any[]>("saiflow_clients", []);
-        isUsed = users.some((u) => u.designation === selectedItem.name) ||
-          clients.some((c) => c.designation === selectedItem.name) ||
-          currentLeads.some((l) => l.designation === selectedItem.name);
-      } else if (storageKey === "saiflow_master_lead_sources") {
-        isUsed = currentLeads.some((l) => l.source === selectedItem.name);
-      } else if (storageKey === "saiflow_master_industries") {
-        const clients = getStorage<any[]>("saiflow_clients", []);
-        isUsed = currentLeads.some((l) => l.industry === selectedItem.name) ||
-          clients.some((c) => c.industry === selectedItem.name);
-      } else if (storageKey === "saiflow_master_priorities") {
-        isUsed = currentLeads.some((l) => l.priority === selectedItem.name);
-      } else if (storageKey === "saiflow_master_payment_types") {
-        const clients = getStorage<any[]>("saiflow_clients", []);
-        isUsed = clients.some((c) => c.paymentTerms === selectedItem.name);
+      try {
+        await masterService.deleteMasterItem(selectedItem.id);
+        const updated = items.filter((i) => i.id !== selectedItem.id);
+        setItems(updated);
+        showToast(`"${selectedItem.name}" ${itemNameSingular} deleted successfully.`, "success");
+      } catch (err: any) {
+        showToast(err.response?.data?.message || `Cannot delete "${selectedItem.name}" because it is currently in use.`, "error");
       }
-
-      if (isUsed) {
-        showToast(`Cannot delete "${selectedItem.name}" because it is currently in use.`, "error");
-        deleteModal.closeModal();
-        return;
-      }
-
-      const updated = items.filter((i) => i.id !== selectedItem.id);
-      setItems(updated);
-      setStorage(storageKey, updated);
-      showToast(`"${selectedItem.name}" ${itemNameSingular} deleted successfully.`, "success");
     }
     deleteModal.closeModal();
   };
@@ -186,21 +194,7 @@ export default function MasterConfigPage({
   const processedItems = useMemo(() => {
     let result = [...items];
 
-    // 1. Search filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (i) =>
-          i.name.toLowerCase().includes(q)
-      );
-    }
-
-    // 2. Status filter
-    if (statusFilter !== "all") {
-      result = result.filter((i) => i.status === statusFilter);
-    }
-
-    // 3. Sort
+    // Since searching and filtering status are done on the server, we only sort here!
     result.sort((a, b) => {
       const aVal = a[sortField];
       const bVal = b[sortField];
@@ -218,16 +212,10 @@ export default function MasterConfigPage({
     });
 
     return result;
-  }, [items, searchQuery, statusFilter, sortField, sortOrder]);
+  }, [items, sortField, sortOrder]);
 
-  // Paginated items
-  const paginatedItems = useMemo(() => {
-    const startIdx = (currentPage - 1) * rowsPerPage;
-    return processedItems.slice(startIdx, startIdx + rowsPerPage);
-  }, [processedItems, currentPage, rowsPerPage]);
-
-  const totalItems = processedItems.length;
-  const totalPages = Math.ceil(totalItems / rowsPerPage);
+  // Paginated items (server already handles pagination, so we render whole list)
+  const paginatedItems = processedItems;
 
   // Sorting header renderer
   const renderSortHeader = (label: string, field: keyof MasterItem, centered = false) => {
@@ -325,16 +313,18 @@ export default function MasterConfigPage({
         </div>
 
         {/* Primary Action Button */}
-        <div className="shrink-0">
-          <Button
-            size="sm"
-            onClick={handleOpenCreate}
-            startIcon={<FiPlus className="size-4" />}
-            className="w-full sm:w-auto h-11 px-4 py-2.5"
-          >
-            Add {itemNameSingular}
-          </Button>
-        </div>
+        {hasPermission('master', 'create') && (
+          <div className="shrink-0">
+            <Button
+              size="sm"
+              onClick={handleOpenCreate}
+              startIcon={<FiPlus className="size-4" />}
+              className="w-full sm:w-auto h-11 px-4 py-2.5"
+            >
+              Add {itemNameSingular}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Table Container */}
@@ -383,20 +373,24 @@ export default function MasterConfigPage({
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleOpenEdit(item)}
-                          className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
-                          title="Edit"
-                        >
-                          <FiEdit className="size-4" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenDelete(item)}
-                          className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-                          title="Delete"
-                        >
-                          <FiTrash2 className="size-4" />
-                        </button>
+                        {hasPermission('master', 'edit') && (
+                          <button
+                            onClick={() => handleOpenEdit(item)}
+                            className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
+                            title="Edit"
+                          >
+                            <FiEdit className="size-4" />
+                          </button>
+                        )}
+                        {hasPermission('master', 'delete') && (
+                          <button
+                            onClick={() => handleOpenDelete(item)}
+                            className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                            title="Delete"
+                          >
+                            <FiTrash2 className="size-4" />
+                          </button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

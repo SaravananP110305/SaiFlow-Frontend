@@ -1,36 +1,14 @@
-import { useEffect, useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
-import { getStorage, setStorage } from "../../../utils/storage";
+import { masterService } from "../../../services/masterService";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
 import { useToast } from "../../../hooks/useToast";
-import {
-  LEAD_SOURCES,
-  INDUSTRIES,
-  COUNTRIES,
-  STATES,
-  CITIES,
-  DEPARTMENTS,
-  DESIGNATIONS,
-  TECHNOLOGIES,
-  PRIORITIES,
-  PROJECT_CATEGORIES,
-  COMPANY_TYPES,
-  PAYMENT_TYPES,
-} from "../data/masterData";
 
-interface MasterItem {
-  id: number;
-  name: string;
-  description?: string;
-  status: "Active" | "Inactive";
-  countryId?: number;
-  stateId?: number;
-  departmentId?: number;
-}
+
 
 const MASTER_CONFIGS: Record<
   string,
@@ -38,8 +16,6 @@ const MASTER_CONFIGS: Record<
     pageTitle: string;
     itemNameSingular: string;
     itemNamePlural: string;
-    initialData: MasterItem[];
-    storageKey: string;
     parentType?: "countries" | "states" | "departments";
   }
 > = {
@@ -47,88 +23,64 @@ const MASTER_CONFIGS: Record<
     pageTitle: "Country",
     itemNameSingular: "country",
     itemNamePlural: "countries",
-    initialData: COUNTRIES as any,
-    storageKey: "saiflow_master_countries",
   },
   states: {
     pageTitle: "State",
     itemNameSingular: "state",
     itemNamePlural: "states",
-    initialData: STATES as any,
-    storageKey: "saiflow_master_states",
     parentType: "countries",
   },
   cities: {
     pageTitle: "City",
     itemNameSingular: "city",
     itemNamePlural: "cities",
-    initialData: CITIES as any,
-    storageKey: "saiflow_master_cities",
     parentType: "states",
   },
   departments: {
     pageTitle: "Department",
     itemNameSingular: "department",
     itemNamePlural: "departments",
-    initialData: DEPARTMENTS as any,
-    storageKey: "saiflow_master_departments",
   },
   designations: {
     pageTitle: "Designation",
     itemNameSingular: "designation",
     itemNamePlural: "designations",
-    initialData: DESIGNATIONS as any,
-    storageKey: "saiflow_master_designations",
     parentType: "departments",
   },
   "lead-sources": {
     pageTitle: "Lead source",
     itemNameSingular: "lead source",
     itemNamePlural: "lead sources",
-    initialData: LEAD_SOURCES as any,
-    storageKey: "saiflow_master_lead_sources",
   },
   industries: {
     pageTitle: "Industry",
     itemNameSingular: "industry",
     itemNamePlural: "industries",
-    initialData: INDUSTRIES as any,
-    storageKey: "saiflow_master_industries",
   },
   "tech-stack": {
     pageTitle: "Tech stack",
     itemNameSingular: "tech",
     itemNamePlural: "tech stack",
-    initialData: TECHNOLOGIES as any,
-    storageKey: "saiflow_master_technologies",
   },
   priorities: {
     pageTitle: "Priority",
     itemNameSingular: "priority",
     itemNamePlural: "priorities",
-    initialData: PRIORITIES as any,
-    storageKey: "saiflow_master_priorities",
   },
   services: {
     pageTitle: "Service",
     itemNameSingular: "service",
     itemNamePlural: "services",
-    initialData: PROJECT_CATEGORIES as any,
-    storageKey: "saiflow_master_services",
   },
   "company-types": {
     pageTitle: "Company type",
     itemNameSingular: "company type",
     itemNamePlural: "company types",
-    initialData: COMPANY_TYPES as any,
-    storageKey: "saiflow_master_company_types",
   },
   "payment-types": {
     pageTitle: "Payment type",
     itemNameSingular: "payment type",
     itemNamePlural: "payment types",
-    initialData: PAYMENT_TYPES as any,
-    storageKey: "saiflow_master_payment_types",
   },
 };
 
@@ -142,45 +94,81 @@ export default function AddEditMasterPage() {
 
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState<number | null>(null);
+  const [parents, setParents] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [parentError, setParentError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const category = useMemo(() => {
+    switch (type) {
+      case "countries": return "COUNTRY";
+      case "states": return "STATE";
+      case "cities": return "CITY";
+      case "departments": return "DEPARTMENT";
+      case "designations": return "DESIGNATION";
+      case "lead-sources": return "LEAD_SOURCE";
+      case "industries": return "INDUSTRY";
+      case "tech-stack": return "TECH_STACK";
+      case "priorities": return "PRIORITY";
+      case "services": return "SERVICE";
+      case "company-types": return "COMPANY_TYPE";
+      case "payment-types": return "PAYMENT_TYPE";
+      case "followup-types": return "FOLLOWUP_TYPE";
+      default: return "";
+    }
+  }, [type]);
+
+  const parentCategory = useMemo(() => {
+    if (!config?.parentType) return "";
+    if (config.parentType === "countries") return "COUNTRY";
+    if (config.parentType === "states") return "STATE";
+    if (config.parentType === "departments") return "DEPARTMENT";
+    return "";
+  }, [config]);
+
+  const loadDetails = async () => {
     if (!config) {
       showToast("Invalid configuration type.", "error");
       navigate("/dashboard");
       return;
     }
-
-    const items = getStorage<MasterItem[]>(config.storageKey, config.initialData);
-    if (isEditMode) {
-      const item = items.find((i) => String(i.id) === String(id));
-      if (item) {
-        setName(item.name);
-        if (item.countryId) setParentId(item.countryId);
-        else if (item.stateId) setParentId(item.stateId);
-        else if (item.departmentId) setParentId(item.departmentId);
-      } else {
-        showToast("Item not found.", "error");
-        navigate(`/master/${type}`);
-        return;
+    
+    setLoading(true);
+    try {
+      if (parentCategory) {
+        const fetchedParents = await masterService.getMasterItems(parentCategory);
+        setParents(fetchedParents);
       }
+      
+      if (isEditMode && id) {
+        const item = await masterService.getMasterItemById(Number(id));
+        if (item) {
+          setName(item.name);
+          if (item.parentId) setParentId(item.parentId);
+        } else {
+          showToast("Item not found.", "error");
+          navigate(`/master/${type}`);
+          return;
+        }
+      }
+    } catch (err: any) {
+      showToast("Failed to load details.", "error");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [type, id, isEditMode, config, navigate, showToast]);
+  };
+
+  useEffect(() => {
+    loadDetails();
+  }, [type, id, isEditMode]);
 
   const parentOptions = useMemo(() => {
-    if (!config?.parentType) return [];
-    const parentConf = MASTER_CONFIGS[config.parentType];
-    if (!parentConf) return [];
-    const parentItems = getStorage<any[]>(parentConf.storageKey, parentConf.initialData);
-    return parentItems
+    return parents
       .filter((i) => i.status === "Active")
       .map((i) => ({ value: String(i.id), label: i.name }));
-  }, [config]);
+  }, [parents]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!config) return;
 
@@ -197,45 +185,26 @@ export default function AddEditMasterPage() {
 
     if (hasError) return;
 
-    const items = getStorage<MasterItem[]>(config.storageKey, config.initialData);
-    const updated = [...items];
-
-    const parentKey =
-      config.parentType === "countries"
-        ? "countryId"
-        : config.parentType === "states"
-        ? "stateId"
-        : "departmentId";
-
-    if (isEditMode) {
-      const idx = items.findIndex((i) => String(i.id) === String(id));
-      if (idx !== -1) {
-        const updatedItem: any = {
-          ...updated[idx],
+    try {
+      if (isEditMode) {
+        await masterService.updateMasterItem(Number(id), {
           name: name.trim(),
-        };
-        if (config.parentType) {
-          updatedItem[parentKey] = Number(parentId);
-        }
-        updated[idx] = updatedItem;
+          parentId: parentId ? Number(parentId) : null
+        });
+        showToast(`${config.pageTitle} updated successfully.`, "success");
+      } else {
+        await masterService.createMasterItem({
+          category,
+          name: name.trim(),
+          parentId: parentId ? Number(parentId) : null
+        });
+        showToast(`${config.pageTitle} added successfully.`, "success");
       }
-      showToast(`${config.pageTitle} updated successfully.`, "success");
-    } else {
-      const nextId = items.length > 0 ? Math.max(...items.map((i) => i.id)) + 1 : 1;
-      const newItem: any = {
-        id: nextId,
-        name: name.trim(),
-        status: "Active",
-      };
-      if (config.parentType) {
-        newItem[parentKey] = Number(parentId);
-      }
-      updated.push(newItem);
-      showToast(`${config.pageTitle} added successfully.`, "success");
+      navigate(`/master/${type}`);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Failed to save configuration item.";
+      showToast(msg, "error");
     }
-
-    setStorage(config.storageKey, updated);
-    navigate(`/master/${type}`);
   };
 
   const handleCancel = () => {

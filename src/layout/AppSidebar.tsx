@@ -20,7 +20,7 @@ import {
 } from "react-icons/md";
 import { ChevronDownIcon } from "../icons";
 import logo from "/images/logo/Saiflow.png"
-import { getStorage } from "../utils/storage";
+import { useAuth } from "../context/AuthContext";
 
 
 type NavItem = {
@@ -141,28 +141,37 @@ const navItems: NavItem[] = [
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
+  const { hasPermission } = useAuth();
 
-  const loggedInUser = getStorage<any>("saiflow_logged_in_user", {
-    name: "Admin User",
-    email: "admin@gmail.com",
-    role: "Administrator",
-  });
-  const isAdmin = loggedInUser?.role === "Administrator";
+  // Map sidebar nav names to backend permission module keys
+  const navToModuleKey = (navName: string): string | null => {
+    const map: Record<string, string> = {
+      "Master": "master",
+      "Manage Users": "users",
+      "Leads": "leads",
+      "Connect": "connect",
+      "Meetings": "meetings",
+      "Proposals": "proposals",
+      "Clients": "clients",
+      "Reports": "reports",
+      "Settings": "settings",
+    };
+    return map[navName] || null;
+  };
 
   const visibleNavItems = navItems.filter((nav) => {
-    // Temporarily hide Projects, Tasks, QA, Deployments, Support
+    // Temporarily hide unbuilt modules
     const hiddenModules = ["Projects", "Tasks", "QA", "Deployments", "Support"];
-    if (hiddenModules.includes(nav.name)) {
-      return false;
-    }
+    if (hiddenModules.includes(nav.name)) return false;
 
-    if (isAdmin) {
-      // Administrator: show ALL navigation items (full access)
-      return true;
-    } else {
-      // Non-admin (specific users): hide "Master", "Manage Users", and "Reports"
-      return nav.name !== "Master" && nav.name !== "Manage Users" && nav.name !== "Reports";
-    }
+    // Dashboard is always visible
+    if (nav.name === "Dashboard") return true;
+
+    // Check permission for this module
+    const moduleKey = navToModuleKey(nav.name);
+    if (!moduleKey) return true;
+
+    return hasPermission(moduleKey, 'view');
   });
 
   const isMasterPath = location.pathname.startsWith("/master/");

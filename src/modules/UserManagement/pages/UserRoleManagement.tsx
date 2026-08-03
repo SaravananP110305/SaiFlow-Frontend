@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { getStorage, setStorage } from "../../../utils/storage";
+import { roleService } from "../../../services/roleService";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
@@ -9,9 +9,11 @@ import Switch from "../../../components/form/switch/Switch";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
 import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import { useToast } from "../../../hooks/useToast";
+import { useAuth } from "../../../context/AuthContext";
 import {
   Table,
   TableHeader,
@@ -87,101 +89,7 @@ export const buildDefaultPermissions = (): Permission[] => {
 
 const defaultPermissionsList = buildDefaultPermissions();
 
-const buildRolePermissions = (
-  roleName: string,
-  rules: { all?: boolean }
-): Permission[] => {
-  return defaultPermissionsList.map(perm => {
-    const isUsers = perm.key === "users" || perm.parentKey === "users";
-    const isReports = perm.key === "reports" || perm.parentKey === "reports";
-    const isSettings = perm.key === "settings";
 
-    let view = false;
-    let create = false;
-    let edit = false;
-    let del = false;
-
-    if (rules.all) {
-      view = create = edit = del = true;
-    }
-
-    if (roleName === "Business Development Manager") {
-      if (isUsers) {
-        view = create = edit = true;
-      } else if (isReports) {
-        view = true;
-      } else if (isSettings) {
-        view = edit = true;
-      } else {
-        view = create = edit = del = true;
-      }
-    } else if (roleName === "Business Development Executive") {
-      if (!isUsers && !isReports) {
-        if (isSettings) {
-          view = true;
-        } else {
-          view = create = edit = true;
-        }
-      }
-    } else if (roleName === "Presales Consultant") {
-      if (perm.key === "leads" || perm.key === "meetings" || perm.key === "requirements" || perm.parentKey === "requirements") {
-        view = edit = true;
-      } else if (perm.key === "clients" || perm.key === "proposals" || isSettings) {
-        view = true;
-      }
-    } else if (roleName === "Guest User") {
-      if (perm.key === "dashboard") {
-        view = true;
-      }
-    }
-
-    return {
-      ...perm,
-      view,
-      create,
-      edit,
-      delete: del
-    };
-  });
-};
-
-const initialRoles: Role[] = [
-  {
-    id: 1,
-    roleName: "Administrator",
-    description: "Full system access to all modules, records, and configurations.",
-    status: "Active",
-    permissions: buildRolePermissions("Administrator", { all: true }),
-  },
-  {
-    id: 2,
-    roleName: "Business Development Manager",
-    description: "Manage BDM team, view pipeline reports, and assign incoming leads.",
-    status: "Active",
-    permissions: buildRolePermissions("Business Development Manager", {}),
-  },
-  {
-    id: 3,
-    roleName: "Business Development Executive",
-    description: "Add leads, log customer follow-ups, and coordinate meeting bookings.",
-    status: "Active",
-    permissions: buildRolePermissions("Business Development Executive", {}),
-  },
-  {
-    id: 4,
-    roleName: "Presales Consultant",
-    description: "Evaluate lead technical requirements and draft solution proposal details.",
-    status: "Active",
-    permissions: buildRolePermissions("Presales Consultant", {}),
-  },
-  {
-    id: 5,
-    roleName: "Guest User",
-    description: "Read-only access to basic performance metric counts on the dashboard.",
-    status: "Inactive",
-    permissions: buildRolePermissions("Guest User", {}),
-  },
-];
 
 export const syncPermissions = (savedPermissions: Permission[]): Permission[] => {
   if (!savedPermissions || !Array.isArray(savedPermissions)) {
@@ -208,14 +116,14 @@ export const syncPermissions = (savedPermissions: Permission[]): Permission[] =>
 export default function UserRoleManagement() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [roles, setRoles] = useState<Role[]>(() => {
-    const stored = getStorage<Role[]>("saiflow_roles", initialRoles);
-    return stored.map(role => ({
-      ...role,
-      permissions: syncPermissions(role.permissions)
-    }));
-  });
+  const { hasPermission } = useAuth();
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(true);
+
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<keyof Role>("id");
@@ -230,6 +138,38 @@ export default function UserRoleManagement() {
 
   // Active items mapping
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+
+  const fetchRoles = async () => {
+    setLoading(true);
+    try {
+      const res = await roleService.getRoles({
+        paginate: true,
+        page: currentPage,
+        limit: rowsPerPage,
+        search: debouncedSearchQuery || undefined
+      });
+
+      const rawRoles = res.data || [];
+      const adapted = rawRoles.map((role: any) => ({
+        id: role.id,
+        roleName: role.name,
+        description: role.description || "",
+        status: "Active",
+        permissions: []
+      }));
+      setRoles(adapted);
+      setTotalItems(res.meta?.total || 0);
+      setTotalPages(res.meta?.totalPages || 0);
+    } catch (err) {
+      showToast("Failed to fetch roles from backend.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoles();
+  }, [currentPage, rowsPerPage, debouncedSearchQuery]);
 
   // Handlers
   const handleOpenView = (role: Role) => {
@@ -249,12 +189,15 @@ export default function UserRoleManagement() {
     deleteModal.openModal();
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedRole) {
-      const updated = roles.filter((r) => r.id !== selectedRole.id);
-      setRoles(updated);
-      setStorage("saiflow_roles", updated);
-      showToast("Role deleted successfully.", "success");
+      try {
+        await roleService.deleteRole(selectedRole.id);
+        setRoles((prev) => prev.filter((r) => r.id !== selectedRole.id));
+        showToast("Role deleted successfully.", "success");
+      } catch (err: any) {
+        showToast(err.response?.data?.message || "Failed to delete role.", "error");
+      }
     }
     deleteModal.closeModal();
   };
@@ -265,8 +208,7 @@ export default function UserRoleManagement() {
       r.id === role.id ? { ...r, status: newStatus } : r
     );
     setRoles(updated);
-    setStorage("saiflow_roles", updated);
-    showToast(`"${role.roleName}" marked as ${newStatus}.`, "success");
+    showToast(`Role status toggle is simulated locally.`, "warning");
   };
 
   // Sorting columns
@@ -283,21 +225,6 @@ export default function UserRoleManagement() {
   // Filters & Sorting calculations
   const processedRoles = useMemo(() => {
     let result = [...roles];
-
-    // 1. Search Query filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (r) =>
-          r.roleName.toLowerCase().includes(q) ||
-          r.status.toLowerCase().includes(q)
-      );
-    }
-
-    // 2. Status filter
-    if (statusFilter !== "all") {
-      result = result.filter((r) => r.status === statusFilter);
-    }
 
     // 3. Sort column values
     result.sort((a, b) => {
@@ -317,16 +244,10 @@ export default function UserRoleManagement() {
     });
 
     return result;
-  }, [roles, searchQuery, statusFilter, sortField, sortOrder]);
+  }, [roles, sortField, sortOrder]);
 
-  // Paginated elements calculation
-  const paginatedRoles = useMemo(() => {
-    const startIdx = (currentPage - 1) * rowsPerPage;
-    return processedRoles.slice(startIdx, startIdx + rowsPerPage);
-  }, [processedRoles, currentPage, rowsPerPage]);
-
-  const totalItems = processedRoles.length;
-  const totalPages = Math.ceil(totalItems / rowsPerPage);
+  // Paginated elements calculation (delegated to server)
+  const paginatedRoles = processedRoles;
 
   // Sorting header icons indicator renderer
   const renderSortHeader = (label: string, field: keyof Role, centered = false) => {
@@ -418,16 +339,18 @@ export default function UserRoleManagement() {
         </div>
 
         {/* Primary Action Button */}
-        <div>
-          <Button
-            size="sm"
-            onClick={handleOpenCreate}
-            startIcon={<FiPlus className="size-4" />}
-            className="w-full sm:w-auto h-11 px-4 py-2.5"
-          >
-            Add role
-          </Button>
-        </div>
+        {hasPermission('roles', 'create') && (
+          <div>
+            <Button
+              size="sm"
+              onClick={handleOpenCreate}
+              startIcon={<FiPlus className="size-4" />}
+              className="w-full sm:w-auto h-11 px-4 py-2.5"
+            >
+              Add role
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Table Container */}
@@ -463,7 +386,16 @@ export default function UserRoleManagement() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {paginatedRoles.length > 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="px-5 py-8 text-center text-sm text-gray-500">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
+                      <span>Loading roles...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : paginatedRoles.length > 0 ? (
                 paginatedRoles.map((role) => (
                   <TableRow
                     key={role.id}
@@ -487,7 +419,7 @@ export default function UserRoleManagement() {
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleOpenView(role)}
                           className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
@@ -495,20 +427,24 @@ export default function UserRoleManagement() {
                         >
                           <FiEye className="size-4" />
                         </button>
-                        <button
-                          onClick={() => handleOpenEdit(role)}
-                          className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
-                          title="Edit"
-                        >
-                          <FiEdit className="size-4" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenDelete(role)}
-                          className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-                          title="Delete"
-                        >
-                          <FiTrash2 className="size-4" />
-                        </button>
+                        {hasPermission('roles', 'edit') && (
+                          <button
+                            onClick={() => handleOpenEdit(role)}
+                            className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
+                            title="Edit"
+                          >
+                            <FiEdit className="size-4" />
+                          </button>
+                        )}
+                        {hasPermission('roles', 'delete') && (
+                          <button
+                            onClick={() => handleOpenDelete(role)}
+                            className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                            title="Delete"
+                          >
+                            <FiTrash2 className="size-4" />
+                          </button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

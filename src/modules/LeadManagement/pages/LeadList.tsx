@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
@@ -20,41 +20,70 @@ import {
 import { ChevronDownIcon, ChevronUpIcon } from "../../../icons";
 import { FiEye, FiEdit, FiTrash2, FiPlus, FiUpload } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
-import { getStorage, setStorage } from "../../../utils/storage";
+import { useAuth } from "../../../context/AuthContext";
+import { setStorage } from "../../../utils/storage";
 import * as XLSX from "xlsx";
 import {
-  initialLeads,
-  ASSIGNEES,
   type Lead,
   type LeadPriority,
   type LeadStatus,
 } from "../data/leadsData";
-import { LEAD_SOURCES, INDUSTRIES } from "../../Master/data/masterData";
+import { leadService } from "../../../services/leadService";
+import { userService } from "../../../services/userService";
+import { masterService } from "../../../services/masterService";
+
+const mapStatusToFrontend = (status: string): string => {
+  switch (status) {
+    case "NEW": return "New";
+    case "ASSIGNED": return "New";
+    case "CONTACTED": return "Contacted";
+    case "MEETING_SCHEDULED": return "Scheduled";
+    case "QUALIFIED": return "Qualified";
+    case "PROPOSAL": return "Proposal sent";
+    case "NEGOTIATION": return "Proposal sent";
+    case "WON": return "Won";
+    case "LOST": return "Lost";
+    case "DISQUALIFIED": return "Lost";
+    default: return "New";
+  }
+};
+
+const adaptLeadToFrontend = (backendLead: any): Lead => {
+  return {
+    id: backendLead.id,
+    company: backendLead.company?.name || "No Company",
+    contactPerson: backendLead.contactName || "",
+    email: backendLead.contactEmail || "",
+    phone: backendLead.contactPhone || "",
+    status: mapStatusToFrontend(backendLead.status) as any,
+    priority: (backendLead.priority?.name || "Medium") as any,
+    assignedTo: backendLead.assignedTo 
+      ? `${backendLead.assignedTo.firstName} ${backendLead.assignedTo.lastName}`.trim()
+      : "Unassigned",
+    source: backendLead.source?.name || "",
+    industry: backendLead.company?.industry?.name || "",
+    website: backendLead.company?.website || "",
+    address: backendLead.company?.address || "",
+    notes: backendLead.requirements || "",
+    createdAt: backendLead.createdAt
+  };
+};
 
 export default function LeadList() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { hasPermission } = useAuth();
   const uploadModal = useModal();
   const deleteModal = useModal();
 
 
 
-  const [leads, setLeads] = useState<Lead[]>(() => {
-    const list = getStorage<Lead[]>("saiflow_leads", initialLeads);
-    // Auto-clean any corrupt binary rows loaded previously from excel upload attempt
-    const cleaned = list.filter(
-      (l) =>
-        l.company &&
-        !l.company.includes("[Content_Types]") &&
-        !l.company.includes("xml") &&
-        !l.company.includes("xl/") &&
-        !l.email.includes("xml")
-    );
-    if (cleaned.length !== list.length) {
-      setStorage("saiflow_leads", cleaned);
-    }
-    return cleaned;
-  });
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [industries, setIndustries] = useState<any[]>([]);
+  const [sources, setSources] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -75,49 +104,67 @@ export default function LeadList() {
   const [dragOver, setDragOver] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
+  const fetchLeads = async () => {
+    setLoading(true);
+    try {
+      const res = await leadService.getLeads({ limit: 100 });
+      const rawLeads = res.data || [];
+      setLeads(rawLeads.map(adaptLeadToFrontend));
+    } catch (err) {
+      showToast("Failed to fetch leads from backend.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadFilterAndUserData = async () => {
+    try {
+      const [resUsers, indData, srcData] = await Promise.all([
+        userService.getAssignees(),
+        masterService.getMasterItems("INDUSTRY"),
+        masterService.getMasterItems("LEAD_SOURCE")
+      ]);
+      setUsers(resUsers.data || []);
+      setIndustries(indData || []);
+      setSources(srcData || []);
+    } catch (err) {
+      console.error("Failed to load initial filters and users:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeads();
+    loadFilterAndUserData();
+  }, []);
+
   const handleOpenDelete = (lead: Lead) => {
     setSelectedLead(lead);
     deleteModal.openModal();
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedLead) {
-      const updated = leads.filter((l) => l.id !== selectedLead.id);
-      setLeads(updated);
-      setStorage("saiflow_leads", updated);
-      // Log deletion activity
-      const leadLogs = getStorage<any[]>("saiflow_lead_logs", []);
-      setStorage("saiflow_lead_logs", [...leadLogs, {
-        id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        leadId: selectedLead.id,
-        action: "lead_deleted",
-        description: `Lead "${selectedLead.company}" was deleted.`,
-        timestamp: new Date().toISOString(),
-      }]);
-      showToast(`Lead "${selectedLead.company}" deleted successfully.`, "success");
+      try {
+        await leadService.deleteLead(selectedLead.id);
+        setLeads((prev) => prev.filter((l) => l.id !== selectedLead.id));
+        showToast(`Lead "${selectedLead.company}" deleted successfully.`, "success");
+      } catch (err: any) {
+        showToast(err.response?.data?.message || "Failed to delete lead.", "error");
+      }
     }
     deleteModal.closeModal();
   };
 
-  const handleDirectAssign = (leadId: number, newAssignee: string) => {
-    const prevLead = leads.find(l => l.id === leadId);
-    const prevAssignee = prevLead?.assignedTo || "Unknown";
-    const updated = leads.map((l) =>
-      l.id === leadId ? { ...l, assignedTo: newAssignee } : l
-    );
-    setLeads(updated);
-    setStorage("saiflow_leads", updated);
-    // Log reassignment activity
-    const leadLogs = getStorage<any[]>("saiflow_lead_logs", []);
-    setStorage("saiflow_lead_logs", [...leadLogs, {
-      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      leadId,
-      action: "lead_reassigned",
-      description: `Lead reassigned from ${prevAssignee} to ${newAssignee}.`,
-      timestamp: new Date().toISOString(),
-      operator: newAssignee,
-    }]);
-    showToast(`Lead assigned to ${newAssignee} successfully.`, "success");
+  const handleDirectAssign = async (leadId: number, userIdStr: string) => {
+    if (!userIdStr) return;
+    try {
+      const userId = Number(userIdStr);
+      await leadService.assignLead(leadId, userId);
+      showToast("Lead assigned successfully.", "success");
+      fetchLeads();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to assign lead.", "error");
+    }
   };
 
   const downloadSampleTemplate = () => {
@@ -140,7 +187,7 @@ export default function LeadList() {
         "Pincode": "94043",
         "Lead Source": "Website",
         "Priority": "High",
-        "Lead Owner": ASSIGNEES[0] || "John Doe"
+        "Lead Owner": "Jane Smith"
       },
       {
         "Company Name": "Microsoft Corp",
@@ -160,7 +207,7 @@ export default function LeadList() {
         "Pincode": "98052",
         "Lead Source": "Referral",
         "Priority": "Medium",
-        "Lead Owner": ASSIGNEES[1] || "Jane Smith"
+        "Lead Owner": "Alice Johnson"
       }
     ];
 
@@ -181,20 +228,20 @@ export default function LeadList() {
     setCurrentPage(1);
   };
 
-  const assigneeOptions = [
+  const assigneeOptions = useMemo(() => [
     { value: "all", label: "All assignees" },
-    ...ASSIGNEES.map((a) => ({ value: a, label: a })),
-  ];
+    ...users.map((u) => ({ value: `${u.firstName} ${u.lastName}`.trim(), label: `${u.firstName} ${u.lastName}`.trim() })),
+  ], [users]);
 
-  const industryOptions = [
+  const industryOptions = useMemo(() => [
     { value: "all", label: "All industries" },
-    ...getStorage("saiflow_master_industries", INDUSTRIES).filter((i: any) => i.status === "Active").map((i: any) => ({ value: i.name, label: i.name }))
-  ];
+    ...industries.filter((i: any) => i.status === "Active").map((i: any) => ({ value: i.name, label: i.name }))
+  ], [industries]);
 
-  const sourceOptions = [
+  const sourceOptions = useMemo(() => [
     { value: "all", label: "All sources" },
-    ...getStorage("saiflow_master_lead_sources", LEAD_SOURCES).filter((s: any) => s.status === "Active").map((s: any) => ({ value: s.name, label: s.name }))
-  ];
+    ...sources.filter((s: any) => s.status === "Active").map((s: any) => ({ value: s.name, label: s.name }))
+  ], [sources]);
 
   const processedLeads = useMemo(() => {
     let result = [...leads];
@@ -265,26 +312,31 @@ export default function LeadList() {
     }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    const updated = leads.filter(l => !selectedIds.includes(l.id));
-    setLeads(updated);
-    setStorage("saiflow_leads", updated);
-    showToast(`${selectedIds.length} lead(s) deleted successfully.`, "success");
-    setSelectedIds([]);
+    try {
+      await Promise.all(selectedIds.map((leadId) => leadService.deleteLead(leadId)));
+      showToast(`${selectedIds.length} lead(s) deleted successfully.`, "success");
+      fetchLeads();
+      setSelectedIds([]);
+    } catch (err: any) {
+      showToast("Failed to bulk delete leads.", "error");
+    }
   };
 
-  const handleBulkReassign = () => {
+  const handleBulkReassign = async () => {
     if (selectedIds.length === 0 || !bulkAssignee) return;
-    const updated = leads.map(l =>
-      selectedIds.includes(l.id) ? { ...l, assignedTo: bulkAssignee } : l
-    );
-    setLeads(updated);
-    setStorage("saiflow_leads", updated);
-    showToast(`${selectedIds.length} lead(s) reassigned to ${bulkAssignee}.`, "success");
-    setSelectedIds([]);
-    setBulkAssignee("");
-    setShowBulkAssign(false);
+    try {
+      const userId = Number(bulkAssignee);
+      await Promise.all(selectedIds.map((leadId) => leadService.assignLead(leadId, userId)));
+      showToast(`${selectedIds.length} lead(s) reassigned successfully.`, "success");
+      fetchLeads();
+      setSelectedIds([]);
+      setBulkAssignee("");
+      setShowBulkAssign(false);
+    } catch (err: any) {
+      showToast("Failed to bulk reassign leads.", "error");
+    }
   };
 
   const totalItems = processedLeads.length;
@@ -469,23 +521,27 @@ export default function LeadList() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={uploadModal.openModal}
-            startIcon={<FiUpload className="size-4" />}
-            className="h-11 px-4 py-2.5"
-          >
-            Upload Excel
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => navigate("/leads/add")}
-            startIcon={<FiPlus className="size-4" />}
-            className="h-11 px-4 py-2.5"
-          >
-            Add lead
-          </Button>
+          {hasPermission('leads', 'create') && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={uploadModal.openModal}
+                startIcon={<FiUpload className="size-4" />}
+                className="h-11 px-4 py-2.5"
+              >
+                Upload Excel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => navigate("/leads/add")}
+                startIcon={<FiPlus className="size-4" />}
+                className="h-11 px-4 py-2.5"
+              >
+                Add lead
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -508,8 +564,8 @@ export default function LeadList() {
                   className="h-9 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                 >
                   <option value="">Select assignee...</option>
-                  {ASSIGNEES.map((a) => (
-                    <option key={a} value={a}>{a}</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={String(u.id)}>{`${u.firstName} ${u.lastName}`.trim()}</option>
                   ))}
                 </select>
                 <Button size="sm" onClick={handleBulkReassign} disabled={!bulkAssignee}>
@@ -581,7 +637,16 @@ export default function LeadList() {
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                  {paginatedLeads.length > 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="px-5 py-8 text-center text-sm text-gray-500">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
+                          <span>Loading leads...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : paginatedLeads.length > 0 ? (
                     paginatedLeads.map((lead, index) => (
                       <TableRow
                         key={lead.id}
@@ -617,7 +682,7 @@ export default function LeadList() {
                         </TableCell>
                         <TableCell className="px-5 py-4 text-theme-sm whitespace-nowrap">
                           <select
-                            value={lead.assignedTo}
+                            value={users.find(u => `${u.firstName} ${u.lastName}`.trim() === lead.assignedTo)?.id || ""}
                             onChange={(e) => handleDirectAssign(lead.id, e.target.value)}
                             className="h-9 w-40 appearance-none rounded-lg border border-gray-300 bg-transparent px-3 py-1.5 pr-8 text-xs shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
                             style={{
@@ -627,13 +692,16 @@ export default function LeadList() {
                               backgroundRepeat: 'no-repeat'
                             }}
                           >
-                            {ASSIGNEES.map((assignee) => (
+                            <option value="" className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100">
+                              Unassigned
+                            </option>
+                            {users.map((u) => (
                               <option
-                                key={assignee}
-                                value={assignee}
+                                key={u.id}
+                                value={String(u.id)}
                                 className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100"
                               >
-                                {assignee}
+                                {`${u.firstName} ${u.lastName}`.trim()}
                               </option>
                             ))}
                           </select>
@@ -647,20 +715,24 @@ export default function LeadList() {
                             >
                               <FiEye className="size-4" />
                             </button>
-                            <button
-                              onClick={() => navigate(`/leads/${lead.id}/edit`)}
-                              className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
-                              title="Edit"
-                            >
-                              <FiEdit className="size-4" />
-                            </button>
-                            <button
-                              onClick={() => handleOpenDelete(lead)}
-                              className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-                              title="Delete"
-                            >
-                              <FiTrash2 className="size-4" />
-                            </button>
+                            {hasPermission('leads', 'edit') && (
+                              <button
+                                onClick={() => navigate(`/leads/${lead.id}/edit`)}
+                                className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
+                                title="Edit"
+                              >
+                                <FiEdit className="size-4" />
+                              </button>
+                            )}
+                            {hasPermission('leads', 'delete') && (
+                              <button
+                                onClick={() => handleOpenDelete(lead)}
+                                className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                                title="Delete"
+                              >
+                                <FiTrash2 className="size-4" />
+                              </button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -681,7 +753,14 @@ export default function LeadList() {
 
             {/* ═══ MOBILE / TABLET CARD VIEW (below md) ═══ */}
             <div className="block md:hidden divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {paginatedLeads.length > 0 ? (
+              {loading ? (
+                <div className="px-5 py-8 text-center text-sm text-gray-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
+                    <span>Loading leads...</span>
+                  </div>
+                </div>
+              ) : paginatedLeads.length > 0 ? (
                 paginatedLeads.map((lead, index) => (
                   <div
                     key={lead.id}
@@ -752,7 +831,7 @@ export default function LeadList() {
                       <div>
                         <span className="block text-gray-400 dark:text-gray-500 mb-0.5">Assigned to</span>
                         <select
-                          value={lead.assignedTo}
+                          value={users.find(u => `${u.firstName} ${u.lastName}`.trim() === lead.assignedTo)?.id || ""}
                           onChange={(e) => handleDirectAssign(lead.id, e.target.value)}
                           className="h-8 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-2.5 py-1 pr-7 text-xs shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
                           style={{
@@ -762,13 +841,16 @@ export default function LeadList() {
                             backgroundRepeat: 'no-repeat'
                           }}
                         >
-                          {ASSIGNEES.map((assignee) => (
+                          <option value="" className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100">
+                            Unassigned
+                          </option>
+                          {users.map((u) => (
                             <option
-                              key={assignee}
-                              value={assignee}
+                              key={u.id}
+                              value={String(u.id)}
                               className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100"
                             >
-                              {assignee}
+                              {`${u.firstName} ${u.lastName}`.trim()}
                             </option>
                           ))}
                         </select>

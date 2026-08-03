@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { getStorage, setStorage } from "../../../utils/storage";
+import { userService } from "../../../services/userService";
+import { roleService } from "../../../services/roleService";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
@@ -9,9 +10,11 @@ import Switch from "../../../components/form/switch/Switch";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
 import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import { useToast } from "../../../hooks/useToast";
+import { useAuth } from "../../../context/AuthContext";
 import {
   Table,
   TableHeader,
@@ -37,53 +40,33 @@ interface User {
   password?: string;
 }
 
-const generateEmployeeId = (id: number): string => {
-  return `EMP-${String(id).padStart(3, "0")}`;
+
+
+const adaptUserToFrontend = (backendUser: any): User => {
+  return {
+    id: backendUser.id,
+    employeeId: `EMP-${String(backendUser.id).padStart(3, "0")}`,
+    name: `${backendUser.firstName} ${backendUser.lastName}`.trim(),
+    email: backendUser.email,
+    phone: backendUser.phone || "",
+    role: backendUser.role?.name || "Guest User",
+    department: backendUser.role?.description || "",
+    status: backendUser.status === "ACTIVE" ? "Active" : "Inactive"
+  };
 };
-
-const roleToDepartment: Record<string, string> = {
-  Administrator: "",
-  "Business Development Manager": "Business Development",
-  "Business Development Executive": "Business Development",
-  "Presales Consultant": "Presales",
-  "Guest User": "",
-};
-
-const initialUsers: User[] = [
-  { id: 1, employeeId: "EMP-001", name: "John Doe", email: "john.doe@saiflow.com", phone: "+91 98765 43210", role: "Administrator", department: "Sales", status: "Active", password: "Password@123" },
-  { id: 2, employeeId: "EMP-002", name: "Jane Smith", email: "jane.smith@saiflow.com", phone: "+91 98765 43211", role: "Business Development Manager", department: "Business Development", status: "Active", password: "Password@123" },
-  { id: 3, employeeId: "EMP-003", name: "Alice Johnson", email: "alice.johnson@saiflow.com", phone: "+91 98765 43212", role: "Business Development Executive", department: "Business Development", status: "Active", password: "Password@123" },
-  { id: 4, employeeId: "EMP-004", name: "Robert Lee", email: "robert.lee@saiflow.com", phone: "+91 98765 43213", role: "Presales Consultant", department: "Presales", status: "Active", password: "Password@123" },
-  { id: 5, employeeId: "EMP-005", name: "Emma Watson", email: "emma.watson@saiflow.com", phone: "+91 98765 43214", role: "Guest User", department: "Sales", status: "Inactive", password: "Password@123" },
-];
-
-const availableRoles = [
-  "Administrator",
-  "Business Development Manager",
-  "Business Development Executive",
-  "Presales Consultant",
-  "Guest User",
-];
 
 export default function UserManagement() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [users, setUsers] = useState<User[]>(() => {
-    const stored = getStorage<User[]>("saiflow_users", initialUsers);
-    // Migrate old data: add employeeId and department if missing
-    const needsMigration = stored.some((u) => !u.employeeId || u.department === undefined);
-    if (needsMigration) {
-      const migrated = stored.map((u) => ({
-        ...u,
-        employeeId: u.employeeId || generateEmployeeId(u.id),
-        department: u.department ?? roleToDepartment[u.role] ?? "",
-      }));
-      setStorage("saiflow_users", migrated);
-      return migrated;
-    }
-    return stored;
-  });
+  const { hasPermission } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(true);
+
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -98,6 +81,46 @@ export default function UserManagement() {
   // Delete modal
   const deleteModal = useModal();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const activeRole = roles.find((r) => r.name === roleFilter);
+      const res = await userService.getUsers({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: debouncedSearchQuery || undefined,
+        status: statusFilter !== "all" ? (statusFilter === "Active" ? "ACTIVE" : "INACTIVE") : undefined,
+        roleId: activeRole ? activeRole.id : undefined
+      });
+
+      const rawUsers = res.data || [];
+      setUsers(rawUsers.map(adaptUserToFrontend));
+      setTotalItems(res.meta?.total || 0);
+      setTotalPages(res.meta?.totalPages || 0);
+    } catch (err) {
+      showToast("Failed to fetch users from backend.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRoles = async () => {
+    try {
+      const fetched = await roleService.getRoles();
+      setRoles(fetched);
+    } catch (err) {
+      console.error("Failed to load roles:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadRoles();
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [currentPage, rowsPerPage, debouncedSearchQuery, statusFilter, roleFilter, roles]);
 
   // Handlers
   const handleOpenView = (user: User) => {
@@ -117,24 +140,33 @@ export default function UserManagement() {
     deleteModal.openModal();
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedUser) {
-      const updated = users.filter((u) => u.id !== selectedUser.id);
-      setUsers(updated);
-      setStorage("saiflow_users", updated);
-      showToast("User deleted successfully.", "success");
+      try {
+        await userService.deleteUser(selectedUser.id);
+        setUsers((prev) => prev.filter((u) => u.id !== selectedUser.id));
+        showToast("User deleted successfully.", "success");
+      } catch (err: any) {
+        showToast(err.response?.data?.message || "Failed to delete user.", "error");
+      }
     }
     deleteModal.closeModal();
   };
 
-  const handleToggleStatus = (user: User, checked: boolean) => {
+  const handleToggleStatus = async (user: User, checked: boolean) => {
     const newStatus: User["status"] = checked ? "Active" : "Inactive";
-    const updated = users.map((u) =>
-      u.id === user.id ? { ...u, status: newStatus } : u
-    );
-    setUsers(updated);
-    setStorage("saiflow_users", updated);
-    showToast(`"${user.name}" marked as ${newStatus}.`, "success");
+    try {
+      await userService.updateUser(user.id, {
+        status: checked ? "ACTIVE" : "INACTIVE"
+      });
+      const updated = users.map((u) =>
+        u.id === user.id ? { ...u, status: newStatus } : u
+      );
+      setUsers(updated);
+      showToast(`"${user.name}" marked as ${newStatus}.`, "success");
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to update status.", "error");
+    }
   };
 
   // Sorting columns
@@ -152,30 +184,7 @@ export default function UserManagement() {
   const processedUsers = useMemo(() => {
     let result = [...users];
 
-    // 1. Search Query filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (u) =>
-          u.name.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q) ||
-          u.phone.toLowerCase().includes(q) ||
-          u.role.toLowerCase().includes(q) ||
-          u.status.toLowerCase().includes(q)
-      );
-    }
-
-    // 2. Role filter
-    if (roleFilter !== "all") {
-      result = result.filter((u) => u.role === roleFilter);
-    }
-
-    // 3. Status filter
-    if (statusFilter !== "all") {
-      result = result.filter((u) => u.status === statusFilter);
-    }
-
-    // 4. Sort column values
+    // Sorting column values
     result.sort((a, b) => {
       const aVal = a[sortField];
       const bVal = b[sortField];
@@ -193,16 +202,10 @@ export default function UserManagement() {
     });
 
     return result;
-  }, [users, searchQuery, roleFilter, statusFilter, sortField, sortOrder]);
+  }, [users, sortField, sortOrder]);
 
-  // Paginated elements calculation
-  const paginatedUsers = useMemo(() => {
-    const startIdx = (currentPage - 1) * rowsPerPage;
-    return processedUsers.slice(startIdx, startIdx + rowsPerPage);
-  }, [processedUsers, currentPage, rowsPerPage]);
-
-  const totalItems = processedUsers.length;
-  const totalPages = Math.ceil(totalItems / rowsPerPage);
+  // Paginated elements calculation (delegated to server)
+  const paginatedUsers = processedUsers;
 
   // Sorting header icons indicator renderer
   const renderSortHeader = (label: string, field: keyof User, centered = false) => {
@@ -282,20 +285,20 @@ export default function UserManagement() {
                     All roles
                   </DropdownItem>
                 </li>
-                {availableRoles.map((roleOpt) => (
-                  <li key={roleOpt}>
+                {roles.map((r) => (
+                  <li key={r.id}>
                     <DropdownItem
                       onItemClick={() => {
-                        setRoleFilter(roleOpt);
+                        setRoleFilter(r.name);
                         setCurrentPage(1);
                         setIsRoleFilterOpen(false);
                       }}
-                      className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${roleFilter === roleOpt
+                      className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${roleFilter === r.name
                           ? "bg-brand-500 text-white font-medium"
                           : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                         }`}
                     >
-                      {roleOpt}
+                      {r.name}
                     </DropdownItem>
                   </li>
                 ))}
@@ -345,16 +348,18 @@ export default function UserManagement() {
         </div>
 
         {/* Primary Action Button */}
-        <div>
-          <Button
-            size="sm"
-            onClick={handleOpenCreate}
-            startIcon={<FiPlus className="size-4" />}
-            className="w-full sm:w-auto h-11 px-4 py-2.5"
-          >
-            Add user
-          </Button>
-        </div>
+        {hasPermission('users', 'create') && (
+          <div>
+            <Button
+              size="sm"
+              onClick={handleOpenCreate}
+              startIcon={<FiPlus className="size-4" />}
+              className="w-full sm:w-auto h-11 px-4 py-2.5"
+            >
+              Add user
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Table Container */}
@@ -420,7 +425,16 @@ export default function UserManagement() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {paginatedUsers.length > 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="px-5 py-8 text-center text-sm text-gray-500">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
+                      <span>Loading users...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : paginatedUsers.length > 0 ? (
                 paginatedUsers.map((user) => (
                   <TableRow
                     key={user.id}
@@ -459,7 +473,7 @@ export default function UserManagement() {
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">
-                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleOpenView(user)}
                           className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
@@ -467,20 +481,24 @@ export default function UserManagement() {
                         >
                           <FiEye className="size-4" />
                         </button>
-                        <button
-                          onClick={() => handleOpenEdit(user)}
-                          className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
-                          title="Edit"
-                        >
-                          <FiEdit className="size-4" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenDelete(user)}
-                          className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-                          title="Delete"
-                        >
-                          <FiTrash2 className="size-4" />
-                        </button>
+                        {hasPermission('users', 'edit') && (
+                          <button
+                            onClick={() => handleOpenEdit(user)}
+                            className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
+                            title="Edit"
+                          >
+                            <FiEdit className="size-4" />
+                          </button>
+                        )}
+                        {hasPermission('users', 'delete') && (
+                          <button
+                            onClick={() => handleOpenDelete(user)}
+                            className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                            title="Delete"
+                          >
+                            <FiTrash2 className="size-4" />
+                          </button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

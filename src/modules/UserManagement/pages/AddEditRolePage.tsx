@@ -6,8 +6,9 @@ import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import Checkbox from "../../../components/form/input/Checkbox";
-import { getStorage, setStorage } from "../../../utils/storage";
 import { useToast } from "../../../hooks/useToast";
+import { roleService } from "../../../services/roleService";
+import { permissionsToBackend, permissionsToFrontend } from "../../../utils/permissionUtils";
 import {
   Table,
   TableHeader,
@@ -18,7 +19,6 @@ import {
 import {
   Role,
   Permission,
-  syncPermissions,
   buildDefaultPermissions,
   sidebarStructure,
 } from "./UserRoleManagement";
@@ -58,27 +58,35 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
   const currentPermissions = watch("permissions") || defaultPermissionsList;
 
   useEffect(() => {
-    const roles = getStorage<Role[]>("saiflow_roles", []);
-    if (mode !== "create") {
-      const found = roles.find((r) => String(r.id) === String(id));
-      if (found) {
-        setRole(found);
-        reset({
-          roleName: found.roleName,
-          permissions: syncPermissions(found.permissions),
-        });
-      } else {
-        showToast("Role not found.", "error");
-        navigate("/roles");
-        return;
+    async function loadRole() {
+      setLoading(true);
+      try {
+        if (mode !== "create" && id) {
+          const found = await roleService.getRoleById(Number(id));
+          if (found) {
+            setRole(found);
+            reset({
+              roleName: found.name,
+              permissions: permissionsToFrontend(found.permissions),
+            });
+          } else {
+            showToast("Role not found.", "error");
+            navigate("/roles");
+            return;
+          }
+        } else {
+          reset({
+            roleName: "",
+            permissions: defaultPermissionsList.map((p) => ({ ...p })),
+          });
+        }
+      } catch (err) {
+        showToast("Failed to load role data.", "error");
+      } finally {
+        setLoading(false);
       }
-    } else {
-      reset({
-        roleName: "",
-        permissions: defaultPermissionsList.map((p) => ({ ...p })),
-      });
     }
-    setLoading(false);
+    loadRole();
   }, [id, mode, reset, defaultPermissionsList, navigate, showToast]);
 
   const handlePermissionChange = (
@@ -95,35 +103,26 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
     setValue("permissions", updated, { shouldDirty: true });
   };
 
-  const handleSave = (data: RoleFormValues) => {
+  const handleSave = async (data: RoleFormValues) => {
     if (mode === "view") return;
-    const roles = getStorage<Role[]>("saiflow_roles", []);
 
-    if (mode === "create") {
-      const nextId = roles.length > 0 ? Math.max(...roles.map((r) => r.id)) + 1 : 1;
-      const newRole: Role = {
-        id: nextId,
-        roleName: data.roleName.trim(),
-        status: "Active",
-        permissions: data.permissions,
-      };
-      const updated = [...roles, newRole];
-      setStorage("saiflow_roles", updated);
-      showToast("Role created successfully.", "success");
-    } else if (mode === "edit" && role) {
-      const updated = roles.map((r) =>
-        r.id === role.id
-          ? {
-            ...r,
-            roleName: data.roleName.trim(),
-            permissions: data.permissions,
-          }
-          : r
-      );
-      setStorage("saiflow_roles", updated);
-      showToast("Role updated successfully.", "success");
+    const payload = {
+      name: data.roleName.trim(),
+      permissions: permissionsToBackend(data.permissions),
+    };
+
+    try {
+      if (mode === "create") {
+        await roleService.createRole(payload);
+        showToast("Role created successfully.", "success");
+      } else if (mode === "edit" && role) {
+        await roleService.updateRole(role.id, payload);
+        showToast("Role updated successfully.", "success");
+      }
+      navigate("/roles");
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to save role.", "error");
     }
-    navigate("/roles");
   };
 
   const handleFormError = () => {

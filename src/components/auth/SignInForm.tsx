@@ -6,7 +6,7 @@ import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Button from "../ui/button/Button";
 import { useToast } from "../../hooks/useToast";
-import { getStorage, setStorage } from "../../utils/storage";
+import { useAuth } from "../../context/AuthContext";
 import logo from "/images/logo/Saiflow.png";
 
 interface SignInFormValues {
@@ -31,51 +31,20 @@ export default function SignInForm() {
     },
   });
 
-  const onSubmit = (data: SignInFormValues) => {
-    const currentUsers = getStorage<any[]>("saiflow_users", [
-      { id: 1, name: "John Doe", email: "john.doe@saiflow.com", phone: "+91 98765 43210", role: "Administrator", status: "Active" },
-      { id: 2, name: "Jane Smith", email: "jane.smith@saiflow.com", phone: "+91 98765 43211", role: "Business Development Manager", status: "Active" },
-      { id: 3, name: "Alice Johnson", email: "alice.johnson@saiflow.com", phone: "+91 98765 43212", role: "Business Development Executive", status: "Active" },
-      { id: 4, name: "Robert Lee", email: "robert.lee@saiflow.com", phone: "+91 98765 43213", role: "Presales Consultant", status: "Active" },
-      { id: 5, name: "Emma Watson", email: "emma.watson@saiflow.com", phone: "+91 98765 43214", role: "Guest User", status: "Inactive" }
-    ]);
+  const { login } = useAuth();
 
-    let foundUser = currentUsers.find(u => u.email.toLowerCase() === data.email.toLowerCase());
-
-    // Explicitly support the required admin@gmail.com account
-    if (data.email.toLowerCase() === "admin@gmail.com") {
-      if (data.password !== "Admin@123") {
-        showToast("Invalid Email or Password.", "error");
-        return;
-      }
-      foundUser = {
-        id: 99,
-        name: "Admin User",
-        email: "admin@gmail.com",
-        phone: "+91 98765 99999",
-        role: "Administrator",
-        status: "Active"
-      };
-    } else {
-      if (!foundUser) {
-        showToast("Invalid Email or Password.", "error");
-        return;
-      }
-
-      if (foundUser.status === "Inactive") {
-        showToast("This account is inactive. Please contact administrator.", "error");
-        return;
-      }
-
-      if (data.password !== "Admin@123") {
-        showToast("Invalid Email or Password.", "error");
-        return;
-      }
+  const onSubmit = async (data: SignInFormValues) => {
+    try {
+      await login({
+        email: data.email,
+        password: data.password
+      });
+      showToast("Sign in successful.", "success");
+      navigate("/dashboard");
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "Invalid Email or Password.";
+      showToast(msg, "error");
     }
-
-    setStorage("saiflow_logged_in_user", foundUser);
-    showToast("Sign in successful.", "success");
-    navigate("/dashboard");
   };
 
   const onError = (formErrors: any) => {

@@ -22,6 +22,7 @@ import {
   FiUser,
 } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
+import { useAuth } from "../../../context/AuthContext";
 import { Modal } from "../../../components/ui/modal";
 import DatePicker from "../../../components/form/date-picker";
 import { Client, initialClients, HandoverDetails } from "../data/clientsData";
@@ -44,6 +45,7 @@ const HANDOVER_STATUS_COLORS: Record<string, "warning" | "success"> = {
 export default function ClientList() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { hasPermission } = useAuth();
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [clients, setClients] = useState<Client[]>(() => {
@@ -516,13 +518,15 @@ export default function ClientList() {
                 >
                   <FiDownload className="size-4" />
                 </button>
-                <button
-                  onClick={() => openHandoverModal(client)}
-                  className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-lg border border-indigo-200 dark:border-indigo-800/50 transition cursor-pointer"
-                  title="Handover project details"
-                >
-                  <FiShield className="size-4" />
-                </button>
+                {hasPermission('clients', 'edit') && (
+                  <button
+                    onClick={() => openHandoverModal(client)}
+                    className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-lg border border-indigo-200 dark:border-indigo-800/50 transition cursor-pointer"
+                    title="Handover project details"
+                  >
+                    <FiShield className="size-4" />
+                  </button>
+                )}
               </div>
             </div>
           );

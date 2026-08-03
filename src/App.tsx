@@ -35,6 +35,7 @@ import ClientReport from "./modules/Reports/pages/ClientReport";
 import ProposalReport from "./modules/Reports/pages/ProposalReport";
 import { ToastProvider } from "./context/ToastContext";
 import { getStorage, setStorage } from "./utils/storage";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
 import ClientList from "./modules/ClientManagement/pages/ClientList";
 import AddClient from "./modules/ClientManagement/pages/AddClient";
@@ -65,16 +66,39 @@ import {
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: string[];
+  requiredPermission?: {
+    module: string;
+    action: string;
+  };
 }
 
-function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const loggedInUser = getStorage<any>("saiflow_logged_in_user", null);
-  if (!loggedInUser) {
+function ProtectedRoute({ children, allowedRoles, requiredPermission }: ProtectedRouteProps) {
+  const { user, isLoading, hasPermission } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-boxdark">
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return <Navigate to="/signin" replace />;
   }
-  if (allowedRoles && !allowedRoles.includes(loggedInUser.role)) {
+
+  if (requiredPermission) {
+    if (!hasPermission(requiredPermission.module, requiredPermission.action)) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    return <>{children}</>;
+  }
+
+  const userRole = user.role?.name;
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
     return <Navigate to="/dashboard" replace />;
   }
+
   return <>{children}</>;
 }
 
@@ -109,8 +133,9 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <Router basename="/saiflow">
-        <ScrollToTop />
+      <AuthProvider>
+        <Router basename="/saiflow">
+          <ScrollToTop />
         <Routes>
           {/* Dashboard Layout */}
           <Route element={<AppLayout />}>
@@ -287,7 +312,7 @@ export default function App() {
             <Route
               path="/users"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: "users", action: "view" }}>
                   <UserManagement />
                 </ProtectedRoute>
               }
@@ -295,7 +320,7 @@ export default function App() {
             <Route
               path="/users/add"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: "users", action: "create" }}>
                   <AddEditUserPage mode="create" />
                 </ProtectedRoute>
               }
@@ -303,7 +328,7 @@ export default function App() {
             <Route
               path="/users/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: "users", action: "edit" }}>
                   <AddEditUserPage mode="edit" />
                 </ProtectedRoute>
               }
@@ -311,7 +336,7 @@ export default function App() {
             <Route
               path="/users/:id"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: "users", action: "view" }}>
                   <UserDetailsPage />
                 </ProtectedRoute>
               }
@@ -319,7 +344,7 @@ export default function App() {
             <Route
               path="/roles"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: "roles", action: "view" }}>
                   <UserRoleManagement />
                 </ProtectedRoute>
               }
@@ -327,7 +352,7 @@ export default function App() {
             <Route
               path="/roles/add"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: "roles", action: "create" }}>
                   <AddEditRolePage mode="create" />
                 </ProtectedRoute>
               }
@@ -335,7 +360,7 @@ export default function App() {
             <Route
               path="/roles/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: "roles", action: "edit" }}>
                   <AddEditRolePage mode="edit" />
                 </ProtectedRoute>
               }
@@ -343,7 +368,7 @@ export default function App() {
             <Route
               path="/roles/:id/view"
               element={
-                <ProtectedRoute allowedRoles={["Administrator"]}>
+                <ProtectedRoute requiredPermission={{ module: "roles", action: "view" }}>
                   <AddEditRolePage mode="view" />
                 </ProtectedRoute>
               }
@@ -628,6 +653,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
+      </AuthProvider>
     </ToastProvider>
   );
 }
