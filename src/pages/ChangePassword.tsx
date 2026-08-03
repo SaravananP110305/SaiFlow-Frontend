@@ -8,6 +8,8 @@ import Input from "../components/form/input/InputField";
 import Button from "../components/ui/button/Button";
 import { EyeCloseIcon, EyeIcon } from "../icons";
 import { useToast } from "../hooks/useToast";
+import { authService } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
 
 interface ChangePasswordFormValues {
   currentPass: string;
@@ -18,6 +20,7 @@ interface ChangePasswordFormValues {
 export default function ChangePassword() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { logout } = useAuth();
 
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
@@ -27,6 +30,8 @@ export default function ChangePassword() {
     control,
     handleSubmit,
     watch,
+    setError,
+    clearErrors,
     formState: { errors },
     reset,
   } = useForm<ChangePasswordFormValues>({
@@ -40,10 +45,35 @@ export default function ChangePassword() {
 
   const newPassValue = watch("newPass");
 
-  const handleSave = () => {
-    showToast("Password changed successfully.", "success");
-    reset();
-    navigate("/dashboard");
+  const handleSave = async (values: ChangePasswordFormValues) => {
+    clearErrors();
+
+    try {
+      await authService.changePassword({
+        oldPassword: values.currentPass,
+        newPassword: values.newPass,
+      });
+      showToast("Password changed successfully.", "success");
+      reset();
+      try {
+        await logout();
+      } catch (logoutError) {
+        // The password endpoint already invalidates the refresh session.
+      }
+      navigate("/signin", { replace: true });
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Failed to change password.";
+
+      if (message.includes("Current password")) {
+        setError("currentPass", { type: "server", message });
+      }
+
+      if (message.includes("New password")) {
+        setError("newPass", { type: "server", message });
+      }
+
+      showToast(message, "error");
+    }
   };
 
   const handleCancel = () => {
@@ -118,12 +148,8 @@ export default function ChangePassword() {
                   rules={{
                     required: "New password is required",
                     minLength: {
-                      value: 8,
-                      message: "Password must be at least 8 characters long",
-                    },
-                    pattern: {
-                      value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-                      message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+                      value: 6,
+                      message: "New password must be at least 6 characters long",
                     },
                   }}
                   render={({ field }) => (

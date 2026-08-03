@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
+import { setAccessToken, setUnauthorizedHandler } from '../services/api';
 
 interface AuthContextType {
   user: any | null;
@@ -19,24 +20,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [accessToken, setAccessTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const fetchSessionUser = async () => {
-    try {
-      // First attempt to restore access token from refresh endpoint
-      const token = await authService.refreshToken();
-      if (token) {
-        setAccessTokenState(token);
-        const userData = await authService.getMe();
-        setUser(userData);
-      }
-    } catch (error) {
-      console.log('No active session found.');
-    } finally {
-      setIsLoading(false);
-    }
+  const clearAuthState = () => {
+    setUser(null);
+    setAccessTokenState(null);
+    setAccessToken(null);
   };
 
   useEffect(() => {
-    fetchSessionUser();
+    setUnauthorizedHandler(clearAuthState);
+
+    const restoreSession = async () => {
+      try {
+        const token = await authService.refreshToken();
+        if (!token) {
+          clearAuthState();
+          return;
+        }
+
+        setAccessTokenState(token);
+        const userData = await authService.getMe();
+        setUser(userData);
+      } catch (error) {
+        clearAuthState();
+        console.log('No active session found.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    restoreSession();
+
+    return () => {
+      setUnauthorizedHandler(null);
+    };
   }, []);
 
   const login = async (credentials: any) => {
@@ -53,12 +69,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     setIsLoading(true);
+    let logoutError: unknown = null;
     try {
       await authService.logout();
-      setUser(null);
-      setAccessTokenState(null);
+    } catch (error) {
+      logoutError = error;
     } finally {
+      clearAuthState();
       setIsLoading(false);
+    }
+
+    if (logoutError) {
+      throw logoutError;
     }
   };
 

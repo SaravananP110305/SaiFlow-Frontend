@@ -1,9 +1,8 @@
 import { SidebarProvider, useSidebar } from "../context/SidebarContext";
-import { Outlet, useLocation, Navigate } from "react-router";
+import { Outlet, useLocation } from "react-router";
 import AppHeader from "./AppHeader";
 import Backdrop from "./Backdrop";
 import AppSidebar from "./AppSidebar";
-import { useAuth } from "../context/AuthContext";
 
 const LayoutContent: React.FC = () => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
@@ -30,20 +29,6 @@ const LayoutContent: React.FC = () => {
 };
 
 const AppLayout: React.FC = () => {
-  const { isLoading, isAuthenticated } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-boxdark">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/signin" replace />;
-  }
-
   return (
     <SidebarProvider>
       <LayoutContent />

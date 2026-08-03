@@ -27,13 +27,18 @@ export default function UserDropdown() {
 
   const handleLogout = async (e: React.MouseEvent) => {
     e.preventDefault();
+    let logoutFailed = false;
+
     try {
       await logout();
-      showToast("You have been logged out successfully.", "success");
-      navigate("/signin");
     } catch (error) {
+      logoutFailed = true;
       showToast("Logout failed.", "error");
     } finally {
+      if (!logoutFailed) {
+        showToast("You have been logged out successfully.", "success");
+      }
+      navigate("/signin", { replace: true });
       closeDropdown();
     }
   };

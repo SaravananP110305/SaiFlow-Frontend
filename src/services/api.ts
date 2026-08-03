@@ -1,12 +1,33 @@
-import axios from 'axios';
+import axios, { type InternalAxiosRequestConfig } from 'axios';
+
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    skipAuthRefresh?: boolean;
+  }
+
+  export interface InternalAxiosRequestConfig {
+    skipAuthRefresh?: boolean;
+  }
+}
 
 let accessToken: string | null = null;
+let unauthorizedHandler: (() => void) | null = null;
+let refreshPromise: Promise<string | null> | null = null;
+
+interface RetryableRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+  skipAuthRefresh?: boolean;
+}
 
 export const setAccessToken = (token: string | null) => {
   accessToken = token;
 };
 
 export const getAccessToken = () => accessToken;
+
+export const setUnauthorizedHandler = (handler: (() => void) | null) => {
+  unauthorizedHandler = handler;
+};
 
 const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_BASE_URL) {
@@ -35,35 +56,81 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+const isSessionEndpoint = (url?: string) => {
+  if (!url) {
+    return false;
+  }
+
+  return /\/auth\/sessions\/?$/.test(url);
+};
+
+const shouldSkipRefresh = (config?: RetryableRequestConfig) => {
+  if (!config) {
+    return true;
+  }
+
+  if (config.skipAuthRefresh) {
+    return true;
+  }
+
+  const method = config.method?.toLowerCase();
+  return isSessionEndpoint(config.url) && (method === 'post' || method === 'put');
+};
+
+const notifyUnauthorized = () => {
+  setAccessToken(null);
+  unauthorizedHandler?.();
+};
+
+const refreshAccessToken = async () => {
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .put(
+        `${getApiBaseUrl()}/auth/sessions`,
+        {},
+        {
+          withCredentials: true,
+          skipAuthRefresh: true
+        }
+      )
+      .then((response) => {
+        const newAccessToken = response.data?.data?.accessToken ?? null;
+
+        if (newAccessToken) {
+          setAccessToken(newAccessToken);
+        }
+
+        return newAccessToken;
+      })
+      .catch((error) => {
+        notifyUnauthorized();
+        throw error;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  return refreshPromise;
+};
+
 // Response Interceptor: Handle Token Refresh on 401
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as RetryableRequestConfig | undefined;
 
-    // Check if error is 401 and request has not been retried yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !shouldSkipRefresh(originalRequest)) {
       originalRequest._retry = true;
 
       try {
-        // Attempt to refresh the access token via secure cookie endpoint
-        const response = await axios.put(
-          `${getApiBaseUrl()}/auth/sessions`,
-          {},
-          { withCredentials: true }
-        );
-
-        const newAccessToken = response.data?.data?.accessToken;
+        const newAccessToken = await refreshAccessToken();
         if (newAccessToken) {
-          setAccessToken(newAccessToken);
-          
-          // Retry the original failed request with the new token
+          originalRequest.headers = originalRequest.headers ?? {};
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
         }
       } catch (refreshError) {
-        // If refresh fails, clear token and bubble up error to let AuthContext handle redirect/logout
-        setAccessToken(null);
         return Promise.reject(refreshError);
       }
     }

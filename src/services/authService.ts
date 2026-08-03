@@ -2,7 +2,9 @@ import api, { setAccessToken } from './api';
 
 export const authService = {
   login: async (credentials: any) => {
-    const response = await api.post('/auth/sessions', credentials);
+    const response = await api.post('/auth/sessions', credentials, {
+      skipAuthRefresh: true
+    });
     const token = response.data?.data?.accessToken;
     if (token) {
       setAccessToken(token);
@@ -24,8 +26,9 @@ export const authService = {
   },
 
   refreshToken: async () => {
-    // Explicit call to trigger the cookie refresh manually if needed
-    const response = await api.put('/auth/sessions');
+    const response = await api.put('/auth/sessions', {}, {
+      skipAuthRefresh: true
+    });
     const token = response.data?.data?.accessToken;
     if (token) {
       setAccessToken(token);

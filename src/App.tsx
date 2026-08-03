@@ -7,6 +7,7 @@ import ResetPassword from "./pages/AuthPages/ResetPassword";
 import NotFound from "./pages/OtherPage/NotFound";
 import UserProfiles from "./pages/UserProfiles";
 import ChangePassword from "./pages/ChangePassword";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Dashboard from "./modules/Dashboard/pages/Dashboard";
@@ -35,7 +36,7 @@ import ClientReport from "./modules/Reports/pages/ClientReport";
 import ProposalReport from "./modules/Reports/pages/ProposalReport";
 import { ToastProvider } from "./context/ToastContext";
 import { getStorage, setStorage } from "./utils/storage";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
 
 import ClientList from "./modules/ClientManagement/pages/ClientList";
 import AddClient from "./modules/ClientManagement/pages/AddClient";
@@ -62,45 +63,6 @@ import {
 } from "./modules/Master/data/masterData";
 
 // ────────────────────────────────────────────────────────────────────────────
-
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-  allowedRoles?: string[];
-  requiredPermission?: {
-    module: string;
-    action: string;
-  };
-}
-
-function ProtectedRoute({ children, allowedRoles, requiredPermission }: ProtectedRouteProps) {
-  const { user, isLoading, hasPermission } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-boxdark">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/signin" replace />;
-  }
-
-  if (requiredPermission) {
-    if (!hasPermission(requiredPermission.module, requiredPermission.action)) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    return <>{children}</>;
-  }
-
-  const userRole = user.role?.name;
-  if (allowedRoles && !allowedRoles.includes(userRole)) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <>{children}</>;
-}
 
 export default function App() {
   const [meetings, setMeetings] = useState<Meeting[]>(() => getStorage("saiflow_meetings", initialMeetings));
@@ -138,7 +100,13 @@ export default function App() {
           <ScrollToTop />
         <Routes>
           {/* Dashboard Layout */}
-          <Route element={<AppLayout />}>
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index path="/" element={<Dashboard />} />
 
             {/* Others Page */}
