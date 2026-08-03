@@ -8,8 +8,16 @@ export const setAccessToken = (token: string | null) => {
 
 export const getAccessToken = () => accessToken;
 
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  return `http://${hostname}:5000/api/v1`;
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1',
+  baseURL: getApiBaseUrl(),
   withCredentials: true, // Crucial to send secure cookies (refresh token)
   headers: {
     'Content-Type': 'application/json'
@@ -40,7 +48,7 @@ api.interceptors.response.use(
       try {
         // Attempt to refresh the access token via secure cookie endpoint
         const response = await axios.put(
-          `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1'}/auth/sessions`,
+          `${getApiBaseUrl()}/auth/sessions`,
           {},
           { withCredentials: true }
         );
