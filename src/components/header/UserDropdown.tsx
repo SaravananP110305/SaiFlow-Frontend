@@ -1,23 +1,21 @@
 import { useState } from "react";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { FiUser, FiLogOut } from "react-icons/fi";
-import { getStorage } from "../../utils/storage";
 import { useToast } from "../../hooks/useToast";
+import { useAuth } from "../../context/AuthContext";
 import ownerImg from "/images/user/owner.jpg";
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const { showToast } = useToast();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  const loggedInUser = getStorage<any>("saiflow_logged_in_user", {
-    name: "Admin User",
-    email: "admin@gmail.com",
-    role: "Administrator",
-  });
-
-  const firstName = loggedInUser.name.split(" ")[0];
+  const name = user ? `${user.firstName} ${user.lastName}`.trim() : "Guest User";
+  const email = user?.email || "";
+  const firstName = user?.firstName || "User";
 
   function toggleDropdown() {
     setIsOpen(!isOpen);
@@ -27,10 +25,17 @@ export default function UserDropdown() {
     setIsOpen(false);
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("saiflow_logged_in_user");
-    showToast("You have been logged out successfully.", "success");
-    closeDropdown();
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      await logout();
+      showToast("You have been logged out successfully.", "success");
+      navigate("/signin");
+    } catch (error) {
+      showToast("Logout failed.", "error");
+    } finally {
+      closeDropdown();
+    }
   };
 
   return (
@@ -70,10 +75,10 @@ export default function UserDropdown() {
       >
         <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 pb-3 mb-2">
           <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
-            {loggedInUser.name}
+            {name}
           </span>
           <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            {loggedInUser.email}
+            {email}
           </span>
         </div>
 
