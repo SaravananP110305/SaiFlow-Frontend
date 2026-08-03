@@ -88,7 +88,7 @@ export default function ChangePassword() {
       />
       <PageBreadcrumb pageTitle="Change password" />
 
-      <div className="mx-auto w-full max-w-[700px]">
+      <div className="w-full max-w-[700px]">
         <form
           onSubmit={handleSubmit(handleSave)}
           className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-6 shadow-theme-xs"

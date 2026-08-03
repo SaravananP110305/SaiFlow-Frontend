@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { Link, useNavigate } from "react-router";
-import { FiUser, FiLogOut } from "react-icons/fi";
+import { FiUser, FiLogOut, FiLock } from "react-icons/fi";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../context/AuthContext";
 import ownerImg from "/images/user/owner.jpg";
@@ -99,7 +99,7 @@ export default function UserDropdown() {
               Profile
             </DropdownItem>
           </li>
-          {/*<li>
+          <li>
             <DropdownItem
               onItemClick={closeDropdown}
               tag="a"
@@ -109,7 +109,7 @@ export default function UserDropdown() {
               <FiLock className="w-5 h-5 text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300" />
               Change password
             </DropdownItem>
-          </li>*/}
+          </li>
         </ul>
         <div className="mt-2">
           <Link
