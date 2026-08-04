@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
-import { getStorage, setStorage } from "../../../utils/storage";
+import { roleService } from "../../../services/roleService";
 import { useToast } from "../../../hooks/useToast";
 import {
   Table,
@@ -22,21 +22,46 @@ interface RolePermission {
   settings: boolean;
 }
 
-const initialPermissions: RolePermission[] = [
-  { role: "Administrator", read: true, create: true, edit: true, delete: true, export: true, settings: true },
-  { role: "Business Development Manager", read: true, create: true, edit: true, delete: false, export: true, settings: false },
-  { role: "Business Development Executive", read: true, create: true, edit: true, delete: false, export: false, settings: false },
-  { role: "Presales Consultant", read: true, create: true, edit: true, delete: false, export: false, settings: false },
-  { role: "Developer", read: true, create: false, edit: true, delete: false, export: false, settings: false },
-  { role: "QA Engineer", read: true, create: true, edit: true, delete: false, export: false, settings: false },
-  { role: "Support Agent", read: true, create: true, edit: true, delete: false, export: false, settings: false },
-];
 
 export default function AccessPermissionMatrix() {
   const { showToast } = useToast();
-  const [permissions, setPermissions] = useState<RolePermission[]>(() =>
-    getStorage("saiflow_permission_matrix", initialPermissions)
-  );
+  const [permissions, setPermissions] = useState<RolePermission[]>([]);
+  const [backendRoles, setBackendRoles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRoles = async () => {
+    setLoading(true);
+    try {
+      const data = await roleService.getRoles();
+      if (Array.isArray(data)) {
+        setBackendRoles(data);
+        const mapped = data.map((r: any) => {
+          const perms = r.permissions || {};
+          const leadsPerms = perms.leads || [];
+          const settingsPerms = perms.settings || [];
+          return {
+            role: r.name,
+            read: leadsPerms.includes("view"),
+            create: leadsPerms.includes("create"),
+            edit: leadsPerms.includes("edit"),
+            delete: leadsPerms.includes("delete"),
+            export: leadsPerms.includes("export"),
+            settings: settingsPerms.includes("view") || settingsPerms.includes("edit"),
+          };
+        });
+        setPermissions(mapped);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to load permission matrix.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoles();
+  }, []);
 
   const handleCheckboxChange = (roleIndex: number, field: keyof Omit<RolePermission, "role">) => {
     const updated = [...permissions];
@@ -47,16 +72,66 @@ export default function AccessPermissionMatrix() {
     setPermissions(updated);
   };
 
-  const handleSave = () => {
-    setStorage("saiflow_permission_matrix", permissions);
-    showToast("Access permission matrix saved successfully.", "success");
+  const handleSave = async () => {
+    try {
+      await Promise.all(permissions.map(async (p) => {
+        const role = backendRoles.find((r) => r.name === p.role);
+        if (!role) return;
+
+        const perms = {
+          users: p.settings ? ['view'] : [],
+          roles: p.settings ? ['view'] : [],
+          leads: [
+            ...(p.read ? ['view'] : []),
+            ...(p.create ? ['create'] : []),
+            ...(p.edit ? ['edit'] : []),
+            ...(p.delete ? ['delete'] : []),
+            ...(p.export ? ['export'] : [])
+          ],
+          meetings: [
+            ...(p.read ? ['view'] : []),
+            ...(p.create ? ['create'] : []),
+            ...(p.edit ? ['edit'] : []),
+            ...(p.delete ? ['delete'] : [])
+          ],
+          proposals: [
+            ...(p.read ? ['view'] : []),
+            ...(p.create ? ['create'] : []),
+            ...(p.edit ? ['edit'] : []),
+            ...(p.delete ? ['delete'] : [])
+          ],
+          clients: [
+            ...(p.read ? ['view'] : []),
+            ...(p.create ? ['create'] : []),
+            ...(p.edit ? ['edit'] : []),
+            ...(p.delete ? ['delete'] : [])
+          ],
+          reports: p.read ? ['view'] : [],
+          connect: [
+            ...(p.read ? ['view'] : []),
+            ...(p.create ? ['create'] : []),
+            ...(p.edit ? ['edit'] : [])
+          ],
+          settings: p.settings ? ['view', 'edit'] : []
+        };
+
+        await roleService.updateRole(role.id, { permissions: perms });
+      }));
+      showToast("Access permission matrix saved successfully.", "success");
+      fetchRoles();
+    } catch (err) {
+      showToast("Failed to save matrix.", "error");
+    }
   };
 
   const handleReset = () => {
-    setPermissions(initialPermissions);
-    setStorage("saiflow_permission_matrix", initialPermissions);
-    showToast("Access permission matrix reset to defaults.", "info");
+    fetchRoles();
+    showToast("Access permission matrix reset to database values.", "info");
   };
+
+  if (loading) {
+    return <div className="py-10 text-center text-gray-500">Loading permission matrix...</div>;
+  }
 
   return (
     <>

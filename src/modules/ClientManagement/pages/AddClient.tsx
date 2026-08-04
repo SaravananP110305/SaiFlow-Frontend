@@ -1,21 +1,14 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
-import { getStorage, getMasterStorage, setStorage } from "../../../utils/storage";
 import { useToast } from "../../../hooks/useToast";
-import { initialClients, Client } from "../data/clientsData";
-import {
-  COUNTRIES,
-  STATES,
-  CITIES,
-  INDUSTRIES,
-  DESIGNATIONS,
-  PAYMENT_TYPES,
-} from "../../Master/data/masterData";
+import { clientService } from "../../../services/clientService";
+import { masterService } from "../../../services/masterService";
+import api from "../../../services/api";
 
 const COMMUNICATION_OPTS = ["Email", "Phone", "WhatsApp"];
 const ASSIGNEES = ["John Doe", "Jane Smith", "Alice Johnson", "Robert Lee"];
@@ -60,84 +53,118 @@ export default function AddClient() {
   const [preferredCommunication, setPreferredCommunication] = useState("Email");
   const [creditLimit, setCreditLimit] = useState("");
 
-  // Master lists
-  const industryOptions = useMemo(() => {
-    return getStorage<any[]>("saiflow_master_industries", INDUSTRIES)
-      .filter((x) => x.status === "Active")
-      .map((x) => ({ value: x.name, label: x.name }));
-  }, []);
-
-  const designationOptions = useMemo(() => {
-    return getStorage<any[]>("saiflow_master_designations", DESIGNATIONS)
-      .filter((x) => x.status === "Active")
-      .map((x) => ({ value: x.name, label: x.name }));
-  }, []);
-
-  const paymentTypeOptions = useMemo(() => {
-    return getStorage<any[]>("saiflow_master_payment_types", PAYMENT_TYPES)
-      .filter((x) => x.status === "Active")
-      .map((x) => ({ value: x.name, label: x.name }));
-  }, []);
-
-  const countryOptions = useMemo(() => {
-    return getMasterStorage<any[]>("saiflow_master_countries", COUNTRIES)
-      .filter((x) => x.status === "Active")
-      .map((x) => ({ value: x.name, label: x.name }));
-  }, []);
-
-  const stateOptions = useMemo(() => {
-    const selectedCountryObj = getMasterStorage<any[]>("saiflow_master_countries", COUNTRIES)
-      .find((c) => c.name === country);
-    if (!selectedCountryObj) return [];
-    return getMasterStorage<any[]>("saiflow_master_states", STATES)
-      .filter((s) => s.countryId === selectedCountryObj.id && s.status === "Active")
-      .map((s) => ({ value: s.name, label: s.name }));
-  }, [country]);
-
-  const cityOptions = useMemo(() => {
-    const selectedStateObj = getMasterStorage<any[]>("saiflow_master_states", STATES)
-      .find((s) => s.name === state);
-    if (!selectedStateObj) return [];
-    return getMasterStorage<any[]>("saiflow_master_cities", CITIES)
-      .filter((c) => c.stateId === selectedStateObj.id && c.status === "Active")
-      .map((c) => ({ value: c.name, label: c.name }));
-  }, [state]);
-
-  // ── Load data ──────────────────────────────
+  const [countriesList, setCountriesList] = useState<any[]>([]);
+  const [statesList, setStatesList] = useState<any[]>([]);
+  const [industryOptions, setIndustryOptions] = useState<{ value: string; label: string }[]>([]);
+  const [designationOptions, setDesignationOptions] = useState<{ value: string; label: string }[]>([]);
+  const [paymentTypeOptions, setPaymentTypeOptions] = useState<{ value: string; label: string }[]>([]);
+  const [countryOptions, setCountryOptions] = useState<{ value: string; label: string }[]>([]);
+  const [stateOptions, setStateOptions] = useState<{ value: string; label: string }[]>([]);
+  const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    if (isEditMode) {
-      const clients = getStorage<Client[]>("saiflow_clients", initialClients);
-      const client = clients.find((c) => c.id === Number(id));
-      if (client) {
-        setName(client.name);
-        setCompany(client.company);
-        setEmail(client.email);
-        setPhone(client.phone);
-        setStatus(client.status);
-        setIndustry(client.industry || "");
-        setWebsite(client.website || "");
-        setCompanyEmail(client.companyEmail || "");
-        setCompanyPhone(client.companyPhone || "");
-        setGstNumber(client.gstNumber || "");
-        setPanNumber(client.panNumber || "");
-        setAddress(client.address || "");
-        setCity(client.city || "");
-        setState(client.state || "");
-        setCountry(client.country || "");
-        setPincode(client.pincode || "");
-        setContactName(client.contactName || "");
-        setDesignation(client.designation || "");
-        setMobile(client.mobile || "");
-        setRelationshipManager(client.relationshipManager || "");
-        setAccountManager(client.accountManager || "");
-        setClientSince(client.clientSince || "");
-        setPaymentTerms(client.paymentTerms || "Net 30");
-        setPreferredCommunication(client.preferredCommunication || "Email");
-        setCreditLimit(client.creditLimit || "");
+    const loadDropdownData = async () => {
+      try {
+        const [countriesData, industriesData, designationsData, paymentTypesData] = await Promise.all([
+          masterService.getMasterItems("COUNTRY"),
+          masterService.getMasterItems("INDUSTRY"),
+          masterService.getMasterItems("DESIGNATION"),
+          masterService.getMasterItems("PAYMENT_TYPE")
+        ]);
+        
+        setCountriesList(countriesData);
+        setCountryOptions(countriesData.map((x: any) => ({ value: x.name, label: x.name })));
+        setIndustryOptions(industriesData.map((x: any) => ({ value: x.name, label: x.name })));
+        setDesignationOptions(designationsData.map((x: any) => ({ value: x.name, label: x.name })));
+        setPaymentTypeOptions(paymentTypesData.map((x: any) => ({ value: x.name, label: x.name })));
+      } catch (err) {
+        console.error("Failed to load drop-downs in AddClient", err);
       }
-    }
-    setLoading(false);
+    };
+    loadDropdownData();
+  }, []);
+
+  useEffect(() => {
+    const loadStates = async () => {
+      if (!country) {
+        setStateOptions([]);
+        return;
+      }
+      const selectedCountryObj = countriesList.find((c) => c.name === country);
+      if (!selectedCountryObj) return;
+      try {
+        const states = await masterService.getMasterItems("STATE", selectedCountryObj.id);
+        setStateOptions(states.map((s: any) => ({ value: s.name, label: s.name })));
+        setStatesList(states);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadStates();
+  }, [country, countriesList]);
+
+  useEffect(() => {
+    const loadCities = async () => {
+      if (!state) {
+        setCityOptions([]);
+        return;
+      }
+      const selectedStateObj = statesList.find((s) => s.name === state);
+      if (!selectedStateObj) return;
+      try {
+        const cities = await masterService.getMasterItems("CITY", selectedStateObj.id);
+        setCityOptions(cities.map((c: any) => ({ value: c.name, label: c.name })));
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadCities();
+  }, [state, statesList]);
+
+  useEffect(() => {
+    const loadClient = async () => {
+      if (isEditMode && id) {
+        setLoading(true);
+        try {
+          const client = await clientService.getClientById(Number(id));
+          if (client) {
+            setName(client.contactName || client.name || "");
+            setCompany(client.company?.name || client.company || "");
+            setEmail(client.email || client.company?.email || "");
+            setPhone(client.phone || client.company?.phone || "");
+            setStatus(client.status || "Active");
+            setIndustry(client.company?.industry || "");
+            setWebsite(client.company?.website || "");
+            setCompanyEmail(client.company?.email || "");
+            setCompanyPhone(client.company?.phone || "");
+            setGstNumber(client.gstPan || "");
+            setPanNumber("");
+            setAddress(client.company?.address || "");
+            setCity(client.company?.city || "");
+            setState(client.company?.state || "");
+            setCountry(client.company?.country || "");
+            setPincode(client.company?.pincode || "");
+            setContactName(client.contactName || client.name || "");
+            setDesignation("");
+            setMobile(client.phone || "");
+            setRelationshipManager("");
+            setAccountManager("");
+            setClientSince(client.createdAt ? client.createdAt.split("T")[0] : "");
+            setPaymentTerms("Net 30");
+            setPreferredCommunication("Email");
+            setCreditLimit("");
+          }
+        } catch (err) {
+          console.error(err);
+          showToast("Failed to load client details.", "error");
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+    loadClient();
   }, [id, isEditMode]);
 
   // ── Validation helpers ──────────────────────
@@ -186,7 +213,7 @@ export default function AddClient() {
 
   // ── Validation & Save ──────────────────────
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
     
@@ -208,80 +235,50 @@ export default function AddClient() {
       return;
     }
 
-    const clients = getStorage<Client[]>("saiflow_clients", initialClients);
+    try {
+      if (isEditMode && id) {
+        const client = await clientService.getClientById(Number(id));
+        if (client && client.companyId) {
+          await api.put(`/companies/${client.companyId}`, {
+            name: company.trim(),
+            website: website.trim(),
+            address: address.trim()
+          });
+        }
+        await clientService.updateClient(Number(id), {
+          gstPan: gstNumber,
+          status
+        });
+        showToast("Client details updated.", "success");
+      } else {
+        let companyId;
+        const searchRes = await api.get('/companies', { params: { search: company.trim() } });
+        const existingCompany = searchRes.data?.data?.find(
+          (c: any) => c.name.toLowerCase() === company.trim().toLowerCase()
+        );
+        if (existingCompany) {
+          companyId = existingCompany.id;
+        } else {
+          const newCompany = await api.post('/companies', { name: company.trim() });
+          companyId = newCompany.data?.data?.id;
+        }
 
-    if (isEditMode) {
-      const updated = clients.map((c) =>
-        c.id === Number(id)
-          ? {
-              ...c,
-              name: name.trim(),
-              company: company.trim(),
-              email: email.trim(),
-              phone: phone.trim(),
-              status,
-              industry: industry || c.industry,
-              website: website || c.website,
-              companyEmail: companyEmail || c.companyEmail,
-              companyPhone: companyPhone || c.companyPhone,
-              gstNumber: gstNumber || c.gstNumber,
-              panNumber: panNumber || c.panNumber,
-              address: address || c.address,
-              city: city || c.city,
-              state: state || c.state,
-              country: country || c.country,
-              pincode: pincode || c.pincode,
-              contactName: contactName || c.contactName,
-              designation: designation || c.designation,
-              mobile: mobile || c.mobile,
-              relationshipManager: relationshipManager || c.relationshipManager,
-              accountManager: accountManager || c.accountManager,
-              clientSince: clientSince || c.clientSince,
-              paymentTerms: paymentTerms || c.paymentTerms,
-              preferredCommunication: preferredCommunication || c.preferredCommunication,
-              creditLimit: creditLimit || c.creditLimit,
-            }
-          : c
-      );
-      setStorage("saiflow_clients", updated);
-      showToast("Client details updated.", "success");
-    } else {
-      const newId = clients.length > 0 ? Math.max(...clients.map((c) => c.id)) + 1 : 1;
-      const newClient: Client = {
-        id: newId,
-        name: name.trim(),
-        company: company.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        projectsCount: 0,
-        status,
-        industry: industry || undefined,
-        website: website || undefined,
-        companyEmail: companyEmail || undefined,
-        companyPhone: companyPhone || undefined,
-        gstNumber: gstNumber || undefined,
-        panNumber: panNumber || undefined,
-        address: address || undefined,
-        city: city || undefined,
-        state: state || undefined,
-        country: country || undefined,
-        pincode: pincode || undefined,
-        contactName: contactName || undefined,
-        designation: designation || undefined,
-        mobile: mobile || undefined,
-        relationshipManager: relationshipManager || undefined,
-        accountManager: accountManager || undefined,
-        clientSince: clientSince || undefined,
-        paymentTerms: paymentTerms || undefined,
-        preferredCommunication: preferredCommunication || undefined,
-        creditLimit: creditLimit || undefined,
-        handoverStatus: "Pending",
-      };
-      setStorage("saiflow_clients", [...clients, newClient]);
-      showToast("Client added successfully.", "success");
+        await clientService.createClient({
+          companyId,
+          gstPan: gstNumber,
+          status
+        });
+        showToast("Client added successfully.", "success");
+      }
+      navigate("/clients");
+    } catch (err) {
+      showToast("Failed to save client.", "error");
     }
-    navigate("/clients");
   };
+
+  if (loading) {
+    return <div className="py-10 text-center text-gray-500">Loading client form...</div>;
+  }
 
   const handleCancel = () => {
     navigate("/clients");

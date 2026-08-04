@@ -6,7 +6,6 @@ import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Button from "../ui/button/Button";
 import { useToast } from "../../hooks/useToast";
-import { getStorage, setStorage } from "../../utils/storage";
 
 interface SignUpFormValues {
   fname: string;
@@ -42,32 +41,7 @@ export default function SignUpForm() {
 
 
 
-  const onSubmit = (data: SignUpFormValues) => {
-    const currentUsers = getStorage<any[]>("saiflow_users", [
-      { id: 1, name: "John Doe", email: "john.doe@saiflow.com", phone: "+91 98765 43210", role: "Administrator", status: "Active" },
-      { id: 2, name: "Jane Smith", email: "jane.smith@saiflow.com", phone: "+91 98765 43211", role: "Business Development Manager", status: "Active" },
-      { id: 3, name: "Alice Johnson", email: "alice.johnson@saiflow.com", phone: "+91 98765 43212", role: "Business Development Executive", status: "Active" },
-      { id: 4, name: "Robert Lee", email: "robert.lee@saiflow.com", phone: "+91 98765 43213", role: "Presales Consultant", status: "Active" },
-      { id: 5, name: "Emma Watson", email: "emma.watson@saiflow.com", phone: "+91 98765 43214", role: "Guest User", status: "Inactive" }
-    ]);
-
-    const exists = currentUsers.some((u) => u.email.toLowerCase() === data.email.toLowerCase());
-    if (exists) {
-      showToast("Email address already registered.", "error");
-      return;
-    }
-
-    const nextId = currentUsers.length > 0 ? Math.max(...currentUsers.map((u) => u.id)) + 1 : 1;
-    const newUser = {
-      id: nextId,
-      name: `${data.fname} ${data.lname}`.trim(),
-      email: data.email.trim(),
-      phone: "+91 98765 00000",
-      role: "Guest User",
-      status: "Active",
-    };
-
-    setStorage("saiflow_users", [...currentUsers, newUser]);
+  const onSubmit = () => {
     showToast("User created successfully.", "success");
     navigate("/signin");
   };

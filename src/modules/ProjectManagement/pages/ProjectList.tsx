@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { getStorage, setStorage } from "../../../utils/storage";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
@@ -27,9 +26,7 @@ import { initialProjects, Project } from "../data/projectsData";
 
 export default function ProjectList() {
   const { showToast } = useToast();
-  const [projects, setProjects] = useState<Project[]>(() =>
-    getStorage("saiflow_projects", initialProjects)
-  );
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
 
   const [searchQuery, setSearchQuery] = useState("");
   // setStatusFilter removed while the Status filter dropdown is commented out
@@ -129,7 +126,6 @@ export default function ProjectList() {
       };
       const updated = [...projects, newProj];
       setProjects(updated);
-      setStorage("saiflow_projects", updated);
       showToast("Project created successfully.", "success");
     } else if (modalMode === "edit" && selectedProject) {
       const updated = projects.map((p) =>
@@ -147,7 +143,6 @@ export default function ProjectList() {
           : p
       );
       setProjects(updated);
-      setStorage("saiflow_projects", updated);
       showToast("Project updated successfully.", "success");
     }
     formModal.closeModal();
@@ -157,7 +152,6 @@ export default function ProjectList() {
     if (selectedProject) {
       const updated = projects.filter((p) => p.id !== selectedProject.id);
       setProjects(updated);
-      setStorage("saiflow_projects", updated);
       showToast("Project deleted successfully.", "success");
     }
     deleteModal.closeModal();

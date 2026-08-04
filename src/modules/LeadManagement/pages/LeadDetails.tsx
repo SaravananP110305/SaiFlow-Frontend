@@ -1,13 +1,13 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { formatDate } from "../../../utils/dateFormatter";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 
 import Button from "../../../components/ui/button/Button";
-import { initialLeads, Lead } from "../data/leadsData";
-import { getStorage, setStorage } from "../../../utils/storage";
-import { Client, initialClients } from "../../ClientManagement/data/clientsData";
+import { Lead } from "../data/leadsData";
+import { leadService } from "../../../services/leadService";
+import { clientService } from "../../../services/clientService";
 import Select from "../../../components/form/Select";
 import Input from "../../../components/form/input/InputField";
 import { Modal } from "../../../components/ui/modal";
@@ -70,8 +70,50 @@ export default function LeadDetails() {
 
 
   const { showToast } = useToast();
-  const leads = getStorage<Lead[]>("saiflow_leads", initialLeads);
-  const lead = leads.find((l) => l.id === Number(id));
+  const [lead, setLead] = useState<Lead | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadLeadDetails = async () => {
+    try {
+      const data = await leadService.getLeadById(Number(id));
+      if (data) {
+        setLead({
+          ...data,
+          company: data.company?.name || data.title || "",
+          contactPerson: data.contactPerson || "",
+          designation: data.designation || "",
+          phone: data.phone || "",
+          alternatePhone: data.alternatePhone || "",
+          email: data.email || "",
+          alternateEmail: data.alternateEmail || "",
+          website: data.website || "",
+          industry: data.industry || "",
+          companyType: data.companyType || "",
+          address: data.address || "",
+          addressLine1: data.address || "",
+          country: data.country || "",
+          state: data.state || "",
+          city: data.city || "",
+          pincode: data.pincode || "",
+          source: data.source?.name || data.source || "",
+          priority: data.priority?.name || data.priority || "Medium",
+          assignedTo: data.assignedTo?.name || "Unassigned",
+          assignedDate: data.updatedAt?.split("T")[0] || "",
+          notes: data.requirements || "",
+          createdAt: data.createdAt?.split("T")[0] || ""
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to load lead details.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLeadDetails();
+  }, [id]);
 
   // Activity Timeline pagination
   const TIMELINE_INITIAL_COUNT = 10;
@@ -83,7 +125,6 @@ export default function LeadDetails() {
   if (prevLeadIdRef.current !== lead?.id) {
     prevLeadIdRef.current = lead?.id;
     if (timelineVisibleCount !== TIMELINE_INITIAL_COUNT) {
-      // Will be set in next render, use setTimeout to avoid render-time setState
       setTimeout(() => setTimelineVisibleCount(TIMELINE_INITIAL_COUNT), 0);
     }
   }
@@ -95,62 +136,31 @@ export default function LeadDetails() {
   const [relManager, setRelManager] = useState("John Doe");
   const [accManager, setAccManager] = useState("Jane Smith");
 
-  const handleConvertLeadConfirm = () => {
+  const handleConvertLeadConfirm = async () => {
     if (!lead) return;
 
-    const clientsList = getStorage<Client[]>("saiflow_clients", initialClients);
-    const exists = clientsList.some((c) => c.company.toLowerCase() === lead.company.toLowerCase());
-    if (exists) {
-      showToast(`A client with company name "${lead.company}" already exists.`, "error");
+    try {
+      await clientService.createClient({
+        companyId: lead.companyId,
+        leadId: lead.id,
+        gstPan: lead.gstNumber || "",
+        status: "Active"
+      });
+
+      await leadService.updateLead(lead.id, { status: "Won" });
+
+      showToast(`Lead converted to Client successfully!`, "success");
       setShowConvertModal(false);
-      return;
+      navigate(`/clients`);
+    } catch (err) {
+      showToast("Failed to convert lead to client.", "error");
     }
-
-    const newClientId = clientsList.length > 0 ? Math.max(...clientsList.map((c) => c.id)) + 1 : 1;
-    const newClient: Client = {
-      id: newClientId,
-      company: lead.company,
-      name: lead.contactPerson,
-      email: lead.email,
-      phone: lead.phone,
-      projectsCount: 0,
-      status: "Active",
-      industry: lead.industry,
-      gstNumber: lead.gstNumber || "",
-      panNumber: "",
-      website: lead.website || "",
-      companyEmail: lead.email,
-      companyPhone: lead.phone,
-      address: lead.addressLine1 || lead.address || "",
-      city: lead.city || "",
-      state: lead.state || "",
-      country: lead.country || "India",
-      pincode: lead.pincode || "",
-      contactName: lead.contactPerson,
-      designation: lead.designation || "",
-      mobile: lead.phone,
-      relationshipManager: relManager,
-      accountManager: accManager,
-      clientSince: new Date().toISOString().split("T")[0],
-      paymentTerms: paymentTerms,
-      preferredCommunication: "Email",
-      creditLimit: creditLimit,
-      handoverStatus: "Pending",
-    };
-
-    const updatedClients = [...clientsList, newClient];
-    setStorage("saiflow_clients", updatedClients);
-
-    // Update original Lead status to "Won" in storage
-    const updatedLeads = leads.map((l) =>
-      l.id === lead.id ? { ...l, status: "Won" as const } : l
-    );
-    setStorage("saiflow_leads", updatedLeads);
-
-    showToast(`Lead converted to Client ${lead.company} successfully!`, "success");
-    setShowConvertModal(false);
-    navigate(`/clients/${newClientId}`);
   };
+
+  if (loading) {
+    return <div className="py-10 text-center text-gray-500">Loading details...</div>;
+  }
+
   if (!lead) {
     return (
       <>
@@ -220,8 +230,7 @@ export default function LeadDetails() {
       });
     }
 
-    // 3. Lead activity logs from saiflow_lead_logs
-    const leadLogs = getStorage<LeadLogEntry[]>("saiflow_lead_logs", []);
+    const leadLogs: LeadLogEntry[] = [];
     const relatedLogs = leadLogs.filter((log) => log.leadId === lead.id);
     relatedLogs.forEach((log) => {
       let icon: React.ReactNode = <FiEdit className="size-4" />;

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import SignIn from "./pages/AuthPages/SignIn";
 import ForgotPassword from "./pages/AuthPages/ForgotPassword";
@@ -23,7 +22,6 @@ import LeadDetails from "./modules/LeadManagement/pages/LeadDetails";
 import MyLeads from "./modules/ContactFollowUp/pages/MyLeads";
 import FollowUps from "./modules/ContactFollowUp/pages/FollowUps";
 import ContactLeadDetail from "./modules/ContactFollowUp/pages/ContactLeadDetail";
-import { Meeting, initialMeetings } from "./modules/MeetingManagement/data/meetingsData";
 import MeetingsScopePage from "./modules/MeetingManagement/pages/MeetingsScopePage";
 import MeetingForm from "./modules/MeetingManagement/pages/MeetingForm";
 import MeetingDetails from "./modules/MeetingManagement/pages/MeetingDetails";
@@ -34,7 +32,6 @@ import FollowUpReport from "./modules/Reports/pages/FollowUpReport";
 import ClientReport from "./modules/Reports/pages/ClientReport";
 import ProposalReport from "./modules/Reports/pages/ProposalReport";
 import { ToastProvider } from "./context/ToastContext";
-import { getStorage, setStorage } from "./utils/storage";
 import { AuthProvider } from "./context/AuthContext";
 
 import ClientList from "./modules/ClientManagement/pages/ClientList";
@@ -64,30 +61,6 @@ import {
 // ────────────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [meetings, setMeetings] = useState<Meeting[]>(() => getStorage("saiflow_meetings", initialMeetings));
-
-  const handleDeleteMeeting = (id: number) => {
-    const updated = meetings.filter((m) => m.id !== id);
-    setMeetings(updated);
-    setStorage("saiflow_meetings", updated);
-  };
-
-  const handleUpdateMeetingStatus = (id: number, status: Meeting["status"], extra?: Partial<Meeting>) => {
-    const updated = meetings.map((m) => m.id === id ? { ...m, status, ...extra } : m);
-    setMeetings(updated);
-    setStorage("saiflow_meetings", updated);
-  };
-
-  const handleSaveMeeting = (meeting: Meeting, isEdit: boolean) => {
-    let updated: Meeting[];
-    if (isEdit) {
-      updated = meetings.map((m) => m.id === meeting.id ? meeting : m);
-    } else {
-      updated = [...meetings, meeting];
-    }
-    setMeetings(updated);
-    setStorage("saiflow_meetings", updated);
-  };
 
   return (
     <ToastProvider>
@@ -189,11 +162,7 @@ export default function App() {
               path="/meetings"
               element={
                 <ProtectedRoute requiredPermission={{ module: 'meetings', action: 'view' }}>
-                  <MeetingsScopePage
-                    meetings={meetings}
-                    onDeleteMeeting={handleDeleteMeeting}
-                    onUpdateMeetingStatus={handleUpdateMeetingStatus}
-                  />
+                  <MeetingsScopePage />
                 </ProtectedRoute>
               }
             />
@@ -201,7 +170,7 @@ export default function App() {
               path="/meetings/add"
               element={
                 <ProtectedRoute requiredPermission={{ module: 'meetings', action: 'create' }}>
-                  <MeetingForm onSave={handleSaveMeeting} />
+                  <MeetingForm />
                 </ProtectedRoute>
               }
             />
@@ -209,7 +178,7 @@ export default function App() {
               path="/meetings/:id/edit"
               element={
                 <ProtectedRoute requiredPermission={{ module: 'meetings', action: 'edit' }}>
-                  <MeetingForm onSave={handleSaveMeeting} />
+                  <MeetingForm />
                 </ProtectedRoute>
               }
             />

@@ -30,27 +30,75 @@ import {
 import { useToast } from "../../../hooks/useToast";
 import { useAuth } from "../../../context/AuthContext";
 import { Meeting, getMeetingStatusColor } from "../data/meetingsData";
-import { Lead, initialLeads } from "../../LeadManagement/data/leadsData";
 import { LOST_REASONS } from "../../Master/data/masterData";
-import { getStorage, setStorage } from "../../../utils/storage";
 import Select from "../../../components/form/Select";
-
-interface MeetingsScopePageProps {
-  meetings: Meeting[];
-  onDeleteMeeting: (id: number) => void;
-  onUpdateMeetingStatus?: (id: number, status: Meeting["status"], extra?: Partial<Meeting>) => void;
-}
+import { meetingService } from "../../../services/meetingService";
+import { leadService } from "../../../services/leadService";
+import { masterService } from "../../../services/masterService";
+import { useEffect } from "react";
 
 type StatusTab = "all" | "Scheduled" | "Rescheduled" | "Completed" | "Cancelled";
 
-export default function MeetingsScopePage({
-  meetings,
-  onDeleteMeeting: _onDeleteMeeting,
-  onUpdateMeetingStatus,
-}: MeetingsScopePageProps) {
+export default function MeetingsScopePage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { hasPermission } = useAuth();
+
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lostReasons, setLostReasons] = useState<{ value: string; label: string }[]>([]);
+
+  const fetchMeetings = async () => {
+    setLoading(true);
+    try {
+      const data = await meetingService.getMeetings();
+      if (data && Array.isArray(data.data)) {
+        const mapped = data.data.map((bm: any) => ({
+          id: bm.id,
+          subject: bm.title || "Meeting",
+          company: bm.lead?.company?.name || bm.lead?.title || "Unknown Company",
+          contactPerson: bm.lead?.contactPerson || "Unknown Contact",
+          date: bm.scheduledAt ? bm.scheduledAt.split("T")[0] : "",
+          time: bm.scheduledAt ? new Date(bm.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
+          type: "Google Meet",
+          linkOrLocation: bm.meetingLink || "",
+          status: bm.status === "SCHEDULED" ? "Scheduled" :
+                  bm.status === "COMPLETED" ? "Completed" :
+                  bm.status === "CANCELLED" ? "Cancelled" : bm.status,
+          notes: bm.agenda || "",
+          relatedToType: "Lead",
+          relatedToId: bm.leadId,
+          meetingPlatform: "Google Meet",
+          startTime: bm.scheduledAt ? new Date(bm.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
+          endTime: "",
+          duration: bm.durationMinutes ? bm.durationMinutes.toString() : "30",
+          meetingOwner: bm.createdBy ? [bm.createdBy.name] : [],
+          clientContactPerson: bm.lead?.contactPerson || "",
+          agenda: bm.agenda || "",
+          scopeNotes: bm.scopeNotes || ""
+        }));
+        setMeetings(mapped);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to fetch meetings.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMeetings();
+    const loadLostReasons = async () => {
+      try {
+        const lostReasonsData = await masterService.getMasterItems("LOST_REASON");
+        setLostReasons(lostReasonsData.map((x: any) => ({ value: x.name, label: x.name })));
+      } catch {
+        setLostReasons(LOST_REASONS.filter((r: any) => r.status === "Active").map((r: any) => ({ value: r.name, label: r.name })));
+      }
+    };
+    loadLostReasons();
+  }, []);
 
   // Filters
   const [activeTab, setActiveTab] = useState<StatusTab>("all");
@@ -140,29 +188,48 @@ export default function MeetingsScopePage({
     }
   };
 
-  const handleBulkComplete = () => {
+  const handleBulkComplete = async () => {
     const bulkMeetings = meetings.filter(m => selectedIds.includes(m.id) && (m.status === "Scheduled" || m.status === "Rescheduled"));
-    bulkMeetings.forEach(meeting => {
-      updateMeetingWithLog(meeting.id, { status: "Completed", completedDate: new Date().toISOString().split("T")[0] }, "Bulk completed.");
-      updateLeadStatus(meeting, "Won", "Bulk completed.");
-    });
-    showToast(`${bulkMeetings.length} meeting(s) completed. Related leads marked as Won.`, "success");
-    setSelectedIds([]);
+    try {
+      await Promise.all(bulkMeetings.map(async (meeting) => {
+        await meetingService.updateMeeting(meeting.id, {
+          status: "Completed",
+          completedDate: new Date().toISOString().split("T")[0]
+        });
+        if (meeting.relatedToType === "Lead" && meeting.relatedToId) {
+          await leadService.updateLead(meeting.relatedToId, { status: "Won" });
+        }
+      }));
+      showToast(`${bulkMeetings.length} meeting(s) completed. Related leads marked as Won.`, "success");
+      setSelectedIds([]);
+      fetchMeetings();
+    } catch (err) {
+      showToast("Failed to complete meetings.", "error");
+    }
   };
 
-  const handleBulkCancel = () => {
+  const handleBulkCancel = async () => {
     const bulkMeetings = meetings.filter(m => selectedIds.includes(m.id) && (m.status === "Scheduled" || m.status === "Rescheduled"));
-    bulkMeetings.forEach(meeting => {
-      updateMeetingWithLog(meeting.id, { status: "Cancelled", cancelledDate: new Date().toISOString().split("T")[0] }, "Bulk cancelled.");
-      updateLeadStatus(meeting, "Lost", "Bulk cancelled.");
-    });
-    showToast(`${bulkMeetings.length} meeting(s) cancelled. Related leads marked as Lost.`, "success");
-    setSelectedIds([]);
+    try {
+      await Promise.all(bulkMeetings.map(async (meeting) => {
+        await meetingService.updateMeeting(meeting.id, {
+          status: "Cancelled",
+          cancelledDate: new Date().toISOString().split("T")[0]
+        });
+        if (meeting.relatedToType === "Lead" && meeting.relatedToId) {
+          await leadService.updateLead(meeting.relatedToId, { status: "Lost" });
+        }
+      }));
+      showToast(`${bulkMeetings.length} meeting(s) cancelled. Related leads marked as Lost.`, "success");
+      setSelectedIds([]);
+      fetchMeetings();
+    } catch (err) {
+      showToast("Failed to cancel meetings.", "error");
+    }
   };
 
   const totalItems = filteredMeetings.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
-
 
   const handleSort = (field: keyof Meeting) => {
     if (sortField === field) {
@@ -172,6 +239,13 @@ export default function MeetingsScopePage({
       setSortOrder("asc");
     }
     setCurrentPage(1);
+  };
+
+  const openRescheduleModal = (meeting: Meeting) => {
+    setRescheduleModal({ open: true, meeting });
+    setRescheduleDate(meeting.date || "");
+    setRescheduleTime(meeting.time || "");
+    setRescheduleSummary(meeting.agenda || "");
   };
 
   const renderSortHeader = (label: string, field: keyof Meeting) => {
@@ -200,74 +274,24 @@ export default function MeetingsScopePage({
     );
   };
 
-  const updateMeetingWithLog = (meetingId: number, updates: Partial<Meeting>, logMessage: string) => {
-    if (onUpdateMeetingStatus) {
-      onUpdateMeetingStatus(meetingId, updates.status || "Scheduled", updates);
-    }
-    const logs = getStorage<any[]>("saiflow_meeting_logs", []);
-    const loggedInUser = getStorage<any>("saiflow_logged_in_user", { name: "Admin User" });
-    const newLog = {
-      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      meetingId,
-      action: updates.status === "Rescheduled" ? "Meeting Rescheduled" :
-        updates.status === "Completed" ? "Meeting Completed" :
-          updates.status === "Cancelled" ? "Meeting Cancelled" : "Meeting Updated",
-      description: logMessage,
-      timestamp: new Date().toISOString(),
-      operator: loggedInUser?.name || "Admin User",
-    };
-    setStorage("saiflow_meeting_logs", [newLog, ...logs]);
-  };
-
-  const updateLeadStatus = (meeting: Meeting, newStatus: string, reason?: string) => {
-    const allLeads = getStorage<Lead[]>("saiflow_leads", initialLeads);
-    let matchingLead: Lead | undefined;
-    if (meeting.relatedToType === "Lead" && meeting.relatedToId) {
-      matchingLead = allLeads.find(l => l.id === meeting.relatedToId);
-    } else {
-      matchingLead = allLeads.find(l => l.company.toLowerCase() === meeting.company.toLowerCase());
-    }
-    if (matchingLead) {
-      const updatedLeads = allLeads.map(l =>
-        l.id === matchingLead!.id
-          ? {
-            ...l,
-            status: newStatus as Lead["status"],
-            remarks: `${l.remarks || ""}\n[Meeting ${newStatus}]: ${reason || "No details"}`.trim()
-          }
-          : l
-      );
-      setStorage("saiflow_leads", updatedLeads);
-    }
-  };
-
-  // ─── Reschedule Handlers ────────────────────────────────────────────
-  const openRescheduleModal = (meeting: Meeting) => {
-    setRescheduleModal({ open: true, meeting });
-    setRescheduleDate("");
-    setRescheduleTime("");
-    setRescheduleSummary("");
-  };
-
-  const handleReschedule = () => {
+  const handleReschedule = async () => {
     const { meeting } = rescheduleModal;
     if (!meeting || !rescheduleDate || !rescheduleSummary.trim()) return;
 
-    updateMeetingWithLog(
-      meeting.id,
-      {
-        status: "Rescheduled",
-        rescheduledDate: rescheduleDate,
-        rescheduledTime: rescheduleTime,
-        summary: rescheduleSummary,
-        date: rescheduleDate,
-        time: rescheduleTime || meeting.time,
-      },
-      `Meeting rescheduled to ${formatDate(rescheduleDate)} at ${formatTime(rescheduleTime)}. Summary: ${rescheduleSummary}`
-    );
+    try {
+      const scheduledAt = new Date(`${rescheduleDate}T${rescheduleTime || "09:00"}`);
+      await meetingService.updateMeeting(meeting.id, {
+        scheduledAt: scheduledAt.toISOString(),
+        status: "RESCHEDULED",
+        agenda: rescheduleSummary
+      });
 
-    showToast(`Meeting "${meeting.subject}" rescheduled successfully.`, "success");
-    closeRescheduleModal();
+      showToast(`Meeting "${meeting.subject}" rescheduled successfully.`, "success");
+      closeRescheduleModal();
+      fetchMeetings();
+    } catch (err) {
+      showToast("Failed to reschedule meeting.", "error");
+    }
   };
 
   const closeRescheduleModal = () => {
@@ -283,25 +307,29 @@ export default function MeetingsScopePage({
     setCompleteSummary("");
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     const { meeting } = completeModal;
     if (!meeting || !completeSummary.trim()) return;
 
-    updateMeetingWithLog(
-      meeting.id,
-      {
-        status: "Completed",
-        summary: completeSummary,
-        completedDate: new Date().toISOString().split("T")[0],
-      },
-      `Meeting completed. Summary: ${completeSummary}`
-    );
+    try {
+      await meetingService.updateMeeting(meeting.id, {
+        status: "COMPLETED",
+        scopeNotes: completeSummary
+      });
 
-    // Update related lead status to indicate meeting completion
-    updateLeadStatus(meeting, "Won", completeSummary);
+      if (meeting.relatedToId) {
+        await leadService.updateLead(meeting.relatedToId, {
+          status: "Won",
+          requirements: completeSummary
+        });
+      }
 
-    showToast(`Meeting "${meeting.subject}" completed successfully.`, "success");
-    closeCompleteModal();
+      showToast(`Meeting "${meeting.subject}" completed successfully.`, "success");
+      closeCompleteModal();
+      fetchMeetings();
+    } catch (err) {
+      showToast("Failed to complete meeting.", "error");
+    }
   };
 
   const closeCompleteModal = () => {
@@ -316,25 +344,28 @@ export default function MeetingsScopePage({
     setCancelLostReason("");
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     const { meeting } = cancelModal;
     if (!meeting || !cancelSummary.trim()) return;
 
-    updateMeetingWithLog(
-      meeting.id,
-      {
-        status: "Cancelled",
-        summary: cancelSummary,
-        cancelledDate: new Date().toISOString().split("T")[0],
-      },
-      `Meeting cancelled. Reason: ${cancelSummary}${cancelLostReason ? ` (Lost reason: ${cancelLostReason})` : ""}`
-    );
+    try {
+      await meetingService.updateMeeting(meeting.id, {
+        status: "CANCELLED",
+        scopeNotes: cancelSummary
+      });
 
-    // Auto-update lead status to Lost
-    updateLeadStatus(meeting, "Lost", cancelSummary + (cancelLostReason ? ` - ${cancelLostReason}` : ""));
+      if (meeting.relatedToId) {
+        await leadService.updateLead(meeting.relatedToId, {
+          status: "Lost"
+        });
+      }
 
-    showToast(`Meeting "${meeting.subject}" cancelled. Lead status updated to Lost.`, "error");
-    closeCancelModal();
+      showToast(`Meeting "${meeting.subject}" cancelled. Lead status updated to Lost.`, "error");
+      closeCancelModal();
+      fetchMeetings();
+    } catch (err) {
+      showToast("Failed to cancel meeting.", "error");
+    }
   };
 
   const closeCancelModal = () => {
@@ -439,7 +470,13 @@ export default function MeetingsScopePage({
       default:
         return null;
     }
-  }; return (
+  };
+
+  if (loading) {
+    return <div className="py-10 text-center text-gray-500">Loading meetings...</div>;
+  }
+
+  return (
     <>
       <PageMeta
         title="Meetings | SaiFlow"
@@ -818,9 +855,7 @@ export default function MeetingsScopePage({
                 Cancel Reason <span className="text-error-500">*</span>
               </label>
               <Select
-                options={getStorage<any[]>("saiflow_master_lost_reasons", LOST_REASONS)
-                  .filter((r: any) => r.status === "Active")
-                  .map((r: any) => ({ value: r.name, label: r.name }))}
+                options={lostReasons}
                 placeholder="Select Lost Reason"
                 onChange={(val: string) => setCancelLostReason(val)}
               />

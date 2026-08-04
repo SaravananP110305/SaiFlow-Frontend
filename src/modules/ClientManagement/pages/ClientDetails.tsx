@@ -1,11 +1,11 @@
-import { useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
 import Button from "../../../components/ui/button/Button";
-import { Client, initialClients } from "../data/clientsData";
-import { getStorage } from "../../../utils/storage";
+import { Client } from "../data/clientsData";
+import { clientService } from "../../../services/clientService";
+import { useEffect, useState } from "react";
 import {
   FiBriefcase,
   FiUser,
@@ -53,10 +53,59 @@ export default function ClientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const clients = getStorage<Client[]>("saiflow_clients", initialClients);
-  const client = clients.find((c) => c.id === Number(id));
+  const [client, setClient] = useState<Client | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadClientDetails = async () => {
+      try {
+        setLoading(true);
+        const data = await clientService.getClientById(Number(id));
+        if (data) {
+          setClient({
+            id: data.id,
+            company: data.company?.name || data.company || "",
+            name: data.contactName || data.name || "",
+            email: data.email || data.company?.email || "",
+            phone: data.phone || data.company?.phone || "",
+            projectsCount: data.projects ? data.projects.length : 0,
+            status: data.status || "Active",
+            gstNumber: data.gstPan || "",
+            panNumber: "",
+            website: data.company?.website || "",
+            companyEmail: data.company?.email || "",
+            companyPhone: data.company?.phone || "",
+            address: data.company?.address || "",
+            city: data.company?.city || "",
+            state: data.company?.state || "",
+            country: data.company?.country || "India",
+            pincode: data.company?.pincode || "",
+            contactName: data.contactName || data.name || "",
+            designation: "",
+            mobile: data.phone || "",
+            relationshipManager: "",
+            accountManager: "",
+            clientSince: data.createdAt ? data.createdAt.split("T")[0] : "",
+            paymentTerms: "Net 30",
+            preferredCommunication: "Email",
+            creditLimit: "",
+            handoverStatus: data.projects && data.projects.length > 0 ? "Onboarded" : "Pending",
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadClientDetails();
+  }, [id]);
 
   const [activeTab, setActiveTab] = useState("overview");
+
+  if (loading) {
+    return <div className="py-10 text-center text-gray-500">Loading client details...</div>;
+  }
 
   if (!client) {
     return (

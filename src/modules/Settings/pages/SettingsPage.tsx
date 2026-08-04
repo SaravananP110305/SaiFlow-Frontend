@@ -5,7 +5,6 @@ import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
 import { useToast } from "../../../hooks/useToast";
-import { getStorage, setStorage } from "../../../utils/storage";
 
 interface Settings {
   appName: string;
@@ -29,39 +28,37 @@ export default function SettingsPage() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<"general" | "company">("general");
 
-  const saved = getStorage<Settings>("saiflow_settings", DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   // General Settings States
-  const [appName, setAppName] = useState(saved.appName);
-  const [timeZone, setTimeZone] = useState(saved.timeZone);
-  const [language, setLanguage] = useState(saved.language);
+  const [appName, setAppName] = useState(settings.appName);
+  const [timeZone, setTimeZone] = useState(settings.timeZone);
+  const [language, setLanguage] = useState(settings.language);
 
   // Company Details States
-  const [companyName, setCompanyName] = useState(saved.companyName);
-  const [contactEmail, setContactEmail] = useState(saved.contactEmail);
-  const [address, setAddress] = useState(saved.address);
+  const [companyName, setCompanyName] = useState(settings.companyName);
+  const [contactEmail, setContactEmail] = useState(settings.contactEmail);
+  const [address, setAddress] = useState(settings.address);
 
   const handleSaveGeneral = (e: React.FormEvent) => {
     e.preventDefault();
-    const current = getStorage<Settings>("saiflow_settings", DEFAULT_SETTINGS);
-    setStorage("saiflow_settings", {
-      ...current,
+    setSettings((prev) => ({
+      ...prev,
       appName,
       timeZone,
       language,
-    });
+    }));
     showToast("General system settings saved.", "success");
   };
 
   const handleSaveCompany = (e: React.FormEvent) => {
     e.preventDefault();
-    const current = getStorage<Settings>("saiflow_settings", DEFAULT_SETTINGS);
-    setStorage("saiflow_settings", {
-      ...current,
+    setSettings((prev) => ({
+      ...prev,
       companyName,
       contactEmail,
       address,
-    });
+    }));
     showToast("Company profile details updated.", "success");
   };
 

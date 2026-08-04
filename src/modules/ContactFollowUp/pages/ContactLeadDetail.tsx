@@ -4,8 +4,10 @@ import { formatDate, formatTime } from "../../../utils/dateFormatter";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
-import { initialLeads, getStatusColor, getPriorityColor, Lead } from "../../LeadManagement/data/leadsData";
-import { getStorage, setStorage } from "../../../utils/storage";
+import { getStatusColor, getPriorityColor, Lead } from "../../LeadManagement/data/leadsData";
+import { leadService } from "../../../services/leadService";
+import { meetingService } from "../../../services/meetingService";
+import { useEffect } from "react";
 import { useToast } from "../../../hooks/useToast";
 import { getFollowUpStatusColor } from "../data/contactData";
 import {
@@ -52,7 +54,7 @@ interface Activity {
   color: string;
 }
 
-function getActivitiesForLead(leadId: number, lead: Lead): Activity[] {
+function getActivitiesForLead(leadId: number, lead: Lead, followups: any[], meetings: any[]): Activity[] {
   const result: Activity[] = [];
 
   // 1. Lead created
@@ -103,8 +105,7 @@ function getActivitiesForLead(leadId: number, lead: Lead): Activity[] {
     }
   }
 
-  // 3. Follow-ups from saiflow_followups
-  const followups = getStorage<any[]>("saiflow_followups", []);
+  // 3. Follow-ups
   for (const f of followups.filter((f: any) => f.leadId === leadId)) {
     const statusColor =
       f.status === "Completed" ? "bg-success-500" : f.status === "Missed" ? "bg-error-500" : "bg-warning-500";
@@ -119,8 +120,7 @@ function getActivitiesForLead(leadId: number, lead: Lead): Activity[] {
     });
   }
 
-  // 4. Meetings from saiflow_meetings
-  const meetings = getStorage<any[]>("saiflow_meetings", []);
+  // 4. Meetings
   for (const m of meetings.filter((m: any) => m.leadId === leadId)) {
     const statusColor =
       m.status === "Completed" ? "bg-success-500" : m.status === "Cancelled" ? "bg-error-500" : "bg-warning-500";
@@ -232,14 +232,43 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
   const backTarget = isFromFollowUps ? "/connect/follow-ups" : "/connect/contacts";
   const backLabel = isFromFollowUps ? "Back to Follow-Ups" : "Back to Contacts";
 
-  // Get the currently logged-in user
-  const loggedInUser = getStorage<any>("saiflow_logged_in_user", {
-    name: "John Doe",
-    email: "john.doe@saiflow.com",
-    role: "Business Development Executive",
-  });
-  const currentUserName = loggedInUser?.name || "John Doe";
-  const isAdmin = loggedInUser?.role === "Administrator";
+  const [lead, setLead] = useState<Lead | null>(null);
+  const [followups] = useState<any[]>([]);
+  const [meetings, setMeetings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchLeadDetails = async () => {
+    setLoading(true);
+    try {
+      const [leadData, meetingsData] = await Promise.all([
+        leadService.getLeadById(Number(id)),
+        meetingService.getMeetings()
+      ]);
+
+      if (leadData) {
+        setLead({
+          ...leadData,
+          company: leadData.company?.name || leadData.title || "",
+          contactPerson: leadData.contactPerson || "",
+          assignedTo: leadData.assignedTo?.name || "Unassigned",
+          status: leadData.status
+        });
+      }
+
+      if (meetingsData && Array.isArray(meetingsData.data)) {
+        const filteredMeetings = meetingsData.data.filter((m: any) => m.leadId === Number(id));
+        setMeetings(filteredMeetings);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeadDetails();
+  }, [id]);
 
   // Activity log pagination
   const ACTIVITY_INITIAL_COUNT = 10;
@@ -253,13 +282,6 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
     }
   }
 
-  const [leadsList, setLeadsList] = useState<Lead[]>(() => {
-    const allLeads = getStorage<Lead[]>("saiflow_leads", initialLeads);
-    if (isAdmin) return allLeads;
-    return allLeads.filter((l) => l.assignedTo === currentUserName);
-  });
-  const lead = leadsList.find((l) => l.id === Number(id));
-
   const [isEditingSummary, setIsEditingSummary] = useState(false);
   const [editedSummary, setEditedSummary] = useState("");
 
@@ -270,28 +292,27 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
     }
   };
 
-  const handleSaveSummary = () => {
+  const handleSaveSummary = async () => {
     if (!lead) return;
-    const updatedLeads = leadsList.map((l) =>
-      l.id === lead.id ? { ...l, summary: editedSummary } : l
-    );
-    setLeadsList(updatedLeads);
-    setStorage("saiflow_leads", updatedLeads);
-    showToast("Summary updated successfully.", "success");
-    setIsEditingSummary(false);
+    try {
+      await leadService.updateLead(lead.id, { requirements: editedSummary });
+      setLead({ ...lead, summary: editedSummary });
+      showToast("Summary updated successfully.", "success");
+      setIsEditingSummary(false);
+    } catch (err) {
+      showToast("Failed to update summary.", "error");
+    }
   };
 
   const activities = useMemo(() => {
     if (!lead) return [];
-    // Only show My Lead related activities: contact outcomes & follow-ups
-    return getActivitiesForLead(lead.id, lead).filter(
+    return getActivitiesForLead(lead.id, lead, followups, meetings).filter(
       (a) => a.type === "contact_outcome" || a.type === "follow_up"
     );
-  }, [lead]);
+  }, [lead, followups, meetings]);
 
   const latestFollowUp = useMemo(() => {
     if (!lead) return null;
-    const followups = getStorage<any[]>("saiflow_followups", []);
     const leadFollowups = followups.filter((f: any) => f.leadId === lead.id);
     if (leadFollowups.length === 0) return null;
     return [...leadFollowups].sort((a, b) => {
@@ -299,7 +320,11 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
       const dateTimeB = new Date(`${b.date}T${b.time || "00:00"}`).getTime();
       return dateTimeB - dateTimeA;
     })[0];
-  }, [lead]);
+  }, [lead, followups]);
+
+  if (loading) {
+    return <div className="py-10 text-center text-gray-500">Loading lead details...</div>;
+  }
 
   if (!lead) {
     return (

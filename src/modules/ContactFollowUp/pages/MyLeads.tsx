@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
@@ -21,8 +21,9 @@ import {
   FiXCircle,
   FiPhone,
 } from "react-icons/fi";
-import { getStatusColor, getPriorityColor, type Lead, initialLeads } from "../../LeadManagement/data/leadsData";
-import { getStorage, setStorage } from "../../../utils/storage";
+import { getStatusColor, getPriorityColor, type Lead } from "../../LeadManagement/data/leadsData";
+import { useAuth } from "../../../context/AuthContext";
+import { leadService } from "../../../services/leadService";
 import { useToast } from "../../../hooks/useToast";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
@@ -32,20 +33,43 @@ export default function MyLeads() {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  // Get the currently logged-in user
-  const loggedInUser = getStorage<any>("saiflow_logged_in_user", {
-    name: "John Doe",
-    email: "john.doe@saiflow.com",
-    role: "Business Development Executive",
-  });
-  const currentUserName = loggedInUser?.name || "John Doe";
-  const isAdmin = loggedInUser?.role === "Administrator";
+  const { user } = useAuth();
+  const isAdmin = user?.role?.name === "Administrator";
 
-  const [leads, setLeads] = useState<Lead[]>(() => {
-    const allLeads = getStorage<Lead[]>("saiflow_leads", initialLeads);
-    if (isAdmin) return allLeads;
-    return allLeads.filter((l) => l.assignedTo === currentUserName);
-  });
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchLeads = async () => {
+    setLoading(true);
+    try {
+      const data = await leadService.getLeads({ limit: 100 });
+      if (data && Array.isArray(data.data)) {
+        const mapped = data.data.map((l: any) => ({
+          ...l,
+          company: l.company?.name || l.title || "",
+          contactPerson: l.contactPerson || "",
+          assignedTo: l.assignedTo?.name || "Unassigned",
+          status: l.status,
+        }));
+        
+        if (user?.role?.name === "Administrator") {
+          setLeads(mapped);
+        } else {
+          setLeads(mapped.filter((l: any) => l.assignedTo === user?.name));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchLeads();
+    }
+  }, [user]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -66,38 +90,18 @@ export default function MyLeads() {
   const [callLaterTime, setCallLaterTime] = useState("");
   const [callLaterType, setCallLaterType] = useState("Call");
 
-  const followUpTypeOptions = useMemo(() => {
-    const stored = getStorage<any[]>("saiflow_master_followup_types", []);
-    if (stored && stored.length > 0) {
-      return stored.filter((t) => t.status === "Active").map((t) => t.name);
+  const followUpTypeOptions = ["Call", "Meeting", "Email", "WhatsApp"];
+
+  const handleCallLead = async (lead: Lead) => {
+    try {
+      await leadService.updateLead(lead.id, { status: "Contacted" });
+      showToast(`${lead.company} marked as Contacted — moved to Contacted Leads.`, "success");
+      setActiveTab("contacted");
+      setCurrentPage(1);
+      fetchLeads();
+    } catch (err) {
+      showToast("Failed to mark lead as contacted.", "error");
     }
-    return ["Call", "Meeting", "Email", "WhatsApp"];
-  }, []);
-
-  // Update a lead in both localStorage and the current view, keeping the
-  // full list in storage intact (only the visible subset is kept in state).
-  const updateLead = (leadId: number, updater: (l: Lead) => Lead) => {
-    const allLeads = getStorage<Lead[]>("saiflow_leads", initialLeads);
-    const updatedAll = allLeads.map((l) => (l.id === leadId ? updater(l) : l));
-    setStorage("saiflow_leads", updatedAll);
-    setLeads(isAdmin ? updatedAll : updatedAll.filter((l) => l.assignedTo === currentUserName));
-  };
-
-  // New Leads: clicking the call icon marks the lead as Contacted and
-  // moves it to the Contacted Leads page.
-  const handleCallLead = (lead: Lead) => {
-    const note = "[Contact] Called the lead.";
-    updateLead(lead.id, (l) => ({
-      ...l,
-      status: "Contacted" as const,
-      notes: l.notes ? `${l.notes}\n${note}` : note,
-      summary: "Called the lead.",
-      lastContactResult: "Contacted",
-    }));
-
-    showToast(`${lead.company} marked as Contacted — moved to Contacted Leads.`, "success");
-    setActiveTab("contacted");
-    setCurrentPage(1);
   };
 
   const handleOpenOutcomeModal = (lead: Lead, result: ContactResult) => {
@@ -110,10 +114,9 @@ export default function MyLeads() {
     contactModal.openModal();
   };
 
-  const handleSaveContactOutcome = () => {
+  const handleSaveContactOutcome = async () => {
     if (!selectedLeadForContact) return;
 
-    // Validate Call Later fields
     if (contactResult === "Call Later") {
       if (!callLaterDate) {
         showToast("Please select a follow-up date.", "error");
@@ -145,52 +148,20 @@ export default function MyLeads() {
       return;
     }
 
-    const summary =
-      contactSummary.trim() ||
-      (contactResult === "Call Later" ? "Call back requested." : "No summary provided.");
-    const summaryNote = contactSummary.trim()
-      ? `[Contact] ${contactResult}: ${contactSummary.trim()}`
-      : `[Contact] ${contactResult}`;
+    try {
+      await leadService.updateLead(selectedLeadForContact.id, {
+        status: newStatus as any,
+        requirements: contactSummary.trim() || undefined
+      });
 
-    // Update the lead in both storage and the current view
-    updateLead(selectedLeadForContact.id, (l) => ({
-      ...l,
-      status: newStatus as any,
-      notes: l.notes ? `${l.notes}\n${summaryNote}` : summaryNote,
-      summary,
-      lastContactResult: contactResult,
-      ...(contactResult === "Call Later" && {
-        nextFollowUpDate: callLaterDate,
-        followUpTime: callLaterTime,
-        followUpType: callLaterType,
-      }),
-    }));
-
-    // If Call Later, create a follow-up record in saiflow_followups
-    if (contactResult === "Call Later" && callLaterDate) {
-      const followupsList = getStorage<any[]>("saiflow_followups", []);
-      const newFollowUpId = followupsList.length > 0 ? Math.max(...followupsList.map((f: any) => f.id)) + 1 : 1;
-      const newFollowUp = {
-        id: newFollowUpId,
-        leadId: selectedLeadForContact.id,
-        company: selectedLeadForContact.company,
-        contactPerson: selectedLeadForContact.contactPerson,
-        phone: selectedLeadForContact.phone,
-        assignedTo: selectedLeadForContact.assignedTo,
-        date: callLaterDate,
-        time: callLaterTime || "12:00",
-        reason: summary,
-        status: "Scheduled" as const,
-        followUpType: callLaterType,
-      };
-      const updatedFollowUps = [...followupsList, newFollowUp];
-      setStorage("saiflow_followups", updatedFollowUps);
+      setSavedOutcome(outcomeMessage);
+      showToast("Contact outcome saved successfully.", "success");
+      contactModal.closeModal();
+      successModal.openModal();
+      fetchLeads();
+    } catch (err) {
+      showToast("Failed to save contact outcome.", "error");
     }
-
-    setSavedOutcome(outcomeMessage);
-    showToast("Contact outcome saved successfully.", "success");
-    contactModal.closeModal();
-    successModal.openModal();
   };
 
   const handleSort = (field: keyof Lead) => {
@@ -268,6 +239,10 @@ export default function MyLeads() {
       </button>
     );
   };
+
+  if (loading) {
+    return <div className="py-10 text-center text-gray-500">Loading contacts...</div>;
+  }
 
   return (
     <>

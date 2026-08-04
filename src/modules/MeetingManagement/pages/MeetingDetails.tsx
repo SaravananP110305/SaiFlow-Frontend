@@ -1,14 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
 import { formatDate, formatTime } from "../../../utils/dateFormatter";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
 import Button from "../../../components/ui/button/Button";
-import { initialMeetings, getMeetingStatusColor, Meeting } from "../data/meetingsData";
-import { getStorage, setStorage } from "../../../utils/storage";
-import { Lead, initialLeads } from "../../LeadManagement/data/leadsData";
-import { Client, initialClients } from "../../ClientManagement/data/clientsData";
+import { getMeetingStatusColor, Meeting } from "../data/meetingsData";
+import { Lead } from "../../LeadManagement/data/leadsData";
+import { meetingService } from "../../../services/meetingService";
+import { leadService } from "../../../services/leadService";
+import { clientService } from "../../../services/clientService";
 import { useToast } from "../../../hooks/useToast";
 import { Modal } from "../../../components/ui/modal";
 import Select from "../../../components/form/Select";
@@ -31,21 +32,6 @@ import {
   FiFileText,
 } from "react-icons/fi";
 
-interface MeetingActivityLog {
-  id: string;
-  meetingId: number;
-  action: string;
-  description: string;
-  timestamp: string;
-  operator: string;
-}
-
-interface SummaryEntry {
-  action: string;
-  summary: string;
-  date: string;
-  operator: string;
-}
 
 interface InfoCardProps {
   icon: React.ReactNode;
@@ -88,8 +74,45 @@ export default function MeetingDetails() {
   const [relManager, setRelManager] = useState("John Doe");
   const [accManager, setAccManager] = useState("Jane Smith");
 
-  const [activityLogs, setActivityLogs] = useState<MeetingActivityLog[]>([]);
-  const [summaryEntries, setSummaryEntries] = useState<SummaryEntry[]>([]);
+  const activityLogs = useMemo(() => {
+    if (!meeting) return [];
+    const logs = [];
+    logs.push({
+      id: "init",
+      action: "Meeting Scheduled",
+      description: `Meeting scheduled with ${meeting.contactPerson} from ${meeting.company}.`,
+      timestamp: meeting.date ? new Date(meeting.date).toISOString() : new Date().toISOString(),
+      operator: "System",
+    });
+    if (meeting.status === "Completed") {
+      logs.push({
+        id: "completed",
+        action: "Meeting Completed",
+        description: `Meeting completed. Summary: ${meeting.scopeNotes || "No summary provided."}`,
+        timestamp: new Date().toISOString(),
+        operator: "System",
+      });
+    } else if (meeting.status === "Cancelled") {
+      logs.push({
+        id: "cancelled",
+        action: "Meeting Cancelled",
+        description: `Meeting cancelled.`,
+        timestamp: new Date().toISOString(),
+        operator: "System",
+      });
+    }
+    return logs;
+  }, [meeting]);
+
+  const summaryEntries = useMemo(() => {
+    if (!meeting || !meeting.scopeNotes) return [];
+    return [{
+      action: "Summary Updated",
+      summary: meeting.scopeNotes,
+      date: new Date().toISOString(),
+      operator: "System",
+    }];
+  }, [meeting]);
 
   // Activity log pagination
   const ACTIVITY_INITIAL_COUNT = 10;
@@ -107,196 +130,106 @@ export default function MeetingDetails() {
   const [editSummaryModal, setEditSummaryModal] = useState(false);
   const [editSummaryText, setEditSummaryText] = useState("");
 
-  const loggedInUser = getStorage<any>("saiflow_logged_in_user", {
-    name: "Admin User",
-    email: "admin@gmail.com",
-    role: "Administrator",
-  });
+  const [loading, setLoading] = useState(true);
 
-  const logActivity = (action: string, description: string) => {
-    if (!meeting) return;
-    const logs = getStorage<MeetingActivityLog[]>("saiflow_meeting_logs", []);
-    const newLog: MeetingActivityLog = {
-      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      meetingId: meeting.id,
-      action,
-      description,
-      timestamp: new Date().toISOString(),
-      operator: loggedInUser?.name || "Admin User",
-    };
-    const updatedLogs = [newLog, ...logs];
-    setStorage("saiflow_meeting_logs", updatedLogs);
-    setActivityLogs(updatedLogs.filter(l => l.meetingId === meeting.id).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
-  };
-
-  const loadData = () => {
-    const meetings = getStorage<Meeting[]>("saiflow_meetings", initialMeetings);
-    const foundMeeting = meetings.find((m) => m.id === Number(id));
-    if (foundMeeting) {
-      setMeeting(foundMeeting);
-      const leads = getStorage<Lead[]>("saiflow_leads", initialLeads);
-      
-      // Attempt to search matching lead by relatedToId or by company name
-      let lead: Lead | undefined;
-      if (foundMeeting.relatedToType === "Lead" && foundMeeting.relatedToId) {
-        lead = leads.find((l) => l.id === foundMeeting.relatedToId);
-      } else {
-        lead = leads.find((l) => l.company.toLowerCase() === foundMeeting.company.toLowerCase());
+  const loadMeetingDetails = async () => {
+    try {
+      setLoading(true);
+      const data = await meetingService.getMeetingById(Number(id));
+      if (data) {
+        const mappedMeeting: Meeting = {
+          id: data.id,
+          subject: data.title || "Meeting",
+          company: data.lead?.company?.name || data.lead?.title || "Unknown Company",
+          contactPerson: data.lead?.contactPerson || "Unknown Contact",
+          date: data.scheduledAt ? data.scheduledAt.split("T")[0] : "",
+          time: data.scheduledAt ? new Date(data.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
+          type: "Google Meet",
+          linkOrLocation: data.meetingLink || "",
+          status: data.status === "SCHEDULED" ? "Scheduled" :
+                  data.status === "COMPLETED" ? "Completed" :
+                  data.status === "CANCELLED" ? "Cancelled" : data.status,
+          notes: data.agenda || "",
+          relatedToType: "Lead",
+          relatedToId: data.leadId,
+          meetingPlatform: "Google Meet",
+          startTime: data.scheduledAt ? new Date(data.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
+          endTime: "",
+          duration: data.durationMinutes ? data.durationMinutes.toString() : "30",
+          meetingOwner: data.createdBy ? [data.createdBy.name] : [],
+          clientContactPerson: data.lead?.contactPerson || "",
+          agenda: data.agenda || "",
+          scopeNotes: data.scopeNotes || ""
+        };
+        setMeeting(mappedMeeting);
+        
+        if (data.lead) {
+          setMatchingLead({
+            ...data.lead,
+            company: data.lead.company?.name || data.lead.title || "",
+            contactPerson: data.lead.contactPerson || ""
+          } as any);
+        }
       }
-      setMatchingLead(lead || null);
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to load meeting details.", "error");
+    } finally {
+      setLoading(false);
     }
-  };
-
-  // Extract summary text from activity log descriptions
-  const extractSummaryFromLog = (log: MeetingActivityLog): string | null => {
-    const action = log.action.toLowerCase();
-    const desc = log.description;
-    if (action.includes('completed')) {
-      // "Meeting completed. Summary: <text>"
-      const match = desc.match(/Summary:\s*(.+)/is);
-      return match ? match[1].trim() : desc.replace(/^Meeting completed\.\s*/i, '').trim();
-    }
-    if (action.includes('rescheduled')) {
-      // "Meeting rescheduled to <date> at <time>. Summary: <text>"
-      const match = desc.match(/Summary:\s*(.+)/is);
-      return match ? match[1].trim() : null;
-    }
-    if (action.includes('cancelled')) {
-      // "Meeting cancelled. Reason: <summary> (Lost reason: <reason>)"
-      const match = desc.match(/Reason:\s*([^(\.]+)/is);
-      return match ? match[1].trim() : desc.replace(/^Meeting cancelled\.\s*/i, '').trim();
-    }
-    return null;
-  };
-
-  // Derive status-wise summary entries
-  const buildSummaryEntries = (logs: MeetingActivityLog[]): SummaryEntry[] => {
-    return logs
-      .filter((l) => {
-        const action = l.action.toLowerCase();
-        return action.includes('completed') || action.includes('cancelled') || action.includes('rescheduled');
-      })
-      .map((l) => ({
-        action: l.action,
-        summary: extractSummaryFromLog(l) || l.description,
-        date: l.timestamp,
-        operator: l.operator,
-      }));
   };
 
   useEffect(() => {
-    loadData();
+    loadMeetingDetails();
   }, [id]);
 
-  useEffect(() => {
-    if (meeting) {
-      const allLogs = getStorage<MeetingActivityLog[]>("saiflow_meeting_logs", []);
-      let meetingLogs = allLogs.filter((l) => l.meetingId === meeting.id);
-      
-      if (meetingLogs.length === 0) {
-        const initialLog: MeetingActivityLog = {
-          id: `log-init-${meeting.id}`,
-          meetingId: meeting.id,
-          action: "Meeting Scheduled",
-          description: `Meeting scheduled with ${meeting.contactPerson} from ${meeting.company}.`,
-          timestamp: new Date(meeting.date + (meeting.time ? "T" + meeting.time : "")).toISOString(),
-          operator: "System",
-        };
-        const updatedLogs = [initialLog, ...allLogs];
-        setStorage("saiflow_meeting_logs", updatedLogs);
-        meetingLogs = [initialLog];
-      }
-      
-      meetingLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      setActivityLogs(meetingLogs);
-      setSummaryEntries(buildSummaryEntries(meetingLogs));
-    }
-  }, [meeting]);
 
   // ─── Edit Summary Handlers ─────────────────────────────────────────────
   const openEditSummary = () => {
     if (!meeting) return;
-    setEditSummaryText(meeting.summary || "");
+    setEditSummaryText(meeting.scopeNotes || "");
     setEditSummaryModal(true);
   };
 
-  const handleSaveEditSummary = () => {
+  const handleSaveEditSummary = async () => {
     if (!meeting || !editSummaryText.trim()) return;
 
-    const meetings = getStorage<Meeting[]>("saiflow_meetings", initialMeetings);
-    const updated = meetings.map((m) =>
-      m.id === meeting.id ? { ...m, summary: editSummaryText.trim() } : m
-    );
-    setStorage("saiflow_meetings", updated);
-    setMeeting({ ...meeting, summary: editSummaryText.trim() });
-
-    logActivity("Summary Updated", `Meeting summary was updated: ${editSummaryText.trim()}`);
-    showToast("Summary updated successfully.", "success");
-    setEditSummaryModal(false);
+    try {
+      await meetingService.updateMeeting(meeting.id, {
+        scopeNotes: editSummaryText.trim()
+      });
+      setMeeting({ ...meeting, scopeNotes: editSummaryText.trim() });
+      showToast("Summary updated successfully.", "success");
+      setEditSummaryModal(false);
+    } catch (err) {
+      showToast("Failed to update summary.", "error");
+    }
   };
 
-  const handleConvertLeadConfirm = () => {
+  const handleConvertLeadConfirm = async () => {
     if (!meeting || !matchingLead) return;
 
-    const clientsList = getStorage<Client[]>("saiflow_clients", initialClients);
-    
-    // Check if client company already exists
-    const exists = clientsList.some((c) => c.company.toLowerCase() === matchingLead.company.toLowerCase());
-    if (exists) {
-      showToast(`A client with company name "${matchingLead.company}" already exists.`, "error");
+    try {
+      await clientService.createClient({
+        companyId: matchingLead.companyId,
+        leadId: matchingLead.id,
+        gstPan: matchingLead.gstNumber || "",
+        status: "Active"
+      });
+
+      await leadService.updateLead(matchingLead.id, { status: "Won" });
+
+      showToast(`Lead converted to Client successfully!`, "success");
       setShowConvertModal(false);
-      return;
+      navigate(`/clients`);
+    } catch (err) {
+      showToast("Failed to convert lead to client.", "error");
     }
-
-    const newClientId = clientsList.length > 0 ? Math.max(...clientsList.map((c) => c.id)) + 1 : 1;
-    const newClient: Client = {
-      id: newClientId,
-      company: matchingLead.company,
-      name: matchingLead.contactPerson,
-      email: matchingLead.email,
-      phone: matchingLead.phone,
-      projectsCount: 0,
-      status: "Active",
-      industry: matchingLead.industry,
-      gstNumber: matchingLead.gstNumber || "",
-      panNumber: "",
-      website: matchingLead.website || "",
-      companyEmail: matchingLead.email,
-      companyPhone: matchingLead.phone,
-      address: matchingLead.addressLine1 || matchingLead.address || "",
-      city: matchingLead.city || "",
-      state: matchingLead.state || "",
-      country: matchingLead.country || "India",
-      pincode: matchingLead.pincode || "",
-      contactName: matchingLead.contactPerson,
-      designation: matchingLead.designation || "",
-      mobile: matchingLead.phone,
-      relationshipManager: relManager,
-      accountManager: accManager,
-      clientSince: new Date().toISOString().split("T")[0],
-      paymentTerms: paymentTerms,
-      preferredCommunication: "Email",
-      creditLimit: creditLimit,
-      handoverStatus: "Pending",
-    };
-
-    const updatedClients = [...clientsList, newClient];
-    setStorage("saiflow_clients", updatedClients);
-
-    // Update Meeting relation to type Client (lead is already Won)
-    const meetings = getStorage<Meeting[]>("saiflow_meetings", initialMeetings);
-    const updatedMeetings = meetings.map((m) =>
-      m.id === meeting.id ? { ...m, relatedToType: "Client" as const, relatedToId: newClientId } : m
-    );
-    setStorage("saiflow_meetings", updatedMeetings);
-
-    logActivity("Converted Lead", `Lead ${matchingLead.company} successfully converted to Client.`);
-    showToast(`Lead converted to Client ${matchingLead.company} successfully!`, "success");
-    setShowConvertModal(false);
-    
-    // Redirect directly to the Client Details View
-    navigate(`/clients/${newClientId}`);
   };
+
+  if (loading) {
+    return <div className="py-10 text-center text-gray-500">Loading meeting details...</div>;
+  }
 
   if (!meeting) {
     return (

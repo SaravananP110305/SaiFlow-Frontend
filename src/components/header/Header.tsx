@@ -3,7 +3,6 @@ import { ThemeToggleButton } from "../common/ThemeToggleButton";
 import NotificationDropdown from "./NotificationDropdown";
 import UserDropdown from "./UserDropdown";
 import { Link, useNavigate } from "react-router";
-import { getStorage } from "../../utils/storage";
 import { initialLeads } from "../../modules/LeadManagement/data/leadsData";
 import { initialClients } from "../../modules/ClientManagement/data/clientsData";
 import { initialMeetings } from "../../modules/MeetingManagement/data/meetingsData";
@@ -52,7 +51,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
     const results: typeof searchResults = [];
 
     // Search leads
-    const leads = getStorage<any[]>("saiflow_leads", initialLeads);
+    const leads = initialLeads;
     for (const lead of leads) {
       if (lead.company?.toLowerCase().includes(q) || lead.contactPerson?.toLowerCase().includes(q) || lead.email?.toLowerCase().includes(q)) {
         results.push({ type: "lead", id: lead.id, title: lead.company, subtitle: `${lead.contactPerson} \u2022 ${lead.email}`, url: `/leads/${lead.id}` });
@@ -62,7 +61,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
 
     // Search clients
     if (results.length < 20) {
-      const clients = getStorage<any[]>("saiflow_clients", initialClients);
+      const clients = initialClients;
       for (const client of clients) {
         if (client.company?.toLowerCase().includes(q) || client.name?.toLowerCase().includes(q) || client.email?.toLowerCase().includes(q)) {
           results.push({ type: "client", id: client.id, title: client.company, subtitle: `${client.name} \u2022 ${client.email}`, url: `/clients/${client.id}` });
@@ -73,7 +72,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
 
     // Search meetings
     if (results.length < 20) {
-      const meetings = getStorage<any[]>("saiflow_meetings", initialMeetings);
+      const meetings = initialMeetings;
       for (const meeting of meetings) {
         if (meeting.subject?.toLowerCase().includes(q) || meeting.company?.toLowerCase().includes(q) || meeting.contactPerson?.toLowerCase().includes(q)) {
           results.push({ type: "meeting", id: meeting.id, title: meeting.subject, subtitle: `${meeting.company} \u2022 ${meeting.date}`, url: `/meetings/${meeting.id}` });
@@ -84,7 +83,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
 
     // Search proposals
     if (results.length < 20) {
-      const proposals = getStorage<any[]>("saiflow_proposals", initialProposals);
+      const proposals = initialProposals;
       for (const proposal of proposals) {
         if (proposal.companyName?.toLowerCase().includes(q) || proposal.leadName?.toLowerCase().includes(q) || proposal.proposalNo?.toLowerCase().includes(q)) {
           results.push({ type: "proposal", id: proposal.id, title: proposal.companyName, subtitle: `${proposal.proposalNo} \u2022 ${proposal.leadName}`, url: `/proposals` });

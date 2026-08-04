@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
@@ -22,13 +22,12 @@ import {
   FiUserCheck,
   FiEye,
 } from "react-icons/fi";
-import { getStorage, setStorage } from "../../../utils/storage";
-import { initialLeads as sourceLeads, Lead as SourceLead, ASSIGNEES } from "../../LeadManagement/data/leadsData";
-import { initialClients } from "../../ClientManagement/data/clientsData";
-import { initialProposals, Proposal } from "../../Quotation/data/quotationsData";
-import { initialFollowUps, FollowUp } from "../../ContactFollowUp/data/contactData";
+import { ASSIGNEES } from "../../LeadManagement/data/leadsData";
 import { useToast } from "../../../hooks/useToast";
 import { formatTime } from "../../../utils/dateFormatter";
+import { leadService } from "../../../services/leadService";
+import { reportService } from "../../../services/reportService";
+import { userService } from "../../../services/userService";
 
 interface Lead {
   id: number;
@@ -40,16 +39,58 @@ interface Lead {
   assignedTo: string;
 }
 
-interface CallLead extends SourceLead {
+interface CallLead extends Lead {
   sNo: number;
+  followUpTime?: string;
 }
 
 export default function Dashboard() {
   const { showToast } = useToast();
   const navigate = useNavigate();
 
-  // ── Dynamic lists from storage ──────────────────────────────
-  const rawLeads = getStorage<SourceLead[]>("saiflow_leads", sourceLeads);
+  // ── Backend API states ──────────────────────────────────────
+  const [rawLeads, setRawLeads] = useState<Lead[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [dashboardSummary, setDashboardSummary] = useState<any>({
+    totalLeads: 0,
+    unassignedLeads: 0,
+    wonLeads: 0,
+    scheduledMeetings: 0,
+    openProposals: 0,
+    totalWonRevenue: 0,
+    conversionRate: "0%"
+  });
+
+  const fetchDashboardData = async () => {
+    try {
+      const [summary, leadsData, usersData] = await Promise.all([
+        reportService.getDashboardSummary(),
+        leadService.getLeads({ limit: 100 }),
+        userService.getUsers()
+      ]);
+      if (summary) setDashboardSummary(summary);
+      if (leadsData && Array.isArray(leadsData.data)) {
+        const mapped = leadsData.data.map((l: any) => ({
+          ...l,
+          company: l.title || l.company || "",
+          contactPerson: l.contactPerson || "",
+          phone: l.phone || "",
+          status: l.status || "New",
+          assignedTo: l.assignedTo?.name || "Unassigned",
+          assignedToId: l.assignedToId
+        }));
+        setRawLeads(mapped);
+      }
+      if (usersData) setUsers(usersData);
+    } catch (err) {
+      console.error("Failed to load dashboard data", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
   const localLeads = useMemo<Lead[]>(() => {
     return rawLeads.map((l, index) => ({
       id: l.id,
@@ -58,15 +99,9 @@ export default function Dashboard() {
       contactPerson: l.contactPerson,
       phone: l.phone,
       status: l.status as any,
-      assignedTo: l.assignedTo,
+      assignedTo: l.assignedTo || "Unassigned",
     }));
   }, [rawLeads]);
-
-  const clients = getStorage("saiflow_clients", initialClients);
-  const proposals = getStorage<Proposal[]>("saiflow_proposals", initialProposals);
-
-  // ── Dropdown states ─────────────────────────────────────────
-  // isStatusOpen / isAssigneeOpen states removed while the Recent Leads filter dropdowns are commented out
 
   // ── Table state ─────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,7 +122,6 @@ export default function Dashboard() {
   const [callRowsPerPage, setCallRowsPerPage] = useState(5);
   const [callSortField, setCallSortField] = useState<keyof CallLead>("sNo");
   const [callSortOrder, setCallSortOrder] = useState<"asc" | "desc">("asc");
-  // isCallStatusOpen / isCallAssigneeOpen states removed while the Today's Lead Calls filter dropdowns are commented out
 
   // ── Today Lead Calls & Reassign Action ────────────────────────
   const todayCalls = useMemo<CallLead[]>(() => {
@@ -150,23 +184,22 @@ export default function Dashboard() {
   const todayCallsTotal = filteredTodayCalls.length;
   const todayCallsTotalPages = Math.ceil(todayCallsTotal / callRowsPerPage);
 
-  const handleReassignCall = (leadId: number, targetAssignee: string) => {
+  const handleReassignCall = async (leadId: number, targetAssignee: string) => {
     if (!targetAssignee) return;
 
-    // 1. Update leads in storage
-    const updatedLeads = rawLeads.map((l) =>
-      l.id === leadId ? { ...l, assignedTo: targetAssignee } : l
-    );
-    setStorage("saiflow_leads", updatedLeads);
+    const foundUser = users.find((u) => u.name === targetAssignee);
+    if (!foundUser) {
+      showToast(`User "${targetAssignee}" not found for reassignment.`, "error");
+      return;
+    }
 
-    // 2. Update follow-ups in storage if matching
-    const currentFollowups = getStorage<FollowUp[]>("saiflow_followups", initialFollowUps);
-    const updatedFollowups = currentFollowups.map((f) =>
-      f.leadId === leadId ? { ...f, assignedTo: targetAssignee } : f
-    );
-    setStorage("saiflow_followups", updatedFollowups);
-
-    showToast(`Lead call reassigned to ${targetAssignee} successfully!`, "success");
+    try {
+      await leadService.assignLead(leadId, foundUser.id);
+      showToast(`Lead call reassigned to ${targetAssignee} successfully!`, "success");
+      fetchDashboardData();
+    } catch (err) {
+      showToast("Failed to reassign lead call.", "error");
+    }
   };
 
   const getStatusColor = (status: Lead["status"]) => {
@@ -333,35 +366,29 @@ export default function Dashboard() {
 
   // ── 4 KPI METRICS ──────────────────────────────────────────
   const kpiMetrics = useMemo(() => {
-    const pipelineValue = proposals
-      .filter((p) => p.status === "Sent" || p.status === "Approved" || p.status === "Under Review")
-      .reduce((sum, p) => {
-        return sum + (p.estimation.total || 0);
-      }, 0);
-
     return [
       {
         label: "Total Leads",
-        value: rawLeads.length,
+        value: dashboardSummary.totalLeads || 0,
         icon: <FiLayers className="text-brand-500 w-5 h-5" />,
       },
       {
         label: "Active Clients",
-        value: clients.filter((c: any) => c.status === "Active").length,
+        value: dashboardSummary.wonLeads || 0,
         icon: <FiUsers className="text-info-500 w-5 h-5" />,
       },
       {
         label: "Won Leads",
-        value: rawLeads.filter((l) => l.status === "Won").length,
+        value: dashboardSummary.wonLeads || 0,
         icon: <FiCheckCircle className="text-success-500 w-5 h-5" />,
       },
       {
         label: "Potential Revenue",
-        value: `₹${pipelineValue.toLocaleString("en-IN")}`,
+        value: `₹${Number(dashboardSummary.totalWonRevenue || 0).toLocaleString("en-IN")}`,
         icon: <FiCreditCard className="text-warning-500 w-5 h-5" />,
       },
     ];
-  }, [rawLeads, clients, proposals]);
+  }, [dashboardSummary]);
 
   // ── CHARTS ──────────────────────────────────────────────────
   const leadTrendOptions: ApexOptions = {

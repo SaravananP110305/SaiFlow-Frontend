@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useForm, Controller } from "react-hook-form";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
@@ -6,19 +6,11 @@ import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
-import { getStorage, getMasterStorage, setStorage } from "../../../utils/storage";
 import { useToast } from "../../../hooks/useToast";
-import { initialLeads, Lead, LeadStatus, LeadPriority } from "../data/leadsData";
-import {
-  LEAD_SOURCES,
-  INDUSTRIES,
-  COUNTRIES,
-  STATES,
-  CITIES,
-  PRIORITIES as MASTER_PRIORITIES,
-  COMPANY_TYPES,
-  DESIGNATIONS,
-} from "../../Master/data/masterData";
+import { leadService } from "../../../services/leadService";
+import { masterService } from "../../../services/masterService";
+import { userService } from "../../../services/userService";
+import api from "../../../services/api";
 
 interface LeadFormValues {
   // Card 1: Lead Information
@@ -109,190 +101,191 @@ export default function AddLead() {
   const watchCountry = watch("country");
   const watchState = watch("state");
 
-  // Data sources setup from master configuration
-  const sourceOptions = useMemo(() => {
-    return getStorage("saiflow_master_lead_sources", LEAD_SOURCES)
-      .filter((x: any) => x.status === "Active")
-      .map((x: any) => ({ value: x.name, label: x.name }));
-  }, []);
+  // ── Backend API states ──────────────────────────────────────
+  const [sources, setSources] = useState<any[]>([]);
+  const [priorities, setPriorities] = useState<any[]>([]);
+  const [countriesList, setCountriesList] = useState<any[]>([]);
+  const [statesList, setStatesList] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
 
-  const priorityOptions = useMemo(() => {
-    return getStorage("saiflow_master_priorities", MASTER_PRIORITIES)
-      .filter((x: any) => x.status === "Active")
-      .map((x: any) => ({ value: x.name, label: x.name }));
-  }, []);
+  // Derived options arrays
+  const [sourceOptions, setSourceOptions] = useState<{ value: string; label: string }[]>([]);
+  const [priorityOptions, setPriorityOptions] = useState<{ value: string; label: string }[]>([]);
+  const [companyTypeOptions, setCompanyTypeOptions] = useState<{ value: string; label: string }[]>([]);
+  const [countryOptions, setCountryOptions] = useState<{ value: string; label: string }[]>([]);
+  const [stateOptions, setStateOptions] = useState<{ value: string; label: string }[]>([]);
+  const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>([]);
+  const [industryOptions, setIndustryOptions] = useState<{ value: string; label: string }[]>([]);
+  const [designationOptions, setDesignationOptions] = useState<{ value: string; label: string }[]>([]);
+  const [employeeOptions, setEmployeeOptions] = useState<{ value: string; label: string }[]>([]);
 
-  const companyTypeOptions = useMemo(() => {
-    return getStorage("saiflow_master_company_types", COMPANY_TYPES)
-      .filter((x: any) => x.status === "Active")
-      .map((x: any) => ({ value: x.name, label: x.name }));
-  }, []);
+  useEffect(() => {
+    const loadDropdownData = async () => {
+      try {
+        const [sourcesData, prioritiesData, compTypesData, countriesData, industriesData, designationsData, usersData] = await Promise.all([
+          masterService.getMasterItems("LEAD_SOURCE"),
+          masterService.getMasterItems("PRIORITY"),
+          masterService.getMasterItems("COMPANY_TYPE"),
+          masterService.getMasterItems("COUNTRY"),
+          masterService.getMasterItems("INDUSTRY"),
+          masterService.getMasterItems("DESIGNATION"),
+          userService.getUsers()
+        ]);
+        
+        setSources(sourcesData);
+        setPriorities(prioritiesData);
+        setCountriesList(countriesData);
+        setUsers(usersData || []);
 
-  const countryOptions = useMemo(() => {
-    return getMasterStorage("saiflow_master_countries", COUNTRIES)
-      .filter((x: any) => x.status === "Active")
-      .map((x: any) => ({ value: x.name, label: x.name }));
-  }, []);
-
-  const stateOptions = useMemo(() => {
-    const selectedCountryObj = getMasterStorage<any[]>("saiflow_master_countries", COUNTRIES)
-      .find((c) => c.name === watchCountry);
-    if (!selectedCountryObj) return [];
-    return getMasterStorage<any[]>("saiflow_master_states", STATES)
-      .filter((s) => s.countryId === selectedCountryObj.id && s.status === "Active")
-      .map((s) => ({ value: s.name, label: s.name }));
-  }, [watchCountry]);
-
-  const cityOptions = useMemo(() => {
-    const selectedStateObj = getMasterStorage<any[]>("saiflow_master_states", STATES)
-      .find((s) => s.name === watchState);
-    if (!selectedStateObj) return [];
-    return getMasterStorage<any[]>("saiflow_master_cities", CITIES)
-      .filter((c) => c.stateId === selectedStateObj.id && c.status === "Active")
-      .map((c) => ({ value: c.name, label: c.name }));
-  }, [watchState]);
-
-  const industryOptions = useMemo(() => {
-    return getStorage("saiflow_master_industries", INDUSTRIES)
-      .filter((x: any) => x.status === "Active")
-      .map((x: any) => ({ value: x.name, label: x.name }));
-  }, []);
-
-  const designationOptions = useMemo(() => {
-    return getStorage("saiflow_master_designations", DESIGNATIONS)
-      .filter((x: any) => x.status === "Active")
-      .map((x: any) => ({ value: x.name, label: x.name }));
-  }, []);
-
-  // Employee data from user management list
-  const employeeOptions = useMemo(() => {
-    return getStorage("saiflow_users", [
-      { name: "John Doe", status: "Active" },
-      { name: "Jane Smith", status: "Active" },
-      { name: "Alice Johnson", status: "Active" },
-      { name: "Robert Lee", status: "Active" },
-    ])
-      .filter((x: any) => x.status === "Active")
-      .map((x: any) => ({ value: x.name, label: x.name }));
+        setSourceOptions(sourcesData.map((x: any) => ({ value: x.name, label: x.name })));
+        setPriorityOptions(prioritiesData.map((x: any) => ({ value: x.name, label: x.name })));
+        setCompanyTypeOptions(compTypesData.map((x: any) => ({ value: x.name, label: x.name })));
+        setCountryOptions(countriesData.map((x: any) => ({ value: x.name, label: x.name })));
+        setIndustryOptions(industriesData.map((x: any) => ({ value: x.name, label: x.name })));
+        setDesignationOptions(designationsData.map((x: any) => ({ value: x.name, label: x.name })));
+        setEmployeeOptions((usersData || []).filter((x: any) => x.status === "Active" || x.status === undefined).map((x: any) => ({ value: x.name, label: x.name })));
+      } catch (err) {
+        console.error("Failed to load drop-down lists", err);
+      }
+    };
+    loadDropdownData();
   }, []);
 
   useEffect(() => {
-    const currentLeads = getStorage<Lead[]>("saiflow_leads", initialLeads);
-    if (isEditMode) {
-      const lead = currentLeads.find((l) => l.id === Number(id));
-      if (lead) {
-        reset({
-          company: lead.company,
-          contactPerson: lead.contactPerson,
-          designation: lead.designation || "",
-          phone: lead.phone.replace(/\D/g, "").slice(-10),
-          alternatePhone: lead.alternatePhone || "",
-          email: lead.email,
-          alternateEmail: lead.alternateEmail || "",
-          website: lead.website || "",
-          industry: lead.industry || "",
-          companyType: lead.companyType || "",
-          addressLine1: lead.addressLine1 || lead.address || "",
-          country: lead.country || "",
-          state: lead.state || "",
-          city: lead.city || "",
-          pincode: lead.pincode || "",
-          source: lead.source || "",
-          priority: lead.priority || "Medium",
-          assignedTo: lead.assignedTo || "",
-          notes: lead.notes || "",
-        });
+    const loadStates = async () => {
+      if (!watchCountry) {
+        setStateOptions([]);
+        return;
       }
-    }
-    setLoading(false);
+      const selectedCountryObj = countriesList.find((c) => c.name === watchCountry);
+      if (!selectedCountryObj) return;
+      try {
+        const states = await masterService.getMasterItems("STATE", selectedCountryObj.id);
+        setStateOptions(states.map((s: any) => ({ value: s.name, label: s.name })));
+        setStatesList(states);
+      } catch (err) {
+        console.error("Failed to load states", err);
+      }
+    };
+    loadStates();
+  }, [watchCountry, countriesList]);
+
+  useEffect(() => {
+    const loadCities = async () => {
+      if (!watchState) {
+        setCityOptions([]);
+        return;
+      }
+      const selectedStateObj = statesList.find((s) => s.name === watchState);
+      if (!selectedStateObj) return;
+      try {
+        const cities = await masterService.getMasterItems("CITY", selectedStateObj.id);
+        setCityOptions(cities.map((c: any) => ({ value: c.name, label: c.name })));
+      } catch (err) {
+        console.error("Failed to load cities", err);
+      }
+    };
+    loadCities();
+  }, [watchState, statesList]);
+
+  useEffect(() => {
+    const loadLead = async () => {
+      setLoading(true);
+      try {
+        if (isEditMode && id) {
+          const lead = await leadService.getLeadById(Number(id));
+          if (lead) {
+            reset({
+              company: lead.company?.name || lead.title || "",
+              contactPerson: lead.contactPerson || "",
+              designation: lead.designation || "",
+              phone: lead.phone ? lead.phone.replace(/\D/g, "").slice(-10) : "",
+              alternatePhone: lead.alternatePhone || "",
+              email: lead.email || "",
+              alternateEmail: lead.alternateEmail || "",
+              website: lead.website || "",
+              industry: lead.industry || "",
+              companyType: lead.companyType || "",
+              addressLine1: lead.address || "",
+              country: lead.country || "",
+              state: lead.state || "",
+              city: lead.city || "",
+              pincode: lead.pincode || "",
+              source: lead.source?.name || lead.source || "",
+              priority: lead.priority?.name || lead.priority || "Medium",
+              assignedTo: lead.assignedTo?.name || "",
+              notes: lead.notes || "",
+            });
+          }
+        }
+      } catch (err) {
+        showToast("Failed to load lead details.", "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadLead();
   }, [id, isEditMode, reset]);
 
-  const handleSave = (data: LeadFormValues) => {
-    const currentLeads = getStorage<Lead[]>("saiflow_leads", initialLeads);
-    if (isEditMode) {
-      const updated = currentLeads.map((l) =>
-        l.id === Number(id)
-          ? {
-            ...l,
-            company: data.company.trim(),
-            contactPerson: data.contactPerson.trim(),
-            designation: data.designation.trim(),
-            phone: data.phone,
-            alternatePhone: data.alternatePhone,
-            email: data.email.trim(),
-            alternateEmail: data.alternateEmail,
-            website: data.website.trim(),
-            industry: data.industry,
-            companyType: data.companyType,
-            addressLine1: data.addressLine1.trim(),
-            address: data.addressLine1.trim(),
-            country: data.country,
-            state: data.state,
-            city: data.city,
-            pincode: data.pincode,
-            source: data.source,
-            status: (l.status || "New") as LeadStatus,
-            priority: data.priority as LeadPriority,
-            assignedTo: data.assignedTo,
-            notes: data.notes.trim(),
-            assignedDate: l.assignedDate || new Date().toISOString().split("T")[0],
-          }
-          : l
+  const handleSave = async (data: LeadFormValues) => {
+    try {
+      // 1. Resolve companyId
+      let companyId;
+      const searchRes = await api.get('/companies', { params: { search: data.company.trim() } });
+      const existingCompany = searchRes.data?.data?.find(
+        (c: any) => c.name.toLowerCase() === data.company.trim().toLowerCase()
       );
-      setStorage("saiflow_leads", updated);
-      // Log update activity
-      const leadLogs = getStorage<any[]>("saiflow_lead_logs", []);
-      setStorage("saiflow_lead_logs", [...leadLogs, {
-        id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        leadId: Number(id),
-        action: "lead_updated",
-        description: `Lead for ${data.company.trim()} was updated. Assigned to ${data.assignedTo || "John Doe"}.`,
-        timestamp: new Date().toISOString(),
-        operator: data.assignedTo || "John Doe",
-      }]);
-      showToast("Lead updated successfully.", "success");
-    } else {
-      const nextId = currentLeads.length > 0 ? Math.max(...currentLeads.map((l) => l.id)) + 1 : 1;
-      const newLead: Lead = {
-        id: nextId,
-        company: data.company.trim(),
+      if (existingCompany) {
+        companyId = existingCompany.id;
+      } else {
+        const newCompany = await api.post('/companies', { name: data.company.trim() });
+        companyId = newCompany.data?.data?.id;
+      }
+
+      // 2. Resolve relational IDs
+      const selectedSource = sources.find((s) => s.name === data.source);
+      const sourceId = selectedSource ? selectedSource.id : sources[0]?.id;
+
+      const selectedPriority = priorities.find((p) => p.name === data.priority);
+      const priorityId = selectedPriority ? selectedPriority.id : priorities[0]?.id;
+
+      const selectedUser = users.find((u) => u.name === data.assignedTo);
+      const assignedToId = selectedUser ? selectedUser.id : null;
+
+      const payload = {
+        title: data.company.trim(),
         contactPerson: data.contactPerson.trim(),
         designation: data.designation.trim(),
+        email: data.email.trim(),
         phone: data.phone,
         alternatePhone: data.alternatePhone,
-        email: data.email.trim(),
         alternateEmail: data.alternateEmail,
         website: data.website.trim(),
         industry: data.industry,
         companyType: data.companyType,
-        addressLine1: data.addressLine1.trim(),
         address: data.addressLine1.trim(),
         country: data.country,
         state: data.state,
         city: data.city,
         pincode: data.pincode,
-        source: data.source,
-        status: "New" as LeadStatus,
-        priority: (data.priority || "Medium") as LeadPriority,
-        assignedTo: data.assignedTo || "John Doe",
-        assignedDate: new Date().toISOString().split("T")[0],
-        notes: data.notes.trim(),
-        createdAt: new Date().toISOString().split("T")[0],
+        companyId,
+        sourceId,
+        priorityId,
+        assignedToId,
+        requirements: data.notes.trim()
       };
-      setStorage("saiflow_leads", [...currentLeads, newLead]);
-      // Log creation activity
-      const leadLogs = getStorage<any[]>("saiflow_lead_logs", []);
-      setStorage("saiflow_lead_logs", [...leadLogs, {
-        id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        leadId: nextId,
-        action: "lead_created",
-        description: `Lead created for ${data.company.trim()} by ${data.assignedTo || data.contactPerson || "John Doe"}.`,
-        timestamp: new Date().toISOString(),
-        operator: data.assignedTo || "John Doe",
-      }]);
-      showToast("Lead created successfully.", "success");
+
+      if (isEditMode) {
+        await leadService.updateLead(Number(id), payload);
+        showToast("Lead updated successfully.", "success");
+      } else {
+        await leadService.createLead(payload);
+        showToast("Lead created successfully.", "success");
+      }
+      navigate("/leads");
+    } catch (err) {
+      showToast("Failed to save lead.", "error");
     }
-    navigate("/leads");
   };
 
   const handleFormError = () => {

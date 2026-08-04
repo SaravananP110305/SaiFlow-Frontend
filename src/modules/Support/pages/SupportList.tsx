@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { getStorage, setStorage } from "../../../utils/storage";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
@@ -25,9 +24,7 @@ import { initialSupportTickets, SupportTicket } from "../data/supportData";
 
 export default function SupportList() {
   const { showToast } = useToast();
-  const [tickets, setTickets] = useState<SupportTicket[]>(() =>
-    getStorage("saiflow_support_tickets", initialSupportTickets)
-  );
+  const [tickets, setTickets] = useState<SupportTicket[]>(initialSupportTickets);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -116,7 +113,6 @@ export default function SupportList() {
       };
       const updated = [...tickets, newTicket];
       setTickets(updated);
-      setStorage("saiflow_support_tickets", updated);
       showToast("Ticket created successfully.", "success");
     } else if (modalMode === "edit" && selectedTicket) {
       const updated = tickets.map((t) =>
@@ -132,7 +128,6 @@ export default function SupportList() {
           : t
       );
       setTickets(updated);
-      setStorage("saiflow_support_tickets", updated);
       showToast("Ticket updated successfully.", "success");
     }
     formModal.closeModal();
@@ -142,7 +137,6 @@ export default function SupportList() {
     if (selectedTicket) {
       const updated = tickets.filter((t) => t.id !== selectedTicket.id);
       setTickets(updated);
-      setStorage("saiflow_support_tickets", updated);
       showToast("Ticket deleted successfully.", "success");
     }
     deleteModal.closeModal();

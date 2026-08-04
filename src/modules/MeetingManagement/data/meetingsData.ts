@@ -28,6 +28,8 @@ export interface Meeting {
   duration?: string;
   meetingOwner?: string[]; // Employees (Multi-Select)
   clientContactPerson?: string;
+  scopeNotes?: string;
+  agenda?: string;
 }
 
 export const getMeetingStatusColor = (

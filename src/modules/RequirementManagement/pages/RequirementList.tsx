@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { getStorage, setStorage } from "../../../utils/storage";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
@@ -25,9 +24,7 @@ import { initialRequirements, Requirement } from "../data/requirementsData";
 
 export default function RequirementList() {
   const { showToast } = useToast();
-  const [requirements, setRequirements] = useState<Requirement[]>(() =>
-    getStorage("saiflow_requirements", initialRequirements)
-  );
+  const [requirements, setRequirements] = useState<Requirement[]>(initialRequirements);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -124,7 +121,6 @@ export default function RequirementList() {
       };
       const updated = [...requirements, newReq];
       setRequirements(updated);
-      setStorage("saiflow_requirements", updated);
       showToast("Requirement logged successfully.", "success");
     } else if (modalMode === "edit" && selectedRequirement) {
       const updated = requirements.map((r) =>
@@ -140,7 +136,6 @@ export default function RequirementList() {
           : r
       );
       setRequirements(updated);
-      setStorage("saiflow_requirements", updated);
       showToast("Requirement updated.", "success");
     }
     formModal.closeModal();
@@ -150,7 +145,6 @@ export default function RequirementList() {
     if (selectedRequirement) {
       const updated = requirements.filter((r) => r.id !== selectedRequirement.id);
       setRequirements(updated);
-      setStorage("saiflow_requirements", updated);
       showToast("Requirement deleted.", "success");
     }
     deleteModal.closeModal();

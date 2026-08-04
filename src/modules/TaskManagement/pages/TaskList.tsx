@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { getStorage, setStorage } from "../../../utils/storage";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
@@ -27,9 +26,7 @@ import { initialTasks, Task } from "../data/tasksData";
 
 export default function TaskList() {
   const { showToast } = useToast();
-  const [tasks, setTasks] = useState<Task[]>(() =>
-    getStorage("saiflow_tasks", initialTasks)
-  );
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
 
   const [searchQuery, setSearchQuery] = useState("");
   // setStatusFilter removed while the Status filter dropdown is commented out
@@ -121,7 +118,6 @@ export default function TaskList() {
       };
       const updated = [...tasks, newTask];
       setTasks(updated);
-      setStorage("saiflow_tasks", updated);
       showToast("Task created successfully.", "success");
     } else if (modalMode === "edit" && selectedTask) {
       const updated = tasks.map((t) =>
@@ -138,7 +134,6 @@ export default function TaskList() {
           : t
       );
       setTasks(updated);
-      setStorage("saiflow_tasks", updated);
       showToast("Task details updated.", "success");
     }
     formModal.closeModal();
@@ -148,7 +143,6 @@ export default function TaskList() {
     if (selectedTask) {
       const updated = tasks.filter((t) => t.id !== selectedTask.id);
       setTasks(updated);
-      setStorage("saiflow_tasks", updated);
       showToast("Task deleted successfully.", "success");
     }
     deleteModal.closeModal();

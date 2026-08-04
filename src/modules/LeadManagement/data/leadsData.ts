@@ -29,6 +29,7 @@ export interface Lead {
   address: string;
   notes: string;
   createdAt: string;
+  companyId?: number;
 
   leadTitle?: string;
   designation?: string;

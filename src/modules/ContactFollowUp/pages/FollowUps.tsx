@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
@@ -17,14 +17,13 @@ import {
   TableCell,
 } from "../../../components/ui/table";
 import { ChevronDownIcon, ChevronUpIcon } from "../../../icons";
-import { getStorage, setStorage } from "../../../utils/storage";
+import { useAuth } from "../../../context/AuthContext";
+import { leadService } from "../../../services/leadService";
 import {
   initialFollowUps,
   getFollowUpStatusColor,
   type FollowUp,
 } from "../data/contactData";
-// ASSIGNEES removed from this import while the Assignee filter dropdown is commented out
-import { initialLeads, type Lead } from "../../LeadManagement/data/leadsData";
 import { useToast } from "../../../hooks/useToast";
 import { Modal } from "../../../components/ui/modal";
 import Button from "../../../components/ui/button/Button";
@@ -43,20 +42,18 @@ export default function FollowUps() {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  // Get the currently logged-in user
-  const loggedInUser = getStorage<any>("saiflow_logged_in_user", {
-    name: "John Doe",
-    email: "john.doe@saiflow.com",
-    role: "Business Development Executive",
-  });
-  const currentUserName = loggedInUser?.name || "John Doe";
-  const isAdmin = loggedInUser?.role === "Administrator";
+  const { user } = useAuth();
+  const isAdmin = user?.role?.name === "Administrator";
 
-  const [followupsList, setFollowupsList] = useState<FollowUp[]>(() => {
-    const allFollowUps = getStorage<FollowUp[]>("saiflow_followups", initialFollowUps);
-    if (isAdmin) return allFollowUps;
-    return allFollowUps.filter((f) => f.assignedTo === currentUserName);
-  });
+  const [followupsList, setFollowupsList] = useState<FollowUp[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      const filtered = initialFollowUps.filter((f) => isAdmin || f.assignedTo === user.name);
+      setFollowupsList(filtered);
+    }
+  }, [user, isAdmin]);
+
   const [searchQuery, setSearchQuery] = useState("");
   // setStatusFilter removed while the Status filter dropdown is commented out
   const [statusFilter] = useState("all");
@@ -164,13 +161,18 @@ export default function FollowUps() {
   const [missedTime, setMissedTime] = useState("");
   const [missedType, setMissedType] = useState("Call");
 
-  const followUpTypeOptions = useMemo(() => {
-    const stored = getStorage<any[]>("saiflow_master_followup_types", []);
-    if (stored && stored.length > 0) {
-      return stored.filter((t) => t.status === "Active").map((t) => t.name);
-    }
+  const followUpTypeOptions = useMemo<string[]>(() => {
     return ["Call", "Meeting", "Email", "WhatsApp"];
   }, []);
+
+  const handleOpenCompleteModal = (item: FollowUp) => {
+    setSelectedItemForComplete(item);
+    setCompleteOutcome(null);
+    setCompleteSummary("");
+    setRescheduleDate("");
+    setRescheduleTime("");
+    setRescheduleType(item.followUpType || "Call");
+  };
 
   const resetCompleteModal = () => {
     setSelectedItemForComplete(null);
@@ -178,36 +180,23 @@ export default function FollowUps() {
     setCompleteSummary("");
     setRescheduleDate("");
     setRescheduleTime("");
-    setRescheduleType("Call");
   };
 
-  const handleOpenCompleteModal = (item: FollowUp) => {
-    setSelectedItemForComplete(item);
-    setCompleteOutcome("Interested");
-    setCompleteSummary("");
-    setRescheduleDate("");
-    setRescheduleTime("");
-    setRescheduleType(item.followUpType || "Call");
-  };
-
-  const handleOpenMissedModal = (item: FollowUp) => {
+  const handleOpenMissedModal = async (item: FollowUp) => {
     setSelectedItemForMissed(item);
     setMissedSummary("");
     setMissedDate("");
     setMissedTime("");
     setMissedType(item.followUpType || "Call");
 
-    // Per workflow: Missed → Change status to Rescheduled
-    const leadsList = getStorage<Lead[]>("saiflow_leads", initialLeads);
-    const updatedLeads = leadsList.map((l) =>
-      l.id === item.leadId
-        ? { ...l, status: "Rescheduled" as const, notes: l.notes ? `${l.notes}\n[Follow-up Missed] Call was missed.` : `[Follow-up Missed] Call was missed.` }
-        : l
-    );
-    setStorage("saiflow_leads", updatedLeads);
+    try {
+      await leadService.updateLead(item.leadId, { status: "Rescheduled" });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleConfirmComplete = () => {
+  const handleConfirmComplete = async () => {
     if (!selectedItemForComplete) return;
 
     if (completeOutcome === "Interested") {
@@ -219,23 +208,16 @@ export default function FollowUps() {
           : f
       );
       setFollowupsList(updatedList);
-      setStorage("saiflow_followups", updatedList);
 
-      // Update the lead's status to Qualified
-      const leadsList = getStorage<Lead[]>("saiflow_leads", initialLeads);
-      const updatedLeads = leadsList.map((l) =>
-        l.id === selectedItemForComplete.leadId
-          ? {
-              ...l,
-              status: "Qualified" as const,
-              summary: summary,
-              notes: l.notes ? `${l.notes}\n[Follow-up Completed - Interested] ${summary}` : `[Follow-up Completed - Interested] ${summary}`
-            }
-          : l
-      );
-      setStorage("saiflow_leads", updatedLeads);
-
-      showToast(`Follow-up completed! Lead moved to Qualified.`, "success");
+      try {
+        await leadService.updateLead(selectedItemForComplete.leadId, {
+          status: "Qualified",
+          requirements: summary
+        });
+        showToast(`Follow-up completed! Lead moved to Qualified.`, "success");
+      } catch (err) {
+        showToast("Failed to update lead status.", "error");
+      }
       resetCompleteModal();
     } else if (completeOutcome === "Call Later") {
       if (!completeSummary.trim()) {
@@ -266,25 +248,16 @@ export default function FollowUps() {
           : f
       );
       setFollowupsList(updatedList);
-      setStorage("saiflow_followups", updatedList);
 
-      const leadsList = getStorage<Lead[]>("saiflow_leads", initialLeads);
-      const updatedLeads = leadsList.map((l) =>
-        l.id === selectedItemForComplete.leadId
-          ? {
-              ...l,
-              status: "Scheduled" as const,
-              nextFollowUpDate: rescheduleDate,
-              followUpTime: rescheduleTime,
-              followUpType: rescheduleType,
-              summary: summary,
-              notes: l.notes ? `${l.notes}\n[Follow-up Rescheduled] ${summary}` : `[Follow-up Rescheduled] ${summary}`
-            }
-          : l
-      );
-      setStorage("saiflow_leads", updatedLeads);
-
-      showToast(`Follow-up rescheduled to ${rescheduleDate} at ${rescheduleTime}.`, "success");
+      try {
+        await leadService.updateLead(selectedItemForComplete.leadId, {
+          status: "Scheduled",
+          requirements: summary
+        });
+        showToast(`Follow-up rescheduled to ${rescheduleDate} at ${rescheduleTime}.`, "success");
+      } catch (err) {
+        showToast("Failed to reschedule lead.", "error");
+      }
       resetCompleteModal();
     } else if (completeOutcome === "Not Interested") {
       if (!completeSummary.trim()) {
@@ -300,27 +273,21 @@ export default function FollowUps() {
           : f
       );
       setFollowupsList(updatedList);
-      setStorage("saiflow_followups", updatedList);
 
-      const leadsList = getStorage<Lead[]>("saiflow_leads", initialLeads);
-      const updatedLeads = leadsList.map((l) =>
-        l.id === selectedItemForComplete.leadId
-          ? {
-              ...l,
-              status: "Lost" as const,
-              summary: summary,
-              notes: l.notes ? `${l.notes}\n[Follow-up - Not Interested] ${summary}` : `[Follow-up - Not Interested] ${summary}`
-            }
-          : l
-      );
-      setStorage("saiflow_leads", updatedLeads);
-
-      showToast("Follow-up marked as Not Interested. Lead moved to Lost.", "info");
+      try {
+        await leadService.updateLead(selectedItemForComplete.leadId, {
+          status: "Lost",
+          requirements: summary
+        });
+        showToast("Follow-up marked as Not Interested. Lead moved to Lost.", "info");
+      } catch (err) {
+        showToast("Failed to update lead status.", "error");
+      }
       resetCompleteModal();
     }
   };
 
-  const handleConfirmMissedReschedule = () => {
+  const handleConfirmMissedReschedule = async () => {
     if (!selectedItemForMissed) return;
 
     if (!missedSummary.trim()) {
@@ -353,26 +320,17 @@ export default function FollowUps() {
         : f
     );
     setFollowupsList(updatedList);
-    setStorage("saiflow_followups", updatedList);
 
-    // Per workflow: Rescheduled → Summary + Date/Time → Return to Scheduled
-    const leadsList = getStorage<Lead[]>("saiflow_leads", initialLeads);
-    const updatedLeads = leadsList.map((l) =>
-      l.id === selectedItemForMissed.leadId
-        ? {
-            ...l,
-            status: "Scheduled" as const,
-            nextFollowUpDate: missedDate,
-            followUpTime: missedTime,
-            followUpType: missedType,
-            summary: missedSummary.trim(),
-            notes: l.notes ? `${l.notes}\n[Follow-up Rescheduled] ${missedSummary.trim()}` : `[Follow-up Rescheduled] ${missedSummary.trim()}`,
-          }
-        : l
-    );
-    setStorage("saiflow_leads", updatedLeads);
+    try {
+      await leadService.updateLead(selectedItemForMissed.leadId, {
+        status: "Scheduled",
+        requirements: missedSummary.trim()
+      });
+      showToast(`Follow-up rescheduled to ${missedDate} at ${missedTime}.`, "success");
+    } catch (err) {
+      showToast("Failed to reschedule lead.", "error");
+    }
 
-    showToast(`Follow-up rescheduled to ${missedDate} at ${missedTime}.`, "success");
     setSelectedItemForMissed(null);
     setMissedSummary("");
     setMissedDate("");

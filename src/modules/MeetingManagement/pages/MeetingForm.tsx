@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useForm, Controller } from "react-hook-form";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
@@ -7,11 +7,11 @@ import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
 import DatePicker from "../../../components/form/date-picker";
-import { initialMeetings, Meeting } from "../data/meetingsData";
 import { useToast } from "../../../hooks/useToast";
-import { getStorage, setStorage } from "../../../utils/storage";
-import { Lead, initialLeads } from "../../LeadManagement/data/leadsData";
-import { Client, initialClients } from "../../ClientManagement/data/clientsData";
+import { meetingService } from "../../../services/meetingService";
+import { leadService } from "../../../services/leadService";
+import { clientService } from "../../../services/clientService";
+import { userService } from "../../../services/userService";
 import { ChevronDownIcon } from "../../../icons";
 
 interface MeetingFormValues {
@@ -41,10 +41,6 @@ const MEETING_PLATFORMS = [
   "Office",
   "Client Office"
 ];
-
-interface MeetingFormProps {
-  onSave?: (meeting: Meeting, isEdit: boolean) => void;
-}
 
 function parseTimeToMinutes(timeStr: string): number | null {
   if (!timeStr || typeof timeStr !== "string") return null;
@@ -87,7 +83,7 @@ function calculateDuration(start: string, end: string): string {
   return `${mins} mins`;
 }
 
-export default function MeetingForm({ onSave }: MeetingFormProps) {
+export default function MeetingForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
@@ -95,9 +91,44 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
 
-  // Lists
-  const leads = useMemo(() => getStorage<Lead[]>("saiflow_leads", initialLeads), []);
-  const clients = useMemo(() => getStorage<Client[]>("saiflow_clients", initialClients), []);
+  const [rawLeads, setRawLeads] = useState<any[]>([]);
+  const [rawClients, setRawClients] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadDropdownData = async () => {
+      try {
+        const [leadsData, clientsData, usersData] = await Promise.all([
+          leadService.getLeads({ limit: 100 }),
+          clientService.getClients(),
+          userService.getUsers()
+        ]);
+        if (leadsData && Array.isArray(leadsData.data)) {
+          setRawLeads(leadsData.data.map((l: any) => ({
+            ...l,
+            company: l.title || l.company || "",
+            contactPerson: l.contactPerson || ""
+          })));
+        }
+        if (clientsData && Array.isArray(clientsData.data)) {
+          setRawClients(clientsData.data.map((c: any) => ({
+            ...c,
+            company: c.company?.name || c.company || "",
+            name: c.contactName || c.name || ""
+          })));
+        }
+        if (usersData) {
+          setEmployees(usersData.map((u: any) => u.name));
+        }
+      } catch (err) {
+        console.error("Failed to load meetings dropdowns", err);
+      }
+    };
+    loadDropdownData();
+  }, []);
+
+  const leads = rawLeads;
+  const clients = rawClients;
 
   const {
     control,
@@ -152,31 +183,45 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Pre-fill logic
   useEffect(() => {
-    if (isEditMode) {
-      const meetings = getStorage<Meeting[]>("saiflow_meetings", initialMeetings);
-      const meeting = meetings.find((m) => m.id === Number(id));
-      if (meeting) {
-        reset({
-          company: meeting.company,
-          contactPerson: meeting.contactPerson,
-          date: meeting.date,
-          type: meeting.type || meeting.meetingPlatform || "Google Meet",
-          linkOrLocation: meeting.linkOrLocation,
-          notes: meeting.notes,
-          relatedToType: meeting.relatedToType || "Lead",
-          relatedToId: meeting.relatedToId || 0,
-          meetingPlatform: meeting.meetingPlatform || meeting.type || "Google Meet",
-          startTime: meeting.startTime || meeting.time || "",
-          endTime: meeting.endTime || "",
-          duration: meeting.duration || "",
-          meetingOwner: meeting.meetingOwner || [],
-          clientContactPerson: meeting.clientContactPerson || meeting.contactPerson || "",
-        });
+    const loadMeeting = async () => {
+      if (isEditMode && id) {
+        setLoading(true);
+        try {
+          const meeting = await meetingService.getMeetingById(Number(id));
+          if (meeting) {
+            reset({
+              company: meeting.lead?.company?.name || meeting.lead?.title || "",
+              contactPerson: meeting.lead?.contactPerson || "",
+              date: meeting.scheduledAt ? meeting.scheduledAt.split("T")[0] : "",
+              type: meeting.status || "Google Meet",
+              linkOrLocation: meeting.meetingLink || "",
+              notes: meeting.agenda || "",
+              relatedToType: "Lead",
+              relatedToId: meeting.leadId,
+              meetingPlatform: "Google Meet",
+              startTime: meeting.scheduledAt ? new Date(meeting.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
+              endTime: "",
+              duration: meeting.durationMinutes ? meeting.durationMinutes.toString() : "30",
+              meetingOwner: meeting.createdBy ? [meeting.createdBy.name] : [],
+              clientContactPerson: meeting.lead?.contactPerson || "",
+            });
+          }
+        } catch (err) {
+          console.error(err);
+          showToast("Failed to load meeting details.", "error");
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
       }
-    } else {
-      // Query parameters pre-fill (e.g. from Lead Details or Client Details)
+    };
+    loadMeeting();
+  }, [id, isEditMode, reset]);
+
+  useEffect(() => {
+    if (!isEditMode && rawLeads.length > 0) {
       const qRelatedType = searchParams.get("relatedType") as "Lead" | "Client";
       const qRelatedId = searchParams.get("relatedId");
 
@@ -186,14 +231,14 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
         setValue("relatedToId", idNum);
 
         if (qRelatedType === "Lead") {
-          const lead = leads.find((l) => l.id === idNum);
+          const lead = rawLeads.find((l) => l.id === idNum);
           if (lead) {
             setValue("company", lead.company);
             setValue("contactPerson", lead.contactPerson);
             setValue("clientContactPerson", lead.contactPerson);
           }
         } else {
-          const client = clients.find((c) => c.id === idNum);
+          const client = rawClients.find((c) => c.id === idNum);
           if (client) {
             setValue("company", client.company);
             setValue("contactPerson", client.name);
@@ -202,8 +247,7 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
         }
       }
     }
-    setLoading(false);
-  }, [id, isEditMode, reset, searchParams, leads, clients, setValue]);
+  }, [isEditMode, searchParams, rawLeads, rawClients, setValue]);
 
   // Handle Related To selection change
   const handleRelatedChange = (typeVal: "Lead" | "Client", idVal: number) => {
@@ -233,57 +277,42 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
     }
   };
 
-  const handleSave = (data: MeetingFormValues) => {
-    const meetings = getStorage<Meeting[]>("saiflow_meetings", initialMeetings);
-    let updatedMeeting: Meeting;
-
-    const finalMeeting: Meeting = {
-      id: isEditMode ? Number(id) : 0,
-      subject: `${data.company} - ${data.meetingPlatform}`,
-      company: data.company,
-      contactPerson: data.contactPerson,
-      date: data.date,
-      time: data.startTime,
-      type: data.meetingPlatform,
-      linkOrLocation: data.linkOrLocation,
-      status: "Scheduled",
-      notes: data.notes || "",
-      relatedToType: data.relatedToType,
-      relatedToId: data.relatedToId,
-      meetingPlatform: data.meetingPlatform,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      duration: data.duration,
-      meetingOwner: data.meetingOwner,
-      clientContactPerson: data.clientContactPerson,
-    };
-
-    if (isEditMode) {
-      const existing = meetings.find((m) => m.id === Number(id));
-      updatedMeeting = existing ? { ...existing, ...finalMeeting, id: Number(id) } : finalMeeting;
-    } else {
-      const newId = meetings.length > 0 ? Math.max(...meetings.map((m) => m.id)) + 1 : 1;
-      finalMeeting.id = newId;
-      updatedMeeting = finalMeeting;
-    }
-
-    if (onSave) {
-      onSave(updatedMeeting, isEditMode);
-    } else {
-      let updatedList: Meeting[];
-      if (isEditMode) {
-        updatedList = meetings.map((m) => m.id === updatedMeeting.id ? updatedMeeting : m);
-      } else {
-        updatedList = [...meetings, updatedMeeting];
+  const handleSave = async (data: MeetingFormValues) => {
+    try {
+      let leadId = Number(data.relatedToId);
+      if (data.relatedToType === "Client") {
+        const matchedClient = rawClients.find(c => c.id === leadId);
+        if (matchedClient && matchedClient.leadId) {
+          leadId = matchedClient.leadId;
+        } else {
+          leadId = rawLeads[0]?.id || 1;
+        }
       }
-      setStorage("saiflow_meetings", updatedList);
-    }
 
-    showToast(
-      isEditMode ? "Meeting updated successfully." : "Meeting scheduled successfully.",
-      "success"
-    );
-    navigate("/meetings");
+      const scheduledAt = new Date(`${data.date}T${data.startTime || "09:00"}`);
+
+      const payload = {
+        leadId,
+        title: `${data.company} - ${data.meetingPlatform}`,
+        scheduledAt: scheduledAt.toISOString(),
+        durationMinutes: Number(data.duration) || 30,
+        meetingLink: data.linkOrLocation,
+        status: "SCHEDULED",
+        agenda: data.notes,
+        scopeNotes: ""
+      };
+
+      if (isEditMode) {
+        await meetingService.updateMeeting(Number(id), payload);
+        showToast("Meeting updated successfully.", "success");
+      } else {
+        await meetingService.createMeeting(payload);
+        showToast("Meeting scheduled successfully.", "success");
+      }
+      navigate("/meetings");
+    } catch (err) {
+      showToast("Failed to save meeting.", "error");
+    }
   };
 
   const handleError = () => {
@@ -301,7 +330,7 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
     setValue("meetingOwner", newOwners);
   };
 
-  const filteredEmployees = EMPLOYEES.filter((emp) =>
+  const filteredEmployees = (employees.length > 0 ? employees : EMPLOYEES).filter((emp) =>
     emp.toLowerCase().includes(ownerSearch.toLowerCase())
   );
 

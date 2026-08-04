@@ -1,7 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { formatDate } from "../../../utils/dateFormatter";
-import { getStorage, setStorage } from "../../../utils/storage";
+import { clientService } from "../../../services/clientService";
+import { proposalService } from "../../../services/proposalService";
+import { userService } from "../../../services/userService";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
@@ -25,8 +27,8 @@ import { useToast } from "../../../hooks/useToast";
 import { useAuth } from "../../../context/AuthContext";
 import { Modal } from "../../../components/ui/modal";
 import DatePicker from "../../../components/form/date-picker";
-import { Client, initialClients, HandoverDetails } from "../data/clientsData";
-import { Proposal, initialProposals } from "../../Quotation/data/quotationsData";
+import { Client } from "../data/clientsData";
+import { Proposal } from "../../Quotation/data/quotationsData";
 import { exportProposalToPDF } from "../../Quotation/pages/QuotationList";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -48,23 +50,86 @@ export default function ClientList() {
   const { hasPermission } = useAuth();
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [clients, setClients] = useState<Client[]>(() => {
-    const raw = getStorage<Client[]>("saiflow_clients", initialClients);
-    if (raw.length > 0 && raw.some((c) => c.handoverStatus !== "Pending" && c.handoverStatus !== "Onboarded")) {
-      setStorage("saiflow_clients", initialClients);
-      return initialClients;
-    }
-    return raw;
-  });
+  const [clients, setClients] = useState<Client[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [employeesList, setEmployeesList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [proposals] = useState<Proposal[]>(() => {
-    const raw = getStorage<Proposal[]>("saiflow_proposals", initialProposals);
-    if (raw.length > 0 && (!raw[0].requirement || !raw[0].proposalNo)) {
-      setStorage("saiflow_proposals", initialProposals);
-      return initialProposals;
+  const fetchClientsAndProposals = async () => {
+    setLoading(true);
+    try {
+      const [clientsData, proposalsData, usersData] = await Promise.all([
+        clientService.getClients(),
+        proposalService.getProposals(),
+        userService.getUsers()
+      ]);
+
+      if (clientsData && Array.isArray(clientsData.data)) {
+        const mappedClients = clientsData.data.map((bc: any) => ({
+          id: bc.id,
+          company: bc.company?.name || bc.company || "",
+          name: bc.contactName || bc.name || "",
+          email: bc.email || bc.company?.email || "",
+          phone: bc.phone || bc.company?.phone || "",
+          projectsCount: bc.projects ? bc.projects.length : 0,
+          status: bc.status || "Active",
+          gstNumber: bc.gstPan || "",
+          panNumber: "",
+          website: bc.company?.website || "",
+          companyEmail: bc.company?.email || "",
+          companyPhone: bc.company?.phone || "",
+          address: bc.company?.address || "",
+          city: bc.company?.city || "",
+          state: bc.company?.state || "",
+          country: bc.company?.country || "India",
+          pincode: bc.company?.pincode || "",
+          contactName: bc.contactName || bc.name || "",
+          designation: "",
+          mobile: bc.phone || "",
+          relationshipManager: "",
+          accountManager: "",
+          clientSince: bc.createdAt ? bc.createdAt.split("T")[0] : "",
+          paymentTerms: "Net 30",
+          preferredCommunication: "Email",
+          creditLimit: "",
+          handoverStatus: bc.projects && bc.projects.length > 0 ? "Onboarded" : "Pending",
+          handoverDetails: bc.projects && bc.projects.length > 0 ? {
+            projectManager: bc.projects[0].pm?.name || "Unassigned",
+            startDate: bc.projects[0].handoverDate ? bc.projects[0].handoverDate.split("T")[0] : "",
+            notes: bc.projects[0].agenda || "",
+          } : undefined
+        }));
+        setClients(mappedClients);
+      }
+
+      if (proposalsData && Array.isArray(proposalsData.data)) {
+        const mappedProposals = proposalsData.data.map((bp: any) => ({
+          id: bp.id,
+          proposalNo: bp.proposalNumber,
+          companyName: bp.lead?.company?.name || bp.lead?.title || "Unknown Company",
+          leadName: bp.lead?.contactPerson || "Unknown Contact",
+          leadEmail: bp.lead?.email || "",
+          leadPhone: bp.lead?.phone || "",
+          value: Number(bp.amount),
+          status: bp.status,
+        }));
+        setProposals(mappedProposals as any);
+      }
+
+      if (usersData) {
+        setEmployeesList(usersData.filter((u: any) => u.status === "Active" || u.status === undefined));
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to fetch clients and proposals.", "error");
+    } finally {
+      setLoading(false);
     }
-    return raw;
-  });
+  };
+
+  useEffect(() => {
+    fetchClientsAndProposals();
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState("");
   // setHandoverFilter removed while the Onboarding filter dropdown is commented out
@@ -75,23 +140,6 @@ export default function ClientList() {
   const [sortField] = useState<keyof Client>("id");
   // setSortOrder removed while the Sort dropdown is commented out
   const [sortOrder] = useState<"asc" | "desc">("asc");
-
-  // const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false); // Onboarding filter commented out
-  // const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false); // Sort dropdown commented out
-
-  // ── Employees / Project Managers ───────────────────────────────────────────
-  const employeesList = useMemo(() => {
-    const storedUsers = getStorage<any[]>("saiflow_users", []);
-    if (storedUsers && storedUsers.length > 0) {
-      return storedUsers.filter((u) => u.status === "Active" || u.status === undefined);
-    }
-    return [
-      { id: 1, name: "Jane Smith", role: "Business Development Manager" },
-      { id: 2, name: "John Doe", role: "Administrator" },
-      { id: 3, name: "Alice Johnson", role: "Business Development Executive" },
-      { id: 4, name: "Robert Lee", role: "Presales Consultant" },
-    ];
-  }, []);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -159,40 +207,34 @@ export default function ClientList() {
     setShowHandoverConfirm(true);
   };
 
-  const executeSaveHandover = () => {
+  const executeSaveHandover = async () => {
     const { client } = handoverModal;
     if (!client) return;
 
-    const updatedDetails: HandoverDetails = {
-      projectManager: handoverPM.trim(),
-      startDate: handoverStartDate,
-      targetDate: handoverTargetDate || undefined,
-      notes: handoverNotes.trim(),
-      kickoffDate: handoverKickoffDate || undefined,
-      completedAt: new Date().toISOString(),
-    };
+    try {
+      const pm = employeesList.find((u) => u.name === handoverPM.trim());
+      const pmId = pm ? pm.id : undefined;
 
-    const updated = clients.map((c) =>
-      c.id === client.id
-        ? {
-          ...c,
-          handoverStatus: "Onboarded" as const,
-          handoverDetails: updatedDetails,
-        }
-        : c
-    );
-    setClients(updated);
-    setStorage("saiflow_clients", updated);
-    showToast(`Project handover details for "${client.company}" saved successfully.`, "success");
-    closeHandoverModal();
+      await clientService.createProject({
+        clientId: client.id,
+        name: client.company + " Project",
+        pmId,
+        status: "Kickoff",
+        handoverDate: handoverStartDate ? new Date(handoverStartDate).toISOString() : new Date().toISOString(),
+        srsDocumentUrl: ""
+      });
+
+      showToast(`Project handover details for "${client.company}" saved successfully.`, "success");
+      closeHandoverModal();
+      fetchClientsAndProposals();
+    } catch (err) {
+      showToast("Failed to save project handover details.", "error");
+    }
   };
 
 
   const processedClients = useMemo(() => {
     let result = [...clients];
-
-    // Only show converted clients (those with a conversionDate)
-    result = result.filter((c) => c.conversionDate);
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -248,14 +290,20 @@ export default function ClientList() {
     }
   };
 
-  const handleBulkOnboard = () => {
-    const updated = clients.map(c =>
-      selectedIds.includes(c.id) ? { ...c, handoverStatus: "Onboarded" as const } : c
-    );
-    setClients(updated);
-    setStorage("saiflow_clients", updated);
-    showToast(`${selectedIds.length} client(s) marked as Onboarded.`, "success");
-    setSelectedIds([]);
+  const handleBulkOnboard = async () => {
+    try {
+      await Promise.all(selectedIds.map(id => clientService.createProject({
+        clientId: id,
+        name: "Project Handover",
+        status: "Kickoff",
+        handoverDate: new Date().toISOString()
+      })));
+      showToast(`${selectedIds.length} client(s) marked as Onboarded.`, "success");
+      setSelectedIds([]);
+      fetchClientsAndProposals();
+    } catch (err) {
+      showToast("Failed to onboard clients.", "error");
+    }
   };
 
   const totalPages = Math.ceil(processedClients.length / rowsPerPage);
@@ -268,6 +316,10 @@ export default function ClientList() {
       default: return <FiClock className="size-3.5" />;
     }
   };
+
+  if (loading) {
+    return <div className="py-10 text-center text-gray-500">Loading clients...</div>;
+  }
 
   return (
     <>

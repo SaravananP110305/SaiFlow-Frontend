@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { getStorage, setStorage } from "../../../utils/storage";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
@@ -25,9 +24,7 @@ import { initialDeployments, Deployment } from "../data/deploymentsData";
 
 export default function DeploymentList() {
   const { showToast } = useToast();
-  const [deployments, setDeployments] = useState<Deployment[]>(() =>
-    getStorage("saiflow_deployments", initialDeployments)
-  );
+  const [deployments, setDeployments] = useState<Deployment[]>(initialDeployments);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [envFilter, setEnvFilter] = useState("all");
@@ -117,7 +114,6 @@ export default function DeploymentList() {
       };
       const updated = [...deployments, newDep];
       setDeployments(updated);
-      setStorage("saiflow_deployments", updated);
       showToast("Deployment log registered successfully.", "success");
     } else if (modalMode === "edit" && selectedDeployment) {
       const updated = deployments.map((d) =>
@@ -133,7 +129,6 @@ export default function DeploymentList() {
           : d
       );
       setDeployments(updated);
-      setStorage("saiflow_deployments", updated);
       showToast("Deployment log updated successfully.", "success");
     }
     formModal.closeModal();
@@ -143,7 +138,6 @@ export default function DeploymentList() {
     if (selectedDeployment) {
       const updated = deployments.filter((d) => d.id !== selectedDeployment.id);
       setDeployments(updated);
-      setStorage("saiflow_deployments", updated);
       showToast("Deployment log deleted.", "success");
     }
     deleteModal.closeModal();

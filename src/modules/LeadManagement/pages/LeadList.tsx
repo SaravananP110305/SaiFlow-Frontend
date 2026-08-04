@@ -21,12 +21,10 @@ import { ChevronDownIcon, ChevronUpIcon } from "../../../icons";
 import { FiEye, FiEdit, FiTrash2, FiPlus, FiUpload } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
 import { useAuth } from "../../../context/AuthContext";
-import { setStorage } from "../../../utils/storage";
+import api from "../../../services/api";
 import * as XLSX from "xlsx";
 import {
   type Lead,
-  type LeadPriority,
-  type LeadStatus,
 } from "../data/leadsData";
 import { leadService } from "../../../services/leadService";
 import { userService } from "../../../services/userService";
@@ -994,7 +992,7 @@ export default function LeadList() {
                 if (!file) return;
 
                 const reader = new FileReader();
-                reader.onload = (e) => {
+                reader.onload = async (e) => {
                   try {
                     const arrayBuffer = e.target?.result as ArrayBuffer;
                     const data = new Uint8Array(arrayBuffer);
@@ -1016,30 +1014,16 @@ export default function LeadList() {
                     const contactIdx = headers.findIndex(h => h.includes("contact") || h.includes("person") || h.includes("name"));
                     const designationIdx = headers.findIndex(h => h.includes("designation"));
                     const phoneIdx = headers.findIndex(h => h.includes("mobile") || h.includes("phone") || h.includes("contact"));
-                    const altPhoneIdx = headers.findIndex(h => h.includes("alternate mobile") || h.includes("alt mobile") || h.includes("alternate phone"));
                     const emailIdx = headers.findIndex(h => h.includes("email") || h.includes("mail"));
-                    const altEmailIdx = headers.findIndex(h => h.includes("alternate email") || h.includes("alt email"));
                     const websiteIdx = headers.findIndex(h => h.includes("website"));
                     const industryIdx = headers.findIndex(h => h.includes("industry"));
-                    const companyTypeIdx = headers.findIndex(h => h.includes("company type"));
-                    const gstIdx = headers.findIndex(h => h.includes("gst"));
-                    const address1Idx = headers.findIndex(h => h.includes("address line 1") || h.includes("street"));
-                    const countryIdx = headers.findIndex(h => h.includes("country"));
-                    const stateIdx = headers.findIndex(h => h.includes("state"));
-                    const cityIdx = headers.findIndex(h => h.includes("city"));
-                    const pincodeIdx = headers.findIndex(h => h.includes("pincode") || h.includes("zip"));
                     const sourceIdx = headers.findIndex(h => h.includes("source") || h.includes("lead source"));
-                    const statusIdx = headers.findIndex(h => h.includes("status") || h.includes("lead status"));
-                    const priorityIdx = headers.findIndex(h => h.includes("priority"));
-                    const ownerIdx = headers.findIndex(h => h.includes("owner") || h.includes("assigned to") || h.includes("lead owner"));
-                    const assignedDateIdx = headers.findIndex(h => h.includes("assigned date"));
 
                     if (companyIdx === -1 && contactIdx === -1 && emailIdx === -1) {
                       showToast("Required columns ('Company Name', 'Contact Person', or 'Email Address') not found.", "error");
                       return;
                     }
 
-                    const newLeadsList = [...leads];
                     let addedCount = 0;
                     let duplicateCount = 0;
 
@@ -1053,8 +1037,7 @@ export default function LeadList() {
 
                       if (!company && !contactPerson && !email) continue;
 
-                      // Duplicate email verification check
-                      const isDuplicate = newLeadsList.some(
+                      const isDuplicate = leads.some(
                         (l) => l.email && email && l.email.toLowerCase() === email.toLowerCase()
                       );
                       if (isDuplicate) {
@@ -1062,42 +1045,40 @@ export default function LeadList() {
                         continue;
                       }
 
-                      const nextId = newLeadsList.length > 0 ? Math.max(...newLeadsList.map(l => l.id)) + 1 : 1;
+                      try {
+                        let companyId;
+                        const searchRes = await api.get('/companies', { params: { search: company } });
+                        const existingCompany = searchRes.data?.data?.find(
+                          (c: any) => c.name.toLowerCase() === company.toLowerCase()
+                        );
+                        if (existingCompany) {
+                          companyId = existingCompany.id;
+                        } else {
+                          const newComp = await api.post('/companies', { name: company });
+                          companyId = newComp.data?.data?.id;
+                        }
 
-                      newLeadsList.push({
-                        id: nextId,
-                        leadTitle: leadTitleIdx !== -1 ? String(row[leadTitleIdx] || "").trim() : `${company} Expansion`,
-                        company: company || "Unknown Corp",
-                        contactPerson: contactPerson || "Jane Doe",
-                        designation: designationIdx !== -1 ? String(row[designationIdx] || "").trim() : "",
-                        phone: phoneIdx !== -1 ? String(row[phoneIdx] || "").trim() : "+91 98765 00000",
-                        alternatePhone: altPhoneIdx !== -1 ? String(row[altPhoneIdx] || "").trim() : "",
-                        email: email || `contact@${company.toLowerCase().replace(/\s+/g, "") || "unknown"}.com`,
-                        alternateEmail: altEmailIdx !== -1 ? String(row[altEmailIdx] || "").trim() : "",
-                        website: websiteIdx !== -1 ? String(row[websiteIdx] || "").trim() : `https://${company.toLowerCase().replace(/\s+/g, "") || "example"}.com`,
-                        industry: industryIdx !== -1 ? String(row[industryIdx] || "").trim() : "Information Technology",
-                        companyType: companyTypeIdx !== -1 ? String(row[companyTypeIdx] || "").trim() : "",
-                        gstNumber: gstIdx !== -1 ? String(row[gstIdx] || "").trim() : "",
-                        addressLine1: address1Idx !== -1 ? String(row[address1Idx] || "").trim() : "Imported Address Line 1",
-                        address: address1Idx !== -1 ? String(row[address1Idx] || "").trim() : "Imported Address Line 1",
-                        country: countryIdx !== -1 ? String(row[countryIdx] || "").trim() : "",
-                        state: stateIdx !== -1 ? String(row[stateIdx] || "").trim() : "",
-                        city: cityIdx !== -1 ? String(row[cityIdx] || "").trim() : "",
-                        pincode: pincodeIdx !== -1 ? String(row[pincodeIdx] || "").trim() : "",
-                        source: sourceIdx !== -1 ? String(row[sourceIdx] || "").trim() : "Website",
-                        status: statusIdx !== -1 ? String(row[statusIdx] || "").trim() as LeadStatus : "New",
-                        priority: priorityIdx !== -1 ? String(row[priorityIdx] || "").trim() as LeadPriority : "Medium",
-                        assignedTo: ownerIdx !== -1 ? String(row[ownerIdx] || "").trim() : "John Doe",
-                        assignedDate: assignedDateIdx !== -1 ? String(row[assignedDateIdx] || "").trim() : "",
-                        notes: "Imported from file template.",
-                        createdAt: new Date().toISOString().split("T")[0],
-                      });
-                      addedCount++;
+                        await leadService.createLead({
+                          title: leadTitleIdx !== -1 ? String(row[leadTitleIdx] || "").trim() : `${company} Expansion`,
+                          companyId,
+                          contactPerson: contactPerson || "Jane Doe",
+                          designation: designationIdx !== -1 ? String(row[designationIdx] || "").trim() : "",
+                          phone: phoneIdx !== -1 ? String(row[phoneIdx] || "").trim() : "+91 98765 00000",
+                          email: email || `contact@${company.toLowerCase().replace(/\s+/g, "") || "unknown"}.com`,
+                          website: websiteIdx !== -1 ? String(row[websiteIdx] || "").trim() : `https://${company.toLowerCase().replace(/\s+/g, "") || "example"}.com`,
+                          industry: industryIdx !== -1 ? String(row[industryIdx] || "").trim() : "Information Technology",
+                          source: sourceIdx !== -1 ? String(row[sourceIdx] || "").trim() : "Website",
+                          status: "NEW",
+                          priority: "MEDIUM"
+                        });
+                        addedCount++;
+                      } catch (err) {
+                        console.error(err);
+                      }
                     }
 
                     if (addedCount > 0) {
-                      setLeads(newLeadsList);
-                      setStorage("saiflow_leads", newLeadsList);
+                      fetchLeads();
                       if (duplicateCount > 0) {
                         showToast(`Successfully imported ${addedCount} leads. Skipped ${duplicateCount} duplicates.`, "warning");
                       } else {

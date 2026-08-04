@@ -1,9 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { formatDate as centFormatDate, formatTime as centFormatTime } from "../../../utils/dateFormatter";
-import { getStorage, setStorage } from "../../../utils/storage";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
+import { proposalService } from "../../../services/proposalService";
+import { clientService } from "../../../services/clientService";
+import { leadService } from "../../../services/leadService";
+import api from "../../../services/api";
 import Badge from "../../../components/ui/badge/Badge";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
@@ -45,10 +48,7 @@ import { useAuth } from "../../../context/AuthContext";
 import {
   Proposal,
   ProposalStatus,
-  initialProposals,
 } from "../data/quotationsData";
-import { initialClients, Client } from "../../ClientManagement/data/clientsData";
-import { initialLeads, Lead } from "../../LeadManagement/data/leadsData";
 import jsPDF from "jspdf";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -114,9 +114,6 @@ const STATUS_TRANSITIONS: Record<ProposalStatus, StatusAction[]> = {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function generateId(arr: { id: number }[]): number {
-  return arr.length > 0 ? Math.max(...arr.map((x) => x.id)) + 1 : 1;
-}
 
 function formatCurrency(amount: number): string {
   return "₹" + amount.toLocaleString("en-IN");
@@ -153,15 +150,49 @@ export default function QuotationList() {
   const { hasPermission } = useAuth();
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [proposals, setProposals] = useState<Proposal[]>(() => {
-    const raw = getStorage<Proposal[]>("saiflow_proposals", initialProposals);
-    // Validate stored data: if items lack the nested structure, it's stale — fall back to sample data
-    if (raw.length > 0 && (!raw[0].requirement || !raw[0].proposalNo)) {
-      setStorage("saiflow_proposals", initialProposals);
-      return initialProposals;
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProposals = async () => {
+    setLoading(true);
+    try {
+      const data = await proposalService.getProposals();
+      if (data && Array.isArray(data.data)) {
+        const mapped = data.data.map((bp: any) => ({
+          id: bp.id,
+          proposalNo: bp.proposalNumber,
+          companyName: bp.lead?.company?.name || bp.lead?.title || "Unknown Company",
+          leadName: bp.lead?.contactPerson || "Unknown Contact",
+          leadEmail: bp.lead?.email || "",
+          leadPhone: bp.lead?.phone || "",
+          value: Number(bp.amount),
+          status: bp.status,
+          requirement: bp.lead?.requirements || "",
+          estimation: {
+            scopeOfWork: bp.lead?.requirements || "",
+            technologies: [],
+            estimatedHours: 0,
+            hourlyRate: 0,
+            totalCost: Number(bp.amount),
+            modules: []
+          },
+          validUntil: bp.validUntil ? bp.validUntil.split("T")[0] : "",
+          updatedAt: bp.updatedAt ? bp.updatedAt.split("T")[0] : "",
+          workflowLogs: []
+        }));
+        setProposals(mapped);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to fetch proposals.", "error");
+    } finally {
+      setLoading(false);
     }
-    return raw;
-  });
+  };
+
+  useEffect(() => {
+    fetchProposals();
+  }, []);
 
   const [view, setView] = useState<"list" | "detail">("list");
   const [selectedProposalId, setSelectedProposalId] = useState<number | null>(null);
@@ -220,88 +251,72 @@ export default function QuotationList() {
 
   // ── Status Management ──────────────────────────────────────────────────────
 
-  const updateStatus = (proposalId: number, newStatus: ProposalStatus, notes: string) => {
-    const proposal = proposals.find((p) => p.id === proposalId);
-    if (!proposal) return;
-    const updated = proposals.map((p) =>
-      p.id === proposalId
-        ? {
-          ...p,
-          status: newStatus,
-          updatedAt: new Date().toISOString().split("T")[0],
-          workflowLogs: [
-            ...p.workflowLogs,
-            {
-              id: generateId(p.workflowLogs),
-              action: `Status changed to ${newStatus}`,
-              fromStatus: p.status,
-              toStatus: newStatus,
-              timestamp: new Date().toISOString(),
-              performedBy: "Current User",
-              notes,
-            },
-          ],
-        }
-        : p
-    );
-    setProposals(updated);
-    setStorage("saiflow_proposals", updated);
-    showToast(`Proposal ${proposal.proposalNo} moved to "${STATUS_CONFIG[newStatus].label}"`, "success");
+  const updateStatus = async (proposalId: number, newStatus: ProposalStatus, notes: string) => {
+    try {
+      console.log("Status update notes:", notes);
+      await proposalService.updateProposal(proposalId, { status: newStatus });
+      showToast(`Proposal status updated successfully.`, "success");
+      fetchProposals();
+    } catch (err) {
+      showToast("Failed to update proposal status.", "error");
+    }
   };
 
   const handleStatusAction = (action: string, proposal: Proposal) => {
     setSelectedProposalId(proposal.id);
     switch (action) {
       case "send":
-        // Non-destructive: one-click
-        updateStatus(proposal.id, "Sent", "Proposal sent to client for review.");
+        updateStatus(proposal.id, "Sent", "Proposal sent to client.");
         break;
       case "review":
-        // Non-destructive: one-click
-        updateStatus(proposal.id, "Under Review", "Client acknowledged receipt and is reviewing the proposal.");
+        updateStatus(proposal.id, "Under Review", "Client reviewing the proposal.");
         break;
       case "convert":
-        // Significant action: keep confirmation
         setConfirmAction({
           title: "Convert to Client",
           message: `Mark proposal ${proposal.proposalNo} as "Converted" and create a client record for ${proposal.companyName}? You'll be redirected to the Clients page.`,
-          onConfirm: () => {
-            updateStatus(proposal.id, "Converted", "Lead converted to client. Project initiated.");
-            const leads = getStorage<Lead[]>("saiflow_leads", initialLeads);
-            const updatedLeads = leads.map((l) => {
-              const isMatch =
-                (l.company && l.company.toLowerCase() === proposal.companyName.toLowerCase()) ||
-                (l.email && l.email.toLowerCase() === proposal.leadEmail.toLowerCase()) ||
-                (l.phone && l.phone === proposal.leadPhone);
-              return isMatch ? { ...l, status: "Won" as const } : l;
-            });
-            setStorage("saiflow_leads", updatedLeads);
-            const currentClients = getStorage<Client[]>("saiflow_clients", initialClients);
-            const newClientId = currentClients.length > 0 ? Math.max(...currentClients.map((c) => c.id)) + 1 : 1;
-            const newClient: Client = {
-              id: newClientId,
-              name: proposal.leadName,
-              company: proposal.companyName,
-              email: proposal.leadEmail,
-              phone: proposal.leadPhone,
-              projectsCount: 1,
-              status: "Active",
-              clientSince: new Date().toISOString().split("T")[0],
-              conversionDate: new Date().toISOString().split("T")[0],
-              latestProposalId: proposal.id,
-              latestProposalNo: proposal.proposalNo,
-              proposalStatus: proposal.status,
-              handoverStatus: "Pending",
-            };
-            setStorage("saiflow_clients", [...currentClients, newClient]);
-            showToast(`Client "${proposal.companyName}" created successfully!`, "success");
-            navigate("/clients");
+          onConfirm: async () => {
+            try {
+              let companyId;
+              const searchRes = await api.get('/companies', { params: { search: proposal.companyName.trim() } });
+              const existingCompany = searchRes.data?.data?.find(
+                (c: any) => c.name.toLowerCase() === proposal.companyName.trim().toLowerCase()
+              );
+              if (existingCompany) {
+                companyId = existingCompany.id;
+              } else {
+                const newCompany = await api.post('/companies', { name: proposal.companyName.trim() });
+                companyId = newCompany.data?.data?.id;
+              }
+
+              const leadsRes = await leadService.getLeads({ limit: 100 });
+              const matchedLead = leadsRes.data?.find(
+                (l: any) => l.title?.toLowerCase() === proposal.companyName.toLowerCase() ||
+                            l.email?.toLowerCase() === proposal.leadEmail.toLowerCase()
+              );
+
+              await clientService.createClient({
+                companyId,
+                leadId: matchedLead ? matchedLead.id : undefined,
+                status: "Active"
+              });
+
+              await proposalService.updateProposal(proposal.id, { status: "Converted" });
+
+              if (matchedLead) {
+                await leadService.updateLead(matchedLead.id, { status: "Won" });
+              }
+
+              showToast(`Client "${proposal.companyName}" created successfully!`, "success");
+              navigate("/clients");
+            } catch (err) {
+              showToast("Failed to convert proposal to client.", "error");
+            }
           },
         });
         confirmActionModal.openModal();
         break;
       case "reject":
-        // Destructive-ish: keep confirmation
         setConfirmAction({
           title: "Reject Proposal",
           message: `Mark proposal ${proposal.proposalNo} as "Rejected"? This will close the proposal.`,
@@ -310,12 +325,10 @@ export default function QuotationList() {
         confirmActionModal.openModal();
         break;
       case "approved":
-        // Non-destructive: one-click
         updateStatus(proposal.id, "Approved", "Client approved the proposal.");
         break;
       case "negotiate":
-        // Non-destructive: one-click
-        updateStatus(proposal.id, "Negotiation", "Client requested revisions - moved to negotiation.");
+        updateStatus(proposal.id, "Negotiation", "Moved to negotiation.");
         break;
     }
   };
@@ -323,21 +336,23 @@ export default function QuotationList() {
   // ── Revise (Navigate to edit page in negotiation mode) ──────────────────────
 
   const handleRevise = (proposal: Proposal) => {
-    // Update status to Negotiation and log the action, then navigate to edit
-    updateStatus(proposal.id, "Negotiation", "Client requested revisions - moved to negotiation.");
+    updateStatus(proposal.id, "Negotiation", "Moved to negotiation.");
     navigate(`/proposals/${proposal.id}/edit`);
   };
 
   // ── Delete ─────────────────────────────────────────────────────────────────
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!selectedProposal) return;
-    const updated = proposals.filter((p) => p.id !== selectedProposal.id);
-    setProposals(updated);
-    setStorage("saiflow_proposals", updated);
-    showToast(`Proposal ${selectedProposal.proposalNo} deleted.`, "success");
-    deleteModal.closeModal();
-    if (view === "detail") setView("list");
+    try {
+      await proposalService.deleteProposal(selectedProposal.id);
+      showToast(`Proposal ${selectedProposal.proposalNo} deleted.`, "success");
+      deleteModal.closeModal();
+      if (view === "detail") setView("list");
+      fetchProposals();
+    } catch (err) {
+      showToast("Failed to delete proposal.", "error");
+    }
   };
 
   // ── List View Processing ───────────────────────────────────────────────────
@@ -394,30 +409,27 @@ export default function QuotationList() {
     }
   };
 
-  const handleBulkSend = () => {
-    const now = new Date().toISOString();
-    const updated = proposals.map(p =>
-      selectedIds.includes(p.id) && p.status === "Draft"
-        ? { ...p, status: "Sent" as ProposalStatus, updatedAt: now.split("T")[0], workflowLogs: [...p.workflowLogs, { id: generateId(p.workflowLogs), action: "Status changed to Sent", fromStatus: p.status, toStatus: "Sent" as ProposalStatus, timestamp: now, performedBy: "Current User", notes: "Bulk sent." }] }
-        : p
-    );
-    setProposals(updated);
-    setStorage("saiflow_proposals", updated);
-    showToast(`${selectedIds.filter(id => proposals.find(p => p.id === id)?.status === "Draft").length} proposal(s) sent.`, "success");
-    setSelectedIds([]);
+  const handleBulkSend = async () => {
+    try {
+      const drafts = selectedIds.filter(id => proposals.find(p => p.id === id)?.status === "Draft");
+      await Promise.all(drafts.map(id => proposalService.updateProposal(id, { status: "Sent" })));
+      showToast(`${drafts.length} proposal(s) sent.`, "success");
+      setSelectedIds([]);
+      fetchProposals();
+    } catch (err) {
+      showToast("Failed to bulk send proposals.", "error");
+    }
   };
 
-  const handleBulkApprove = () => {
-    const now = new Date().toISOString();
-    const updated = proposals.map(p =>
-      selectedIds.includes(p.id) && (p.status === "Sent" || p.status === "Under Review" || p.status === "Negotiation")
-        ? { ...p, status: "Approved" as ProposalStatus, updatedAt: now.split("T")[0], workflowLogs: [...p.workflowLogs, { id: generateId(p.workflowLogs), action: "Status changed to Approved", fromStatus: p.status, toStatus: "Approved" as ProposalStatus, timestamp: now, performedBy: "Current User", notes: "Bulk approved." }] }
-        : p
-    );
-    setProposals(updated);
-    setStorage("saiflow_proposals", updated);
-    showToast(`${selectedIds.length} proposal(s) approved.`, "success");
-    setSelectedIds([]);
+  const handleBulkApprove = async () => {
+    try {
+      await Promise.all(selectedIds.map(id => proposalService.updateProposal(id, { status: "Approved" })));
+      showToast(`${selectedIds.length} proposal(s) approved.`, "success");
+      setSelectedIds([]);
+      fetchProposals();
+    } catch (err) {
+      showToast("Failed to bulk approve proposals.", "error");
+    }
   };
 
   const totalPages = Math.ceil(processedProposals.length / rowsPerPage);
@@ -1060,6 +1072,10 @@ export default function QuotationList() {
       </div>
     );
   };
+
+  if (loading) {
+    return <div className="py-10 text-center text-gray-500">Loading proposals...</div>;
+  }
 
   return (
     <>

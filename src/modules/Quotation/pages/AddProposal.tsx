@@ -1,6 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { getStorage, setStorage } from "../../../utils/storage";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
@@ -8,20 +7,16 @@ import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
 import { useToast } from "../../../hooks/useToast";
 import {
-  Proposal,
   ProposalStatus,
   RequirementSection,
   EstimationLineItem,
   EstimationSection,
   QuotationSection,
-  initialProposals,
 } from "../data/quotationsData";
-import { Lead, initialLeads } from "../../LeadManagement/data/leadsData";
-import {
-  TECHNOLOGIES,
-  PROJECT_CATEGORIES,
-  PAYMENT_TYPES,
-} from "../../Master/data/masterData";
+import { Lead } from "../../LeadManagement/data/leadsData";
+import { proposalService } from "../../../services/proposalService";
+import { leadService } from "../../../services/leadService";
+import { masterService } from "../../../services/masterService";
 import { FiPlus, FiTrash2, FiXCircle, FiUser, FiList, FiCreditCard, FiFileText, FiCpu } from "react-icons/fi";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -30,9 +25,7 @@ import { FiPlus, FiTrash2, FiXCircle, FiUser, FiList, FiCreditCard, FiFileText, 
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function generateId(arr: { id: number }[]): number {
-  return arr.length > 0 ? Math.max(...arr.map((x) => x.id)) + 1 : 1;
-}
+
 
 function formatCurrency(amount: number): string {
   return "₹" + amount.toLocaleString("en-IN");
@@ -63,24 +56,41 @@ export default function AddProposal() {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
 
-  // ── Master Data Options ──────────────────────────────────────────────────────
-  const serviceOptions = useMemo(() => {
-    const masterCategories = getStorage<any[]>("saiflow_master_services", PROJECT_CATEGORIES)
-      .filter((s: any) => s.status === "Active")
-      .map((s: any) => s.name);
-    return masterCategories.map((c) => ({ value: c, label: c }));
-  }, []);
+  // ── Backend API states ──────────────────────────────────────
+  const [serviceOptions, setServiceOptions] = useState<{ value: string; label: string }[]>([]);
+  const [paymentTypeOptions, setPaymentTypeOptions] = useState<{ value: string; label: string }[]>([]);
+  const [techStackOptions, setTechStackOptions] = useState<{ value: string; label: string }[]>([]);
+  const [leadsList, setLeadsList] = useState<{ value: string; label: string }[]>([]);
+  const [rawLeads, setRawLeads] = useState<Lead[]>([]);
+  const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
 
-  const paymentTypeOptions = useMemo(() => {
-    return getStorage<any[]>("saiflow_master_payment_types", PAYMENT_TYPES)
-      .filter((p: any) => p.status === "Active")
-      .map((p: any) => ({ value: p.name, label: p.name }));
-  }, []);
-
-  const techStackOptions = useMemo(() => {
-    return getStorage<any[]>("saiflow_master_technologies", TECHNOLOGIES)
-      .filter((t: any) => t.status === "Active")
-      .map((t: any) => ({ value: t.name, label: t.name }));
+  useEffect(() => {
+    const loadDropdownData = async () => {
+      try {
+        const [servicesData, paymentTypesData, techStackData, leadsData] = await Promise.all([
+          masterService.getMasterItems("SERVICE"),
+          masterService.getMasterItems("PAYMENT_TYPE"),
+          masterService.getMasterItems("TECH_STACK"),
+          leadService.getLeads({ limit: 100 })
+        ]);
+        
+        setServiceOptions(servicesData.map((x: any) => ({ value: x.name, label: x.name })));
+        setPaymentTypeOptions(paymentTypesData.map((x: any) => ({ value: x.name, label: x.name })));
+        setTechStackOptions(techStackData.map((x: any) => ({ value: x.name, label: x.name })));
+        if (leadsData && Array.isArray(leadsData.data)) {
+          const mappedLeads = leadsData.data.map((l: any) => ({
+            ...l,
+            company: l.title || l.company || "",
+            contactPerson: l.contactPerson || ""
+          }));
+          setRawLeads(mappedLeads);
+          setLeadsList(mappedLeads.map((l: any) => ({ value: l.id.toString(), label: `${l.company} (${l.contactPerson})` })));
+        }
+      } catch (err) {
+        console.error("Failed to load drop-down lists", err);
+      }
+    };
+    loadDropdownData();
   }, []);
 
   const [formTechStack, setFormTechStack] = useState<string[]>([]);
@@ -106,15 +116,10 @@ export default function AddProposal() {
   const [formLeadNameError, setFormLeadNameError] = useState("");
   const [formCompanyNameError, setFormCompanyNameError] = useState("");
 
-  // Lead selection for auto-fill
-  const leadsList = useMemo(() => {
-    return getStorage<Lead[]>("saiflow_leads", initialLeads)
-      .map((l) => ({ value: l.id.toString(), label: `${l.company} (${l.contactPerson})` }));
-  }, []);
-
   const handleLeadSelect = (val: string) => {
     const leadId = Number(val);
-    const lead = getStorage<Lead[]>("saiflow_leads", initialLeads).find((l) => l.id === leadId);
+    setSelectedLeadId(leadId);
+    const lead = rawLeads.find((l) => l.id === leadId);
     if (lead) {
       setFormLeadName(lead.contactPerson);
       setFormCompanyName(lead.company);
@@ -139,38 +144,56 @@ export default function AddProposal() {
   const [formTnC, setFormTnC] = useState("");
 
   useEffect(() => {
-    if (isEditMode) {
-      const rawProposals = getStorage<Proposal[]>("saiflow_proposals", initialProposals);
-      // Validate stored data — fall back to sample data if stale
-      const proposals = rawProposals.length > 0 && (!rawProposals[0].requirement || !rawProposals[0].proposalNo)
-        ? initialProposals
-        : rawProposals;
-      const proposal = proposals.find((p) => p.id === Number(id));
-      if (proposal) {
-        setFormLeadName(proposal.leadName);
-        setFormCompanyName(proposal.companyName);
-        setFormLeadEmail(proposal.leadEmail);
-        setFormLeadPhone(proposal.leadPhone);
-        setFormStatus(proposal.status);
-        setFormRequirement(proposal.requirement);
-        setFormTechStack(proposal.requirement.techStack || []);
-        setFormEstimationItems(proposal.estimation.items);
-        setFormDiscountPct(proposal.estimation.discountPercent);
-        setFormTaxPct(proposal.estimation.taxPercent);
-        setFormPaymentTerms(proposal.quotation.paymentTerms);
-        setFormValidityDays(proposal.quotation.validityDays);
-        setFormDeliveryTimeline(proposal.quotation.deliveryTimeline);
-        setFormWarranty(proposal.quotation.warrantyPeriod);
-        setFormNotes(proposal.quotation.notes);
-        setFormTnC(proposal.quotation.termsAndConditions);
+    const loadProposal = async () => {
+      if (isEditMode && id) {
+        setLoading(true);
+        try {
+          const proposal = await proposalService.getProposalById(Number(id));
+          if (proposal) {
+            setFormLeadName(proposal.lead?.contactPerson || "");
+            setFormCompanyName(proposal.lead?.company?.name || proposal.lead?.title || "");
+            setFormLeadEmail(proposal.lead?.email || "");
+            setFormLeadPhone(proposal.lead?.phone || "");
+            setFormStatus(proposal.status);
+            setFormRequirement({
+              overview: proposal.lead?.requirements || "",
+              objectives: [""],
+              technicalRequirements: [""],
+              deliverables: [""],
+              assumptions: [""],
+              constraints: [""],
+              techStack: []
+            });
+            setFormEstimationItems([{
+              id: "1",
+              category: "Development",
+              description: "Core module development",
+              unit: "Project",
+              unitPrice: Number(proposal.amount),
+              amount: Number(proposal.amount)
+            }]);
+            setFormDiscountPct(0);
+            setFormTaxPct(18);
+            setFormPaymentTerms("Immediate");
+            setFormValidityDays(proposal.validUntil ? Math.ceil((new Date(proposal.validUntil).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 30);
+            setFormDeliveryTimeline("60 Days");
+            setFormWarranty("12 Months");
+            setFormNotes(proposal.title || "");
+            setFormTnC("");
+          }
+        } catch (err) {
+          console.error(err);
+          showToast("Failed to load proposal details.", "error");
+        } finally {
+          setLoading(false);
+        }
       } else {
-        showToast("Proposal not found.", "error");
-        navigate("/proposals");
-        return;
+        setLoading(false);
       }
-    }
-    setLoading(false);
-  }, [id, isEditMode, navigate, showToast]);
+    };
+    loadProposal();
+  }, [id, isEditMode]);
+
 
   // ── Requirement Array Helpers ──────────────────────────────────────────────
 
@@ -226,7 +249,7 @@ export default function AddProposal() {
     return true;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateBasicFields()) return;
 
     const subtotal = formEstimationItems.reduce((s, i) => s + i.amount, 0);
@@ -257,66 +280,38 @@ export default function AddProposal() {
       paymentMilestones: [], notes: formNotes, termsAndConditions: formTnC,
     };
 
-    let allProposals = getStorage<Proposal[]>("saiflow_proposals", initialProposals);
-    if (allProposals.length > 0 && (!allProposals[0].requirement || !allProposals[0].proposalNo)) {
-      allProposals = initialProposals;
-      setStorage("saiflow_proposals", initialProposals);
-    }
+    console.log("Requirements/Estimation/Quotation sections:", requirements, estimation, quotation);
 
-    if (isEditMode) {
-      const updated = allProposals.map((p) => {
-        if (p.id !== Number(id)) return p;
-        return {
-          ...p,
-          leadName: formLeadName.trim(),
-          companyName: formCompanyName.trim(),
-          leadEmail: formLeadEmail.trim(),
-          leadPhone: formLeadPhone.trim(),
-          status: formStatus,
-          updatedAt: new Date().toISOString().split("T")[0],
-          requirement: requirements,
-          estimation,
-          quotation,
-          workflowLogs: [
-            ...p.workflowLogs,
-            {
-              id: generateId(p.workflowLogs),
-              action: "Proposal updated",
-              fromStatus: p.status, toStatus: formStatus,
-              timestamp: new Date().toISOString(),
-              performedBy: "Current User",
-              notes: "Proposal content updated via edit page",
-            },
-          ],
-        };
-      });
-      setStorage("saiflow_proposals", updated);
-      showToast("Proposal updated successfully.", "success");
-    } else {
-      const newProposal: Proposal = {
-        id: allProposals.length > 0 ? Math.max(...allProposals.map((p) => p.id)) + 1 : 1,
-        proposalNo: `BP-${new Date().getFullYear()}-${String(allProposals.length + 1).padStart(3, "0")}`,
-        leadName: formLeadName.trim(),
-        companyName: formCompanyName.trim(),
-        leadEmail: formLeadEmail.trim(),
-        leadPhone: formLeadPhone.trim(),
+    try {
+      let leadId = selectedLeadId;
+      if (!leadId) {
+        const matched = rawLeads.find(l => l.company.toLowerCase() === formCompanyName.trim().toLowerCase());
+        leadId = matched ? matched.id : (rawLeads[0]?.id || 1);
+      }
+
+      const generatedNum = `BP-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+      const validUntilDate = new Date(Date.now() + formValidityDays * 24 * 60 * 60 * 1000).toISOString();
+
+      const payload = {
+        leadId,
+        proposalNumber: isEditMode ? undefined : generatedNum,
+        title: formNotes.trim() || `Proposal for ${formCompanyName.trim()}`,
+        amount: total,
         status: formStatus,
-        createdAt: new Date().toISOString().split("T")[0],
-        updatedAt: new Date().toISOString().split("T")[0],
-        requirement: requirements,
-        estimation,
-        quotation,
-        workflowLogs: [{
-          id: 1, action: "Proposal created",
-          fromStatus: "Draft", toStatus: formStatus,
-          timestamp: new Date().toISOString(),
-          performedBy: "Current User", notes: "New proposal created",
-        }],
+        validUntil: validUntilDate
       };
-      setStorage("saiflow_proposals", [...allProposals, newProposal]);
-      showToast("Proposal created successfully.", "success");
+
+      if (isEditMode) {
+        await proposalService.updateProposal(Number(id), payload);
+        showToast("Proposal updated successfully.", "success");
+      } else {
+        await proposalService.createProposal(payload);
+        showToast("Proposal created successfully.", "success");
+      }
+      navigate("/proposals");
+    } catch (err) {
+      showToast("Failed to save proposal.", "error");
     }
-    navigate("/proposals");
   };
 
   const handleCancel = () => navigate("/proposals");

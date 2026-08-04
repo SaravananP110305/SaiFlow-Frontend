@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { getStorage, setStorage } from "../../../utils/storage";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
@@ -25,9 +24,7 @@ import { initialQaTickets, QaTicket } from "../data/qaData";
 
 export default function QaList() {
   const { showToast } = useToast();
-  const [qaTickets, setQaTickets] = useState<QaTicket[]>(() =>
-    getStorage("saiflow_qa_tickets", initialQaTickets)
-  );
+  const [qaTickets, setQaTickets] = useState<QaTicket[]>(initialQaTickets);
 
   const [searchQuery, setSearchQuery] = useState("");
   // setStatusFilter removed while the Status filter dropdown is commented out
@@ -122,7 +119,6 @@ export default function QaList() {
       };
       const updated = [...qaTickets, newTicket];
       setQaTickets(updated);
-      setStorage("saiflow_qa_tickets", updated);
       showToast("Defect logged successfully.", "success");
     } else if (modalMode === "edit" && selectedTicket) {
       const updated = qaTickets.map((t) =>
@@ -139,7 +135,6 @@ export default function QaList() {
           : t
       );
       setQaTickets(updated);
-      setStorage("saiflow_qa_tickets", updated);
       showToast("Defect updated successfully.", "success");
     }
     formModal.closeModal();
@@ -149,7 +144,6 @@ export default function QaList() {
     if (selectedTicket) {
       const updated = qaTickets.filter((t) => t.id !== selectedTicket.id);
       setQaTickets(updated);
-      setStorage("saiflow_qa_tickets", updated);
       showToast("Defect deleted successfully.", "success");
     }
     deleteModal.closeModal();
