@@ -70,6 +70,7 @@ export const permissionModules: PermissionModuleConfig[] = [
   { name: "Meetings", key: "meetings", actions: ["view", "create", "edit", "delete"] },
   { name: "Proposals", key: "proposals", actions: ["view", "create", "edit", "delete", "approve"] },
   { name: "Clients", key: "clients", actions: ["view", "create", "edit", "approve"] },
+  { name: "Companies", key: "companies", actions: ["view", "create", "edit", "delete"] },
   {
     name: "Reports",
     key: "reports",

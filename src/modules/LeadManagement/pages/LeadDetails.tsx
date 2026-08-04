@@ -5,9 +5,16 @@ import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 
 import Button from "../../../components/ui/button/Button";
+import Badge from "../../../components/ui/badge/Badge";
 import { Lead } from "../data/leadsData";
 import { leadService } from "../../../services/leadService";
-import { clientService } from "../../../services/clientService";
+import { userService } from "../../../services/userService";
+import { useAuth } from "../../../context/AuthContext";
+import {
+  getStatusLabel,
+  getStatusBadgeColor,
+  getNextStatuses,
+} from "../utils/leadStatus";
 import Select from "../../../components/form/Select";
 import Input from "../../../components/form/input/InputField";
 import { Modal } from "../../../components/ui/modal";
@@ -70,6 +77,7 @@ export default function LeadDetails() {
 
 
   const { showToast } = useToast();
+  const { hasPermission } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -86,19 +94,19 @@ export default function LeadDetails() {
           alternatePhone: data.alternatePhone || "",
           email: data.email || "",
           alternateEmail: data.alternateEmail || "",
-          website: data.website || "",
-          industry: data.industry || "",
-          companyType: data.companyType || "",
-          address: data.address || "",
-          addressLine1: data.address || "",
-          country: data.country || "",
-          state: data.state || "",
-          city: data.city || "",
-          pincode: data.pincode || "",
+          website: data.company?.website || "",
+          industry: data.company?.industry?.name || "",
+          companyType: data.company?.companyType || "",
+          address: data.company?.address || "",
+          addressLine1: data.company?.address || "",
+          country: data.company?.country?.name || "",
+          state: data.company?.state?.name || "",
+          city: data.company?.city?.name || "",
+          pincode: data.company?.pincode || "",
           source: data.source?.name || data.source || "",
           priority: data.priority?.name || data.priority || "Medium",
           assignedTo: data.assignedTo?.name || "Unassigned",
-          assignedDate: data.updatedAt?.split("T")[0] || "",
+          assignedDate: data.assignedAt ? String(data.assignedAt).split("T")[0] : "",
           notes: data.requirements || "",
           createdAt: data.createdAt?.split("T")[0] || ""
         });
@@ -132,28 +140,66 @@ export default function LeadDetails() {
   // Convert Lead Modal state
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [paymentTerms, setPaymentTerms] = useState("Net 30");
-  const [creditLimit, setCreditLimit] = useState("500000");
-  const [relManager, setRelManager] = useState("John Doe");
-  const [accManager, setAccManager] = useState("Jane Smith");
+  const [creditLimit, setCreditLimit] = useState("");
+  const [wonAmount, setWonAmount] = useState("");
+  const [relManagerId, setRelManagerId] = useState<number | null>(null);
+  const [accManagerId, setAccManagerId] = useState<number | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
+
+  // Status change modal state
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [nextStatus, setNextStatus] = useState("");
+  const [lostReason, setLostReason] = useState("");
+
+  useEffect(() => {
+    userService
+      .getUsers()
+      .then((res) => setUsers(res.data || []))
+      .catch(() => {
+        setUsers([]);
+      });
+  }, []);
+
+  const handleStatusChange = async (newStatus: string, reason?: string) => {
+    if (!lead) return;
+    try {
+      await leadService.updateLead(lead.id, {
+        status: newStatus,
+        ...(reason ? { lostReason: reason } : {}),
+      });
+      showToast(`Lead moved to ${getStatusLabel(newStatus)}.`, "success");
+      setStatusModalOpen(false);
+      setLostReason("");
+      loadLeadDetails();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to update lead status.", "error");
+    }
+  };
+
+  const openStatusModal = (status: string) => {
+    setNextStatus(status);
+    setLostReason("");
+    setStatusModalOpen(true);
+  };
 
   const handleConvertLeadConfirm = async () => {
     if (!lead) return;
 
     try {
-      await clientService.createClient({
-        companyId: lead.companyId,
-        leadId: lead.id,
+      await leadService.convertLead(lead.id, {
         gstPan: lead.gstNumber || "",
-        status: "Active"
+        paymentTerms,
+        creditLimit: creditLimit !== "" ? Number(creditLimit) : null,
+        relationshipManagerId: relManagerId,
+        accountManagerId: accManagerId,
+        wonAmount: wonAmount !== "" ? Number(wonAmount) : null,
       });
-
-      await leadService.updateLead(lead.id, { status: "Won" });
 
       showToast(`Lead converted to Client successfully!`, "success");
       setShowConvertModal(false);
       navigate(`/clients`);
-    } catch (err) {
-      showToast("Failed to convert lead to client.", "error");
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to convert lead to client.", "error");
     }
   };
 
@@ -180,14 +226,12 @@ export default function LeadDetails() {
     );
   }
 
-  interface LeadLogEntry {
-    id: string;
-    leadId: number;
-    action: "lead_created" | "lead_updated" | "lead_deleted" | "lead_assigned" | "lead_reassigned";
-    description: string;
-    timestamp: string;
-    operator?: string;
-  }
+  const describeChanges = (changes: any): string => {
+    if (!changes) return "";
+    if (Array.isArray(changes)) return changes.join("; ");
+    if (typeof changes === "object") return JSON.stringify(changes);
+    return String(changes);
+  };
 
   const timelineEvents = useMemo(() => {
     if (!lead) return [];
@@ -201,76 +245,66 @@ export default function LeadDetails() {
       color: string;
     }[] = [];
 
-    // 1. Lead Created from lead data
-    if (lead.createdAt) {
-      events.push({
-        id: `created-${lead.id}`,
-        type: "lead_created",
-        title: "Lead Created",
-        description: `Lead for ${lead.company} was created by ${lead.assignedTo || "the system"}.`,
-        timestamp: new Date(lead.createdAt).getTime(),
-        icon: <FiActivity className="size-4" />,
-        color: "bg-brand-500",
-      });
-    }
+    const auditLogs = lead.auditLogs || [];
 
-    // 2. Lead Assigned from lead data
-    if (lead.assignedTo) {
-      const assignedTs = lead.assignedDate
-        ? new Date(lead.assignedDate).getTime()
-        : new Date(lead.createdAt).getTime() + 1000;
-      events.push({
-        id: `assigned-${lead.id}`,
-        type: "lead_assigned",
-        title: "Lead Assigned",
-        description: `Lead assigned to ${lead.assignedTo}.`,
-        timestamp: assignedTs,
-        icon: <FiUserCheck className="size-4" />,
-        color: "bg-blue-500",
-      });
-    }
+    auditLogs.forEach((log: any) => {
+      const action = log.action || "lead_updated";
+      const actor = log.user?.name || "the system";
 
-    const leadLogs: LeadLogEntry[] = [];
-    const relatedLogs = leadLogs.filter((log) => log.leadId === lead.id);
-    relatedLogs.forEach((log) => {
+      let title = "Lead Updated";
+      let description = describeChanges(log.payload?.changes) || `Lead details updated by ${actor}.`;
       let icon: React.ReactNode = <FiEdit className="size-4" />;
-      let color = "bg-warning-500";
+      let color = "bg-orange-500";
 
-      switch (log.action) {
+      switch (action) {
         case "lead_created":
+          title = "Lead Created";
+          description = `Lead was created by ${actor}.`;
           icon = <FiActivity className="size-4" />;
           color = "bg-success-500";
           break;
-        case "lead_updated":
-          icon = <FiEdit className="size-4" />;
-          color = "bg-orange-500";
+        case "lead_assigned":
+          title = "Lead Assigned";
+          description = `Assigned to ${log.payload?.assignee || "a new owner"} by ${actor}.`;
+          icon = <FiUserCheck className="size-4" />;
+          color = "bg-blue-500";
+          break;
+        case "lead_converted":
+          title = "Converted to Client";
+          description = `Lead was converted to a client by ${actor}.`;
+          icon = <FiAward className="size-4" />;
+          color = "bg-success-600";
           break;
         case "lead_deleted":
+          title = "Lead Deleted";
+          description = `Lead was deleted by ${actor}.`;
           icon = <FiXCircle className="size-4" />;
           color = "bg-error-500";
           break;
-        case "lead_assigned":
-        case "lead_reassigned":
+        case "lead_imported":
+          title = "Bulk Import";
+          description = `${log.payload?.imported || 0} lead(s) imported (${log.payload?.skipped || 0} skipped, ${log.payload?.failed || 0} failed).`;
+          icon = <FiLayers className="size-4" />;
+          color = "bg-brand-500";
+          break;
+        case "lead_bulk_assigned":
+          title = "Bulk Assigned";
+          description = `${log.payload?.count || 0} lead(s) assigned to ${log.payload?.assignee || "a new owner"} by ${actor}.`;
           icon = <FiUserCheck className="size-4" />;
           color = "bg-blue-500";
+          break;
+        default:
+          title = "Lead Updated";
+          description = describeChanges(log.payload?.changes) || `Lead details updated by ${actor}.`;
           break;
       }
 
       events.push({
-        id: log.id,
-        type: log.action,
-        title:
-          log.action === "lead_created"
-            ? "Lead Created"
-            : log.action === "lead_updated"
-            ? "Lead Updated"
-            : log.action === "lead_deleted"
-            ? "Lead Deleted"
-            : log.action === "lead_reassigned"
-            ? "Lead Reassigned"
-            : "Lead Assigned",
-        description: log.description,
-        timestamp: new Date(log.timestamp).getTime(),
+        id: `log-${log.id}`,
+        type: action,
+        title,
+        description,
+        timestamp: new Date(log.createdAt).getTime(),
         icon,
         color,
       });
@@ -301,8 +335,8 @@ export default function LeadDetails() {
           <FiArrowLeft className="size-4" />
           Back to List
         </button>
-        <div className="flex items-center gap-3">
-          {lead.status === "Qualified" && (
+        <div className="flex items-center gap-3 flex-wrap">
+          {hasPermission("leads", "edit") && lead.status === "QUALIFIED" && (
             <Button
               size="sm"
               variant="outline"
@@ -312,14 +346,44 @@ export default function LeadDetails() {
               Schedule Meeting
             </Button>
           )}
-          {lead.status === "Won" && (
-            <Button
-              size="sm"
-              onClick={() => setShowConvertModal(true)}
-              className="bg-success-600 hover:bg-success-700 text-white"
+          {hasPermission("leads", "edit") &&
+            ["QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON"].includes(lead.status) &&
+            (!lead.clients || lead.clients.length === 0) && (
+              <Button
+                size="sm"
+                onClick={() => setShowConvertModal(true)}
+                className="bg-success-600 hover:bg-success-700 text-white"
+              >
+                Convert to Client
+              </Button>
+            )}
+          {hasPermission("leads", "edit") && getNextStatuses(lead.status).length > 0 && (
+            <select
+              value=""
+              onChange={(e) => {
+                const s = e.target.value;
+                if (!s) return;
+                if (s === "LOST" || s === "DISQUALIFIED") {
+                  openStatusModal(s);
+                } else {
+                  handleStatusChange(s);
+                }
+              }}
+              className="h-10 appearance-none rounded-lg border border-gray-200 bg-white px-3.5 pr-8 text-sm text-gray-700 shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
+              style={{
+                backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                backgroundPosition: "right 0.6rem center",
+                backgroundSize: "1.1rem",
+                backgroundRepeat: "no-repeat",
+              }}
             >
-              Convert to Client
-            </Button>
+              <option value="">Change Status...</option>
+              {getNextStatuses(lead.status).map((s) => (
+                <option key={s} value={s}>
+                  {getStatusLabel(s)}
+                </option>
+              ))}
+            </select>
           )}
           <Button
             size="sm"
@@ -334,9 +398,14 @@ export default function LeadDetails() {
       {/* Header Card */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-gray-200 bg-white px-6 py-5 mb-5 dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div>
-          <h2 className="text-xl font-semibold text-gray-850 dark:text-white/95">
-            {lead.company}
-          </h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xl font-semibold text-gray-850 dark:text-white/95">
+              {lead.company}
+            </h2>
+            <Badge size="sm" color={getStatusBadgeColor(lead.status)}>
+              {getStatusLabel(lead.status)}
+            </Badge>
+          </div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1.5">
             <span className="font-medium text-gray-700 dark:text-gray-300">{lead.contactPerson}</span>
             <span className="text-gray-300 dark:text-gray-750">•</span>
@@ -631,7 +700,7 @@ export default function LeadDetails() {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    Credit Limit (INR)
+                    Credit Limit
                   </label>
                   <Input
                     type="number"
@@ -643,36 +712,50 @@ export default function LeadDetails() {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    Won Amount
+                  </label>
+                  <Input
+                    type="number"
+                    value={wonAmount}
+                    onChange={(e) => setWonAmount(e.target.value)}
+                    placeholder={lead.budget ? String(lead.budget) : "Deal value"}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     Relationship Manager
                   </label>
-                  <Select
-                    options={[
-                      { value: "John Doe", label: "John Doe" },
-                      { value: "Jane Smith", label: "Jane Smith" },
-                      { value: "Alice Johnson", label: "Alice Johnson" },
-                      { value: "Robert Lee", label: "Robert Lee" }
-                    ]}
-                    placeholder="Select Manager"
-                    defaultValue={relManager}
-                    onChange={(val) => setRelManager(val)}
-                  />
+                  <select
+                    value={relManagerId ?? ""}
+                    onChange={(e) => setRelManagerId(e.target.value ? Number(e.target.value) : null)}
+                    className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
+                  >
+                    <option value="">Select Manager</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     Account Manager
                   </label>
-                  <Select
-                    options={[
-                      { value: "John Doe", label: "John Doe" },
-                      { value: "Jane Smith", label: "Jane Smith" },
-                      { value: "Alice Johnson", label: "Alice Johnson" },
-                      { value: "Robert Lee", label: "Robert Lee" }
-                    ]}
-                    placeholder="Select Manager"
-                    defaultValue={accManager}
-                    onChange={(val) => setAccManager(val)}
-                  />
+                  <select
+                    value={accManagerId ?? ""}
+                    onChange={(e) => setAccManagerId(e.target.value ? Number(e.target.value) : null)}
+                    className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
+                  >
+                    <option value="">Select Manager</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
@@ -691,6 +774,57 @@ export default function LeadDetails() {
                 className="w-1/2 bg-success-600 hover:bg-success-700 text-white"
               >
                 Convert to Client
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Lost / Disqualified Reason Modal */}
+        <Modal
+          isOpen={statusModalOpen}
+          onClose={() => setStatusModalOpen(false)}
+          className="max-w-[450px] m-4"
+        >
+          <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
+            <div className="mb-6 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-error-50 dark:bg-error-500/10 text-error-600 dark:text-error-400 mb-4">
+                <FiXCircle className="size-6" />
+              </div>
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">
+                Mark as {getStatusLabel(nextStatus)}
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Provide a reason for moving this lead to {getStatusLabel(nextStatus)}.
+              </p>
+            </div>
+            <div className="mb-6">
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Reason <span className="text-error-500">*</span>
+              </label>
+              <textarea
+                value={lostReason}
+                onChange={(e) => setLostReason(e.target.value)}
+                placeholder="E.g., Chose a competitor, budget constraints..."
+                rows={3}
+                className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              />
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setStatusModalOpen(false)}
+                className="w-1/2"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={!lostReason.trim()}
+                onClick={() => handleStatusChange(nextStatus, lostReason.trim())}
+                className="w-1/2 bg-error-600 hover:bg-error-700"
+              >
+                Confirm
               </Button>
             </div>
           </div>

@@ -1,6 +1,18 @@
 // Shared Lead types and dummy data for Leads module
+import { LEAD_STATUSES as ENUM_STATUSES, getStatusBadgeColor } from "../utils/leadStatus";
 
+// Backend lead statuses (LeadStatus enum) plus legacy display labels.
 export type LeadStatus =
+  | "NEW"
+  | "ASSIGNED"
+  | "CONTACTED"
+  | "MEETING_SCHEDULED"
+  | "QUALIFIED"
+  | "PROPOSAL"
+  | "NEGOTIATION"
+  | "WON"
+  | "LOST"
+  | "DISQUALIFIED"
   | "New"
   | "Contacted"
   | "Qualified"
@@ -12,7 +24,7 @@ export type LeadStatus =
   | "Won"
   | "Lost";
 
-export type LeadPriority = "Low" | "Medium" | "High";
+export type LeadPriority = "Low" | "Medium" | "High" | "Urgent";
 
 export interface Lead {
   id: number;
@@ -20,8 +32,8 @@ export interface Lead {
   contactPerson: string;
   email: string;
   phone: string;
-  status: LeadStatus;
-  priority?: LeadPriority;
+  status: string;
+  priority?: LeadPriority | string;
   assignedTo: string;
   industry: string;
   source: string;
@@ -31,10 +43,25 @@ export interface Lead {
   createdAt: string;
   companyId?: number;
 
-  leadTitle?: string;
+  // Backend lifecycle fields
   designation?: string;
   alternatePhone?: string;
   alternateEmail?: string;
+  budget?: number | null;
+  currency?: string;
+  expectedCloseDate?: string | null;
+  nextFollowUpDate?: string | null;
+  lostReason?: string | null;
+  wonAmount?: number | null;
+  assignedAt?: string | null;
+  assignedToId?: number | null;
+  sourceId?: number | null;
+  priorityId?: number | null;
+  auditLogs?: any[];
+  clients?: { id: number; status: string }[];
+
+  // Legacy / UI helper fields
+  leadTitle?: string;
   gstNumber?: string;
   companyType?: string;
   addressLine1?: string;
@@ -43,7 +70,7 @@ export interface Lead {
   city?: string;
   pincode?: string;
   assignedDate?: string;
-  nextFollowUpDate?: string;
+  nextFollowUpDateRaw?: string;
   followUpTime?: string;
   followUpType?: string;
   followUpNotes?: string;
@@ -53,19 +80,19 @@ export interface Lead {
 }
 
 export const LEAD_STATUSES: LeadStatus[] = [
-  "New",
-  "Contacted",
-  "Qualified",
-  "Scheduled",
-  "Completed",
-  "Missed",
-  "Rescheduled",
-  "Proposal sent",
-  "Won",
-  "Lost",
+  "NEW",
+  "ASSIGNED",
+  "CONTACTED",
+  "MEETING_SCHEDULED",
+  "QUALIFIED",
+  "PROPOSAL",
+  "NEGOTIATION",
+  "WON",
+  "LOST",
+  "DISQUALIFIED",
 ];
 
-export const LEAD_PRIORITIES: LeadPriority[] = ["Low", "Medium", "High"];
+export const LEAD_PRIORITIES: LeadPriority[] = ["Low", "Medium", "High", "Urgent"];
 
 export const ASSIGNEES = [
   "John Doe",
@@ -75,10 +102,11 @@ export const ASSIGNEES = [
 ];
 
 export const getPriorityColor = (
-  priority?: LeadPriority
+  priority?: LeadPriority | string
 ): "error" | "warning" | "success" | "light" => {
   switch (priority) {
     case "High":
+    case "Urgent":
       return "error";
     case "Medium":
       return "warning";
@@ -90,8 +118,14 @@ export const getPriorityColor = (
 };
 
 export const getStatusColor = (
-  status: LeadStatus
+  status: LeadStatus | string
 ): "primary" | "info" | "warning" | "success" | "error" | "light" => {
+  // Backend enum values are mapped through the shared util.
+  const normalized = (status || "").toUpperCase();
+  if ((ENUM_STATUSES as readonly string[]).includes(normalized)) {
+    return getStatusBadgeColor(normalized);
+  }
+
   switch (status) {
     case "New":
       return "primary";

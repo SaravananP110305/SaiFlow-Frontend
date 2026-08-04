@@ -116,8 +116,10 @@ export default function ClientList() {
         setProposals(mappedProposals as any);
       }
 
-      if (usersData) {
-        setEmployeesList(usersData.filter((u: any) => u.status === "Active" || u.status === undefined));
+      // userService.getUsers() returns the full response object; extract the data array
+      const usersList = usersData?.data || [];
+      if (usersList.length > 0) {
+        setEmployeesList(usersList.filter((u: any) => u.status === "ACTIVE"));
       }
     } catch (err) {
       console.error(err);

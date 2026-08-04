@@ -7,6 +7,7 @@ import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
 import { useToast } from "../../../hooks/useToast";
+import { useAuth } from "../../../context/AuthContext";
 import { leadService } from "../../../services/leadService";
 import { masterService } from "../../../services/masterService";
 import { userService } from "../../../services/userService";
@@ -39,6 +40,9 @@ interface LeadFormValues {
   // Card 5: Lead Details
   source: string;
   priority: string;
+  budget: string;
+  currency: string;
+  expectedCloseDate: string;
 
   // Card 6: Assignment
   assignedTo: string;
@@ -52,6 +56,7 @@ export default function AddLead() {
   const { id } = useParams();
   const isEditMode = !!id;
   const { showToast } = useToast();
+  const { hasPermission } = useAuth();
   const [loading, setLoading] = useState(true);
 
   // Collapsible sections for progressive disclosure
@@ -93,6 +98,9 @@ export default function AddLead() {
       pincode: "",
       source: "",
       priority: "",
+      budget: "",
+      currency: "USD",
+      expectedCloseDate: "",
       assignedTo: "",
       notes: "",
     },
@@ -106,6 +114,8 @@ export default function AddLead() {
   const [priorities, setPriorities] = useState<any[]>([]);
   const [countriesList, setCountriesList] = useState<any[]>([]);
   const [statesList, setStatesList] = useState<any[]>([]);
+  const [citiesList, setCitiesList] = useState<any[]>([]);
+  const [industriesList, setIndustriesList] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
 
   // Derived options arrays
@@ -131,14 +141,17 @@ export default function AddLead() {
           masterService.getMasterItems("DESIGNATION"),
           userService.getUsers()
         ]);
-        
+
         // Keep full raw lists so existing records that reference an inactive
         // master item can still resolve during Edit mode; only expose ACTIVE
         // records as selectable dropdown options.
         setSources(sourcesData);
         setPriorities(prioritiesData);
         setCountriesList(countriesData);
-        setUsers(usersData || []);
+        setIndustriesList(industriesData);
+        // userService.getUsers() returns the full response object; extract the data array
+        const usersList = usersData?.data || [];
+        setUsers(usersList);
 
         const activeOnly = (items: any[]) => (items || []).filter((x: any) => x.status === "Active");
         setSourceOptions(activeOnly(sourcesData).map((x: any) => ({ value: x.name, label: x.name })));
@@ -147,7 +160,7 @@ export default function AddLead() {
         setCountryOptions(activeOnly(countriesData).map((x: any) => ({ value: x.name, label: x.name })));
         setIndustryOptions(activeOnly(industriesData).map((x: any) => ({ value: x.name, label: x.name })));
         setDesignationOptions(activeOnly(designationsData).map((x: any) => ({ value: x.name, label: x.name })));
-        setEmployeeOptions((usersData || []).filter((x: any) => x.status === "Active" || x.status === undefined).map((x: any) => ({ value: x.name, label: x.name })));
+        setEmployeeOptions(usersList.filter((x: any) => x.status === "ACTIVE").map((x: any) => ({ value: x.name, label: x.name })));
       } catch (err) {
         console.error("Failed to load drop-down lists", err);
       }
@@ -185,6 +198,7 @@ export default function AddLead() {
       if (!selectedStateObj) return;
       try {
         const cities = await masterService.getMasterItems("CITY", selectedStateObj.id);
+        setCitiesList(cities);
         setCityOptions(cities.filter((c: any) => c.status === "Active").map((c: any) => ({ value: c.name, label: c.name })));
       } catch (err) {
         console.error("Failed to load cities", err);
@@ -208,16 +222,21 @@ export default function AddLead() {
               alternatePhone: lead.alternatePhone || "",
               email: lead.email || "",
               alternateEmail: lead.alternateEmail || "",
-              website: lead.website || "",
-              industry: lead.industry || "",
-              companyType: lead.companyType || "",
-              addressLine1: lead.address || "",
-              country: lead.country || "",
-              state: lead.state || "",
-              city: lead.city || "",
-              pincode: lead.pincode || "",
+              website: lead.company?.website || "",
+              industry: lead.company?.industry?.name || "",
+              companyType: lead.company?.companyType || "",
+              addressLine1: lead.company?.address || "",
+              country: lead.company?.country?.name || "",
+              state: lead.company?.state?.name || "",
+              city: lead.company?.city?.name || "",
+              pincode: lead.company?.pincode || "",
               source: lead.source?.name || lead.source || "",
               priority: lead.priority?.name || lead.priority || "Medium",
+              budget: lead.budget ? String(lead.budget) : "",
+              currency: lead.currency || "USD",
+              expectedCloseDate: lead.expectedCloseDate
+                ? String(lead.expectedCloseDate).split("T")[0]
+                : "",
               assignedTo: lead.assignedTo?.name || "",
               notes: lead.notes || "",
             });
@@ -234,25 +253,47 @@ export default function AddLead() {
 
   const handleSave = async (data: LeadFormValues) => {
     try {
-      // 1. Resolve companyId
-      let companyId;
+      // 1. Resolve company (create or update with full enrichment)
+      const companyData = {
+        name: data.company.trim(),
+        website: data.website.trim() || null,
+        address: data.addressLine1.trim() || null,
+        pincode: data.pincode.trim() || null,
+        companyType: data.companyType.trim() || null,
+        industryId: industriesList.find((i) => i.name === data.industry)?.id ?? null,
+        countryId: countriesList.find((c) => c.name === data.country)?.id ?? null,
+        stateId: statesList.find((s) => s.name === data.state)?.id ?? null,
+        cityId: citiesList.find((c) => c.name === data.city)?.id ?? null
+      };
+
+      let companyId: number | null = null;
       const searchRes = await api.get('/companies', { params: { search: data.company.trim() } });
       const existingCompany = searchRes.data?.data?.find(
         (c: any) => c.name.toLowerCase() === data.company.trim().toLowerCase()
       );
+
       if (existingCompany) {
+        if (!hasPermission('companies', 'edit')) {
+          showToast("You don't have permission to update company details.", "error");
+          return;
+        }
+        await api.put(`/companies/${existingCompany.id}`, companyData);
         companyId = existingCompany.id;
       } else {
-        const newCompany = await api.post('/companies', { name: data.company.trim() });
+        if (!hasPermission('companies', 'create')) {
+          showToast("You don't have permission to create companies. Contact your admin.", "error");
+          return;
+        }
+        const newCompany = await api.post('/companies', companyData);
         companyId = newCompany.data?.data?.id;
       }
 
       // 2. Resolve relational IDs
       const selectedSource = sources.find((s) => s.name === data.source);
-      const sourceId = selectedSource ? selectedSource.id : sources[0]?.id;
+      const sourceId = selectedSource ? selectedSource.id : null;
 
       const selectedPriority = priorities.find((p) => p.name === data.priority);
-      const priorityId = selectedPriority ? selectedPriority.id : priorities[0]?.id;
+      const priorityId = selectedPriority ? selectedPriority.id : null;
 
       const selectedUser = users.find((u) => u.name === data.assignedTo);
       const assignedToId = selectedUser ? selectedUser.id : null;
@@ -265,18 +306,13 @@ export default function AddLead() {
         phone: data.phone,
         alternatePhone: data.alternatePhone,
         alternateEmail: data.alternateEmail,
-        website: data.website.trim(),
-        industry: data.industry,
-        companyType: data.companyType,
-        address: data.addressLine1.trim(),
-        country: data.country,
-        state: data.state,
-        city: data.city,
-        pincode: data.pincode,
         companyId,
         sourceId,
         priorityId,
         assignedToId,
+        budget: data.budget !== "" ? Number(data.budget) : null,
+        currency: data.currency || "USD",
+        expectedCloseDate: data.expectedCloseDate || null,
         requirements: data.notes.trim()
       };
 
@@ -288,8 +324,8 @@ export default function AddLead() {
         showToast("Lead created successfully.", "success");
       }
       navigate("/leads");
-    } catch (err) {
-      showToast("Failed to save lead.", "error");
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to save lead.", "error");
     }
   };
 
@@ -513,12 +549,11 @@ export default function AddLead() {
                 </div>
                 <div className="sm:col-span-2">
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Website <span className="text-error-500">*</span>
+                    Website
                   </label>
                   <Controller
                     name="website"
                     control={control}
-                    rules={{ required: "Website is required" }}
                     render={({ field }) => (
                       <Input
                         {...field}
@@ -607,12 +642,11 @@ export default function AddLead() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Address Line <span className="text-error-500">*</span>
+                    Address Line
                   </label>
                   <Controller
                     name="addressLine1"
                     control={control}
-                    rules={{ required: "Address line 1 is required" }}
                     render={({ field }) => (
                       <Input {...field} type="text" placeholder="Floor, Block, Street Address" error={!!errors.addressLine1} />
                     )}
@@ -623,12 +657,11 @@ export default function AddLead() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Country <span className="text-error-500">*</span>
+                    Country
                   </label>
                   <Controller
                     name="country"
                     control={control}
-                    rules={{ required: "Country is required" }}
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={countryOptions}
@@ -648,12 +681,11 @@ export default function AddLead() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    State <span className="text-error-500">*</span>
+                    State
                   </label>
                   <Controller
                     name="state"
                     control={control}
-                    rules={{ required: "State is required" }}
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={stateOptions}
@@ -672,12 +704,11 @@ export default function AddLead() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    City <span className="text-error-500">*</span>
+                    City
                   </label>
                   <Controller
                     name="city"
                     control={control}
-                    rules={{ required: "City is required" }}
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={cityOptions}
@@ -772,6 +803,56 @@ export default function AddLead() {
                   {errors.priority && (
                     <span className="mt-1 text-xs text-error-600 block">{errors.priority.message}</span>
                   )}
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Budget
+                  </label>
+                  <Controller
+                    name="budget"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        type="number"
+                        min="0"
+                        step={0.01}
+                        placeholder="Enter budget amount"
+                      />
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Currency
+                  </label>
+                  <Controller
+                    name="currency"
+                    control={control}
+                    render={({ field: { value, onChange } }) => (
+                      <Select
+                        options={["USD", "INR", "EUR", "GBP", "AUD"].map((c) => ({
+                          value: c,
+                          label: c,
+                        }))}
+                        placeholder="Select Currency"
+                        onChange={onChange}
+                        defaultValue={value || "USD"}
+                      />
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Expected Close Date
+                  </label>
+                  <Controller
+                    name="expectedCloseDate"
+                    control={control}
+                    render={({ field }) => (
+                      <Input {...field} type="date" />
+                    )}
+                  />
                 </div>
               </div>
             </div>
