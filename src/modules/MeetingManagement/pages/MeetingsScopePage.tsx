@@ -91,7 +91,10 @@ export default function MeetingsScopePage() {
     fetchMeetings();
     const loadLostReasons = async () => {
       try {
-        const lostReasonsData = await masterService.getMasterItems("LOST_REASON");
+        // The lost-reason dropdown only offers new selections, so fetching
+        // only ACTIVE records here is safe; the mock fallback below already
+        // filters to Active as well.
+        const lostReasonsData = await masterService.getMasterItems("LOST_REASON", undefined, { status: "Active" });
         setLostReasons(lostReasonsData.map((x: any) => ({ value: x.name, label: x.name })));
       } catch {
         setLostReasons(LOST_REASONS.filter((r: any) => r.status === "Active").map((r: any) => ({ value: r.name, label: r.name })));

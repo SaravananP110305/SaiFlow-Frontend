@@ -132,17 +132,21 @@ export default function AddLead() {
           userService.getUsers()
         ]);
         
+        // Keep full raw lists so existing records that reference an inactive
+        // master item can still resolve during Edit mode; only expose ACTIVE
+        // records as selectable dropdown options.
         setSources(sourcesData);
         setPriorities(prioritiesData);
         setCountriesList(countriesData);
         setUsers(usersData || []);
 
-        setSourceOptions(sourcesData.map((x: any) => ({ value: x.name, label: x.name })));
-        setPriorityOptions(prioritiesData.map((x: any) => ({ value: x.name, label: x.name })));
-        setCompanyTypeOptions(compTypesData.map((x: any) => ({ value: x.name, label: x.name })));
-        setCountryOptions(countriesData.map((x: any) => ({ value: x.name, label: x.name })));
-        setIndustryOptions(industriesData.map((x: any) => ({ value: x.name, label: x.name })));
-        setDesignationOptions(designationsData.map((x: any) => ({ value: x.name, label: x.name })));
+        const activeOnly = (items: any[]) => (items || []).filter((x: any) => x.status === "Active");
+        setSourceOptions(activeOnly(sourcesData).map((x: any) => ({ value: x.name, label: x.name })));
+        setPriorityOptions(activeOnly(prioritiesData).map((x: any) => ({ value: x.name, label: x.name })));
+        setCompanyTypeOptions(activeOnly(compTypesData).map((x: any) => ({ value: x.name, label: x.name })));
+        setCountryOptions(activeOnly(countriesData).map((x: any) => ({ value: x.name, label: x.name })));
+        setIndustryOptions(activeOnly(industriesData).map((x: any) => ({ value: x.name, label: x.name })));
+        setDesignationOptions(activeOnly(designationsData).map((x: any) => ({ value: x.name, label: x.name })));
         setEmployeeOptions((usersData || []).filter((x: any) => x.status === "Active" || x.status === undefined).map((x: any) => ({ value: x.name, label: x.name })));
       } catch (err) {
         console.error("Failed to load drop-down lists", err);
@@ -161,8 +165,9 @@ export default function AddLead() {
       if (!selectedCountryObj) return;
       try {
         const states = await masterService.getMasterItems("STATE", selectedCountryObj.id);
-        setStateOptions(states.map((s: any) => ({ value: s.name, label: s.name })));
+        // Keep the full list for cascade resolution, show only ACTIVE states.
         setStatesList(states);
+        setStateOptions(states.filter((s: any) => s.status === "Active").map((s: any) => ({ value: s.name, label: s.name })));
       } catch (err) {
         console.error("Failed to load states", err);
       }
@@ -180,7 +185,7 @@ export default function AddLead() {
       if (!selectedStateObj) return;
       try {
         const cities = await masterService.getMasterItems("CITY", selectedStateObj.id);
-        setCityOptions(cities.map((c: any) => ({ value: c.name, label: c.name })));
+        setCityOptions(cities.filter((c: any) => c.status === "Active").map((c: any) => ({ value: c.name, label: c.name })));
       } catch (err) {
         console.error("Failed to load cities", err);
       }

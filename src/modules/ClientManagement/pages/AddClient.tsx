@@ -72,11 +72,15 @@ export default function AddClient() {
           masterService.getMasterItems("PAYMENT_TYPE")
         ]);
         
+        // Keep the full raw country list so the country → state → city cascade
+        // still resolves for existing records in Edit mode, but only expose
+        // ACTIVE records as selectable dropdown options.
         setCountriesList(countriesData);
-        setCountryOptions(countriesData.map((x: any) => ({ value: x.name, label: x.name })));
-        setIndustryOptions(industriesData.map((x: any) => ({ value: x.name, label: x.name })));
-        setDesignationOptions(designationsData.map((x: any) => ({ value: x.name, label: x.name })));
-        setPaymentTypeOptions(paymentTypesData.map((x: any) => ({ value: x.name, label: x.name })));
+        const activeOnly = (items: any[]) => (items || []).filter((x: any) => x.status === "Active");
+        setCountryOptions(activeOnly(countriesData).map((x: any) => ({ value: x.name, label: x.name })));
+        setIndustryOptions(activeOnly(industriesData).map((x: any) => ({ value: x.name, label: x.name })));
+        setDesignationOptions(activeOnly(designationsData).map((x: any) => ({ value: x.name, label: x.name })));
+        setPaymentTypeOptions(activeOnly(paymentTypesData).map((x: any) => ({ value: x.name, label: x.name })));
       } catch (err) {
         console.error("Failed to load drop-downs in AddClient", err);
       }
@@ -94,8 +98,9 @@ export default function AddClient() {
       if (!selectedCountryObj) return;
       try {
         const states = await masterService.getMasterItems("STATE", selectedCountryObj.id);
-        setStateOptions(states.map((s: any) => ({ value: s.name, label: s.name })));
+        // Keep the full list for cascade resolution, show only ACTIVE states.
         setStatesList(states);
+        setStateOptions(states.filter((s: any) => s.status === "Active").map((s: any) => ({ value: s.name, label: s.name })));
       } catch (err) {
         console.error(err);
       }
@@ -113,7 +118,7 @@ export default function AddClient() {
       if (!selectedStateObj) return;
       try {
         const cities = await masterService.getMasterItems("CITY", selectedStateObj.id);
-        setCityOptions(cities.map((c: any) => ({ value: c.name, label: c.name })));
+        setCityOptions(cities.filter((c: any) => c.status === "Active").map((c: any) => ({ value: c.name, label: c.name })));
       } catch (err) {
         console.error(err);
       }

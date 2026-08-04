@@ -67,10 +67,13 @@ export default function AddProposal() {
   useEffect(() => {
     const loadDropdownData = async () => {
       try {
+        // Values are stored as names (not IDs) and edit-mode defaults are
+        // hardcoded, so fetching only ACTIVE records here is safe and keeps
+        // the dropdowns consistent with the rest of the application.
         const [servicesData, paymentTypesData, techStackData, leadsData] = await Promise.all([
-          masterService.getMasterItems("SERVICE"),
-          masterService.getMasterItems("PAYMENT_TYPE"),
-          masterService.getMasterItems("TECH_STACK"),
+          masterService.getMasterItems("SERVICE", undefined, { status: "Active" }),
+          masterService.getMasterItems("PAYMENT_TYPE", undefined, { status: "Active" }),
+          masterService.getMasterItems("TECH_STACK", undefined, { status: "Active" }),
           leadService.getLeads({ limit: 100 })
         ]);
         
