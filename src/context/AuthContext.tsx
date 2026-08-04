@@ -17,11 +17,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any | null>(null);
+  const [permissions, setPermissions] = useState<any>({});
   const [accessToken, setAccessTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const clearAuthState = () => {
     setUser(null);
+    setPermissions({});
     setAccessTokenState(null);
     setAccessToken(null);
   };
@@ -40,6 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAccessTokenState(token);
         const userData = await authService.getMe();
         setUser(userData);
+        const privileges = await authService.getPrivileges();
+        setPermissions(privileges?.permissions || {});
       } catch (error) {
         clearAuthState();
         console.log('No active session found.');
@@ -58,10 +62,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (credentials: any) => {
     setIsLoading(true);
     try {
-      const data = await authService.login(credentials);
-      setUser(data.user);
-      setAccessTokenState(data.accessToken);
-      return data;
+      const token = await authService.login(credentials);
+      setAccessTokenState(token);
+      const userData = await authService.getMe();
+      setUser(userData);
+      const privileges = await authService.getPrivileges();
+      setPermissions(privileges?.permissions || {});
+      return token;
     } finally {
       setIsLoading(false);
     }
@@ -88,18 +95,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userData = await authService.getMe();
       setUser(userData);
+      const privileges = await authService.getPrivileges();
+      setPermissions(privileges?.permissions || {});
     } catch (error) {
       console.error('Failed to refetch user:', error);
     }
   };
 
   const hasPermission = (module: string, action: string): boolean => {
-    if (!user || !user.role) return false;
-    
-    // Administrator role bypasses all permissions
-    if (user.role.name === 'Administrator') return true;
+    if (!user) return false;
 
-    const permissions = user.role.permissions || {};
+    // Administrator role bypasses all permissions
+    if (user.role?.name === 'Administrator') return true;
+
     const moduleActions = permissions[module] || [];
     return moduleActions.includes(action);
   };

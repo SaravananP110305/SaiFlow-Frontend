@@ -2,27 +2,32 @@ import api, { setAccessToken, refreshAccessToken } from './api';
 
 export const authService = {
   login: async (credentials: any) => {
-    const response = await api.post('/auth/sessions', credentials, {
+    const response = await api.post('/auth/login', credentials, {
       skipAuthRefresh: true
     });
     const token = response.data?.data?.accessToken;
     if (token) {
       setAccessToken(token);
     }
-    return response.data?.data;
+    return token;
   },
 
   logout: async () => {
     try {
-      await api.delete('/auth/sessions');
+      await api.delete('/auth/logout');
     } finally {
       setAccessToken(null);
     }
   },
 
   getMe: async () => {
-    const response = await api.get('/auth/profile');
+    const response = await api.get('/auth/me');
     return response.data?.data?.user;
+  },
+
+  getPrivileges: async () => {
+    const response = await api.get('/auth/privileges');
+    return response.data?.data;
   },
 
   refreshToken: async () => {
@@ -30,7 +35,7 @@ export const authService = {
   },
 
   changePassword: async (data: any) => {
-    const response = await api.patch('/auth/profile/password', data);
+    const response = await api.patch('/auth/change-password', data);
     return response.data;
   }
 };

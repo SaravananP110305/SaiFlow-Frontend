@@ -61,7 +61,7 @@ const isSessionEndpoint = (url?: string) => {
     return false;
   }
 
-  return /\/auth\/sessions\/?$/.test(url);
+  return /\/auth\/login\/?$/.test(url) || /\/auth\/refresh\/?$/.test(url);
 };
 
 const shouldSkipRefresh = (config?: RetryableRequestConfig) => {
@@ -86,7 +86,7 @@ export const refreshAccessToken = async () => {
   if (!refreshPromise) {
     refreshPromise = axios
       .put(
-        `${getApiBaseUrl()}/auth/sessions`,
+        `${getApiBaseUrl()}/auth/refresh`,
         {},
         {
           withCredentials: true,
