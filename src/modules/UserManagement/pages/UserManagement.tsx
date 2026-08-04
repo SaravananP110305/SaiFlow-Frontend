@@ -40,7 +40,7 @@ const adaptUserToFrontend = (backendUser: any): User => {
   return {
     id: backendUser.id,
     employeeId: `EMP-${String(backendUser.id).padStart(3, "0")}`,
-    name: `${backendUser.firstName} ${backendUser.lastName}`.trim(),
+    name: backendUser.name,
     email: backendUser.email,
     phone: backendUser.phone || "",
     role: backendUser.role?.name || "Guest User",

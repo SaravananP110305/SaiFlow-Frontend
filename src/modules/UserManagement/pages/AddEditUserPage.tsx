@@ -16,16 +16,15 @@ import { FiEye, FiEyeOff } from "react-icons/fi";
 interface User {
   id: number;
   employeeId: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   phone: string;
+  department: string;
   roleId: number;
   status: "ACTIVE" | "INACTIVE";
   role?: {
     id: number;
     name: string;
-    description: string;
   };
 }
 
@@ -111,14 +110,13 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
           const userRes = await userService.getUserById(Number(id));
           if (userRes) {
             setUser(userRes);
-            const name = `${userRes.firstName} ${userRes.lastName}`.trim();
             reset({
               employeeId: `EMP-${String(userRes.id).padStart(3, "0")}`,
-              name,
+              name: userRes.name || "",
               email: userRes.email,
               phone: userRes.phone || "",
               role: String(userRes.roleId),
-              department: userRes.role?.description || "",
+              department: userRes.department || "",
             });
           } else {
             showToast("User not found.", "error");
@@ -148,13 +146,9 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
   const handleSave = async (data: UserFormValues) => {
     if (mode === "view") return;
 
-    const parts = data.name.trim().split(/\s+/);
-    const firstName = parts[0] || "";
-    const lastName = parts.slice(1).join(" ") || "";
-
     const payload = {
-      firstName,
-      lastName,
+      name: data.name.trim(),
+      department: data.department || "",
       email: data.email.trim(),
       phone: data.phone.trim(),
       roleId: Number(data.role),

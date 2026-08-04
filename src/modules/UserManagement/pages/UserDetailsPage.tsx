@@ -119,7 +119,7 @@ export default function UserDetailsPage() {
         const response = await userService.getUserById(userId);
         setUser({
           id: response.id,
-          name: `${response.firstName} ${response.lastName}`.trim(),
+          name: response.name,
           email: response.email,
           phone: response.phone || "",
           role: response.role?.name || "Unassigned",

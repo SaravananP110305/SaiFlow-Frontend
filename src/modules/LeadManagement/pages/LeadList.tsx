@@ -57,8 +57,8 @@ const adaptLeadToFrontend = (backendLead: any): Lead => {
     phone: backendLead.contactPhone || "",
     status: mapStatusToFrontend(backendLead.status) as any,
     priority: (backendLead.priority?.name || "Medium") as any,
-    assignedTo: backendLead.assignedTo 
-      ? `${backendLead.assignedTo.firstName} ${backendLead.assignedTo.lastName}`.trim()
+    assignedTo: backendLead.assignedTo
+      ? backendLead.assignedTo.name
       : "Unassigned",
     source: backendLead.source?.name || "",
     industry: backendLead.company?.industry?.name || "",
@@ -230,7 +230,7 @@ export default function LeadList() {
 
   const assigneeOptions = useMemo(() => [
     { value: "all", label: "All Assignees" },
-    ...users.map((u) => ({ value: `${u.firstName} ${u.lastName}`.trim(), label: `${u.firstName} ${u.lastName}`.trim() })),
+    ...users.map((u) => ({ value: u.name, label: u.name })),
   ], [users]);
 
   const industryOptions = useMemo(() => [
@@ -565,7 +565,7 @@ export default function LeadList() {
                 >
                   <option value="">Select Assignee...</option>
                   {users.map((u) => (
-                    <option key={u.id} value={String(u.id)}>{`${u.firstName} ${u.lastName}`.trim()}</option>
+                    <option key={u.id} value={String(u.id)}>{u.name}</option>
                   ))}
                 </select>
                 <Button size="sm" onClick={handleBulkReassign} disabled={!bulkAssignee}>
@@ -686,7 +686,7 @@ export default function LeadList() {
                         </TableCell>
                         <TableCell className="px-5 py-4 text-theme-sm whitespace-nowrap">
                           <select
-                            value={users.find(u => `${u.firstName} ${u.lastName}`.trim() === lead.assignedTo)?.id || ""}
+                            value={users.find(u => u.name === lead.assignedTo)?.id || ""}
                             onChange={(e) => handleDirectAssign(lead.id, e.target.value)}
                             className="h-9 w-40 appearance-none rounded-lg border border-gray-300 bg-transparent px-3 py-1.5 pr-8 text-xs shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
                             style={{
@@ -705,7 +705,7 @@ export default function LeadList() {
                                 value={String(u.id)}
                                 className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100"
                               >
-                                {`${u.firstName} ${u.lastName}`.trim()}
+                                {u.name}
                               </option>
                             ))}
                           </select>
@@ -839,7 +839,7 @@ export default function LeadList() {
                       <div>
                         <span className="block text-gray-400 dark:text-gray-500 mb-0.5">Assigned To</span>
                         <select
-                          value={users.find(u => `${u.firstName} ${u.lastName}`.trim() === lead.assignedTo)?.id || ""}
+                          value={users.find(u => u.name === lead.assignedTo)?.id || ""}
                           onChange={(e) => handleDirectAssign(lead.id, e.target.value)}
                           className="h-8 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-2.5 py-1 pr-7 text-xs shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
                           style={{
@@ -858,7 +858,7 @@ export default function LeadList() {
                               value={String(u.id)}
                               className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100"
                             >
-                              {`${u.firstName} ${u.lastName}`.trim()}
+                              {u.name}
                             </option>
                           ))}
                         </select>
