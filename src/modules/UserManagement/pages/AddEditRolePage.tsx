@@ -15,6 +15,7 @@ import {
   PermissionAction,
   Role,
   buildDefaultPermissions,
+  formatRoleId,
   permissionActions,
   permissionModules,
 } from "./UserRoleManagement";
@@ -51,6 +52,7 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
   const { user: currentUser, refetchUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<Role | null>(null);
+  const [permissionsError, setPermissionsError] = useState<string | null>(null);
 
   const defaultPermissionsList = useMemo(() => buildDefaultPermissions(), []);
 
@@ -176,12 +178,23 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
     }
 
     setValue("permissions", updatedPermissions, { shouldDirty: true });
+    setPermissionsError(null);
   };
 
   const handleSave = async (data: RoleFormValues) => {
     if (mode === "view") {
       return;
     }
+
+    const hasAnyPermission = data.permissions.some((permission) =>
+      permissionActions.some((action) => permission[action])
+    );
+
+    if (!hasAnyPermission) {
+      setPermissionsError("At least one module permission must be selected.");
+      return;
+    }
+    setPermissionsError(null);
 
     const payload = {
       name: data.roleName.trim(),
@@ -207,6 +220,12 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
   };
 
   const handleFormError = () => {
+    const hasAnyPermission = currentPermissions.some((permission) =>
+      permissionActions.some((action) => permission[action])
+    );
+    if (!hasAnyPermission) {
+      setPermissionsError("At least one module permission must be selected.");
+    }
     showToast("Please fill all required fields correctly.", "error");
   };
 
@@ -256,14 +275,30 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
                   </span>
                 )}
               </div>
+              {role && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Role ID
+                  </label>
+                  <Input
+                    type="text"
+                    value={formatRoleId(role.id)}
+                    disabled
+                    className="cursor-not-allowed opacity-70"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
             <div className="border-b border-gray-100 p-6 dark:border-white/[0.05]">
               <h3 className="text-sm font-semibold text-gray-800 dark:text-white/95">
-                Module Permissions
+                Module Permissions <span className="text-error-500">*</span>
               </h3>
+              {permissionsError && (
+                <span className="mt-1.5 block text-xs text-error-600">{permissionsError}</span>
+              )}
             </div>
 
             <div className="overflow-x-auto">

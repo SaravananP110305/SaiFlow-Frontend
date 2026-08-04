@@ -8,9 +8,9 @@ import Input from "../../../components/form/input/InputField";
 import Switch from "../../../components/form/switch/Switch";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
-import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
+// import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
 import { useDebounce } from "../../../hooks/useDebounce";
-import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
+// import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import { useToast } from "../../../hooks/useToast";
 import { useAuth } from "../../../context/AuthContext";
@@ -51,7 +51,6 @@ export interface Permission {
 export interface Role {
   id: number;
   roleName: string;
-  description?: string;
   status: "Active" | "Inactive";
   permissions: Permission[];
 }
@@ -66,7 +65,6 @@ interface PermissionModuleConfig {
 export const permissionModules: PermissionModuleConfig[] = [
   { name: "Dashboard", key: "dashboard", actions: ["view"] },
   { name: "Manage Users", key: "users", actions: ["view", "create", "edit", "delete"], subItems: ["User Roles", "Users"] },
-  { name: "Roles", key: "roles", actions: ["view", "create", "edit", "delete"] },
   { name: "Leads", key: "leads", actions: ["view", "create", "edit", "delete", "assign"] },
   { name: "Connect", key: "connect", actions: ["view", "create", "edit", "delete"], subItems: ["Contacts", "Follow-Ups"] },
   { name: "Meetings", key: "meetings", actions: ["view", "create", "edit", "delete"] },
@@ -153,6 +151,9 @@ export const syncPermissions = (savedPermissions: Permission[]): Permission[] =>
   });
 };
 
+export const formatRoleId = (id: number): string =>
+  `ROL-${String(id).padStart(3, "0")}`;
+
 export default function UserRoleManagement() {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -169,8 +170,8 @@ export default function UserRoleManagement() {
   const [sortField, setSortField] = useState<keyof Role>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  // const [statusFilter, setStatusFilter] = useState("all");
+  // const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
 
   const deleteModal = useModal();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
@@ -190,8 +191,7 @@ export default function UserRoleManagement() {
         rawRoles.map((role: any) => ({
           id: role.id,
           roleName: role.name,
-          description: role.description || "",
-          status: "Active",
+          status: role.status === "Inactive" ? "Inactive" : "Active",
           permissions: [],
         }))
       );
@@ -238,12 +238,17 @@ export default function UserRoleManagement() {
     deleteModal.closeModal();
   };
 
-  const handleToggleStatus = (role: Role, checked: boolean) => {
+  const handleToggleStatus = async (role: Role, checked: boolean) => {
     const newStatus: Role["status"] = checked ? "Active" : "Inactive";
-    setRoles((previousRoles) =>
-      previousRoles.map((item) => (item.id === role.id ? { ...item, status: newStatus } : item))
-    );
-    showToast("Role status toggle is simulated locally.", "warning");
+    try {
+      await roleService.updateRole(role.id, { status: newStatus });
+      setRoles((previousRoles) =>
+        previousRoles.map((item) => (item.id === role.id ? { ...item, status: newStatus } : item))
+      );
+      showToast(`"${role.roleName}" marked as ${newStatus}.`, "success");
+    } catch (error: any) {
+      showToast(error.response?.data?.message || "Failed to update role status.", "error");
+    }
   };
 
   const handleSort = (field: keyof Role) => {
@@ -330,7 +335,8 @@ export default function UserRoleManagement() {
             />
           </div>
 
-          <div className="relative">
+          {/* Status filter (commented out) */}
+          {/* <div className="relative">
             <button
               onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
               className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-205 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
@@ -367,7 +373,7 @@ export default function UserRoleManagement() {
                 ))}
               </ul>
             </Dropdown>
-          </div>
+          </div> */}
         </div>
 
         {hasPermission("roles", "create") && (
@@ -393,7 +399,13 @@ export default function UserRoleManagement() {
                   isHeader
                   className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[100px]"
                 >
-                  {renderSortHeader("S.No", "id", true)}
+                  S.No
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[100px]"
+                >
+                  {renderSortHeader("Role ID", "id", true)}
                 </TableCell>
                 <TableCell
                   isHeader
@@ -418,7 +430,7 @@ export default function UserRoleManagement() {
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="px-5 py-8 text-center text-sm text-gray-500">
+                  <TableCell colSpan={5} className="px-5 py-8 text-center text-sm text-gray-500">
                     <div className="flex items-center justify-center gap-2">
                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
                       <span>Loading Roles...</span>
@@ -426,13 +438,16 @@ export default function UserRoleManagement() {
                   </TableCell>
                 </TableRow>
               ) : paginatedRoles.length > 0 ? (
-                paginatedRoles.map((role) => (
+                paginatedRoles.map((role, index) => (
                   <TableRow
                     key={role.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                   >
+                    <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 text-center">
+                      {(currentPage - 1) * rowsPerPage + index + 1}
+                    </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 text-center">
-                      {role.id}
+                      {formatRoleId(role.id)}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 font-medium">
                       {role.roleName}
@@ -482,7 +497,7 @@ export default function UserRoleManagement() {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     No roles match your search criteria.
