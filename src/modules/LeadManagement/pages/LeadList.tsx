@@ -120,8 +120,8 @@ export default function LeadList() {
     try {
       const [resUsers, indData, srcData] = await Promise.all([
         userService.getAssignees(),
-        masterService.getMasterItems("INDUSTRY"),
-        masterService.getMasterItems("LEAD_SOURCE")
+        masterService.getMasterItems("INDUSTRY", undefined, { status: "Active" }),
+        masterService.getMasterItems("LEAD_SOURCE", undefined, { status: "Active" })
       ]);
       setUsers(resUsers.data || []);
       setIndustries(indData || []);

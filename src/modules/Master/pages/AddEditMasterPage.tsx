@@ -82,6 +82,11 @@ const MASTER_CONFIGS: Record<
     itemNameSingular: "Payment Type",
     itemNamePlural: "Payment Types",
   },
+  "followup-types": {
+    pageTitle: "Follow-Up Type",
+    itemNameSingular: "Follow-Up Type",
+    itemNamePlural: "Follow-Up Types",
+  },
 };
 
 export default function AddEditMasterPage() {
@@ -162,10 +167,14 @@ export default function AddEditMasterPage() {
     loadDetails();
   }, [type, id, isEditMode]);
 
+  // Show all parents in the dropdown; inactive ones are marked "(Inactive)" and
+  // rendered in red to warn the user. They remain selectable.
   const parentOptions = useMemo(() => {
-    return parents
-      .filter((i) => i.status === "Active")
-      .map((i) => ({ value: String(i.id), label: i.name }));
+    return parents.map((i) => ({
+      value: String(i.id),
+      label: i.status === "Active" ? i.name : `${i.name} (Inactive)`,
+      optionClassName: i.status === "Active" ? undefined : "text-error-600 dark:text-error-400",
+    }));
   }, [parents]);
 
   const handleSave = async (e: React.FormEvent) => {

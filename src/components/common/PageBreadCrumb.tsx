@@ -58,6 +58,7 @@ const MASTER_LABELS: Record<string, string> = {
   services: "Service",
   "company-types": "Company Type",
   "payment-types": "Payment Type",
+  "followup-types": "Follow-Up Type",
 };
 
 const MASTER_SINGULARS: Record<string, string> = {
@@ -73,6 +74,7 @@ const MASTER_SINGULARS: Record<string, string> = {
   services: "Service",
   "company-types": "Company Type",
   "payment-types": "Payment Type",
+  "followup-types": "Follow-Up Type",
 };
 
 const MASTER_KEYS: Record<string, string> = {
@@ -88,6 +90,7 @@ const MASTER_KEYS: Record<string, string> = {
   services: "saiflow_master_services",
   "company-types": "saiflow_master_company_types",
   "payment-types": "saiflow_master_payment_types",
+  "followup-types": "saiflow_master_followup_types",
 };
 
 const getMasterItemName = (tab: string, id: string | number): string => {

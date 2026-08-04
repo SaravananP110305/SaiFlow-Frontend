@@ -351,13 +351,13 @@ export default function MasterConfigPage({
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {paginatedItems.length > 0 ? (
-                paginatedItems.map((item) => (
+                paginatedItems.map((item, index) => (
                   <TableRow
                     key={item.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                   >
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 text-center w-[70px]">
-                      {item.id}
+                      {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 font-medium w-[45%]">
                       {item.name}

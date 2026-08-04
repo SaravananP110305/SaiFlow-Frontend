@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 interface Option {
   value: string;
   label: string;
+  optionClassName?: string;
 }
 
 interface SelectProps {
@@ -51,6 +52,14 @@ const Select: React.FC<SelectProps> = ({
     uniqueOptions.push(option);
   }
 
+  // When the current value isn't present in the options (e.g. it references an
+  // inactive master record that was filtered out of the dropdown), render it as
+  // a disabled option so it stays visible in Edit mode without being selectable
+  // again for new selections.
+  const currentValueMissing =
+    !!selectedValue &&
+    !uniqueOptions.some((opt) => opt.value === selectedValue);
+
   return (
     <select
       disabled={disabled}
@@ -72,12 +81,22 @@ const Select: React.FC<SelectProps> = ({
           {placeholder}
         </option>
       )}
+      {/* Preserve the current (possibly filtered-out) value as a disabled option */}
+      {currentValueMissing && (
+        <option
+          value={selectedValue}
+          disabled
+          className="text-gray-700 dark:bg-gray-900 dark:text-gray-400"
+        >
+          {selectedValue}
+        </option>
+      )}
       {/* Map over deduplicated options */}
       {uniqueOptions.map((option) => (
         <option
           key={`${option.value}-${option.label}`}
           value={option.value}
-          className="text-gray-700 dark:bg-gray-900 dark:text-gray-400"
+          className={`text-gray-700 dark:bg-gray-900 dark:text-gray-400 ${option.optionClassName || ""}`}
         >
           {option.label}
         </option>
