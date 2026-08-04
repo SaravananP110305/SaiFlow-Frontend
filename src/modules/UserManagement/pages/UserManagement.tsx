@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { userService } from "../../../services/userService";
-import { roleService } from "../../../services/roleService";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
@@ -9,9 +8,7 @@ import Input from "../../../components/form/input/InputField";
 import Switch from "../../../components/form/switch/Switch";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
-import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
 import { useDebounce } from "../../../hooks/useDebounce";
-import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import { useToast } from "../../../hooks/useToast";
 import { useAuth } from "../../../context/AuthContext";
@@ -35,12 +32,9 @@ interface User {
   email: string;
   phone: string;
   role: string;
-  department: string;
   status: "Active" | "Inactive";
   password?: string;
 }
-
-
 
 const adaptUserToFrontend = (backendUser: any): User => {
   return {
@@ -50,7 +44,6 @@ const adaptUserToFrontend = (backendUser: any): User => {
     email: backendUser.email,
     phone: backendUser.phone || "",
     role: backendUser.role?.name || "Guest User",
-    department: backendUser.role?.description || "",
     status: backendUser.status === "ACTIVE" ? "Active" : "Inactive"
   };
 };
@@ -60,23 +53,16 @@ export default function UserManagement() {
   const { showToast } = useToast();
   const { hasPermission, user: loggedInUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
-  const [roles, setRoles] = useState<any[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<keyof User>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-
-  // Dropdown states
-  const [isRoleFilterOpen, setIsRoleFilterOpen] = useState(false);
-  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
 
   // Delete modal
   const deleteModal = useModal();
@@ -85,13 +71,10 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const activeRole = roles.find((r) => r.name === roleFilter);
       const res = await userService.getUsers({
         page: currentPage,
         limit: rowsPerPage,
-        search: debouncedSearchQuery || undefined,
-        status: statusFilter !== "all" ? (statusFilter === "Active" ? "ACTIVE" : "INACTIVE") : undefined,
-        roleId: activeRole ? activeRole.id : undefined
+        search: debouncedSearchQuery || undefined
       });
 
       const rawUsers = res.data || [];
@@ -105,22 +88,9 @@ export default function UserManagement() {
     }
   };
 
-  const loadRoles = async () => {
-    try {
-      const fetched = await roleService.getRoles();
-      setRoles(fetched);
-    } catch (err) {
-      console.error("Failed to load roles:", err);
-    }
-  };
-
-  useEffect(() => {
-    loadRoles();
-  }, []);
-
   useEffect(() => {
     fetchUsers();
-  }, [currentPage, rowsPerPage, debouncedSearchQuery, statusFilter, roleFilter, roles]);
+  }, [currentPage, rowsPerPage, debouncedSearchQuery]);
 
   // Handlers
   const handleOpenView = (user: User) => {
@@ -260,7 +230,8 @@ export default function UserManagement() {
             />
           </div>
 
-          {/* Custom Dropdown Filter for Role */}
+          {/* Role and Status filters temporarily disabled
+          // Custom Dropdown Filter for Role
           <div className="relative">
             <button
               onClick={() => setIsRoleFilterOpen(!isRoleFilterOpen)}
@@ -311,7 +282,7 @@ export default function UserManagement() {
             </Dropdown>
           </div>
 
-          {/* Custom Dropdown Filter for Status */}
+          // Custom Dropdown Filter for Status
           <div className="relative">
             <button
               onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
@@ -350,8 +321,8 @@ export default function UserManagement() {
               </ul>
             </Dropdown>
           </div>
+          */}
         </div>
-
         {/* Primary Action Button */}
         {hasPermission('users', 'create') && (
           <div>
@@ -411,12 +382,6 @@ export default function UserManagement() {
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >
-                  {renderSortHeader("Department", "department")}
-                </TableCell>
-                <TableCell
-                  isHeader
                   className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400"
                 >
                   {renderSortHeader("Status", "status", true)}
@@ -432,7 +397,7 @@ export default function UserManagement() {
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="px-5 py-8 text-center text-sm text-gray-500">
+                  <TableCell colSpan={8} className="px-5 py-8 text-center text-sm text-gray-500">
                     <div className="flex items-center justify-center gap-2">
                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
                       <span>Loading Users...</span>
@@ -440,13 +405,13 @@ export default function UserManagement() {
                   </TableCell>
                 </TableRow>
               ) : paginatedUsers.length > 0 ? (
-                paginatedUsers.map((user) => (
+                paginatedUsers.map((user, index) => (
                   <TableRow
                     key={user.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                   >
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 font-mono text-xs">
-                      {user.id}
+                      {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 font-mono text-xs tracking-wider">
                       {user.employeeId}
@@ -462,9 +427,6 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">
                       {user.role}
-                    </TableCell>
-                    <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">
-                      {user.department}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 text-center">
                       <div className="flex items-center justify-center">
@@ -511,7 +473,7 @@ export default function UserManagement() {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={8}
                     className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     No users match your search criteria.

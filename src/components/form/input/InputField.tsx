@@ -18,6 +18,7 @@ interface InputProps {
   error?: boolean;
   hint?: string;
   maxLength?: number;
+  suffix?: React.ReactNode;
 }
 
 const Input: FC<InputProps> = ({
@@ -37,8 +38,13 @@ const Input: FC<InputProps> = ({
   error = false,
   hint,
   maxLength,
+  suffix,
 }) => {
   let inputClasses = ` h-11 w-full rounded-lg border appearance-none px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:outline-hidden focus:ring-3  dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 ${className}`;
+
+  if (suffix) {
+    inputClasses += ` pr-10`;
+  }
 
   if (disabled) {
     inputClasses += ` text-gray-500 border-gray-300 opacity-40 bg-gray-100 cursor-not-allowed dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 opacity-40`;
@@ -67,6 +73,12 @@ const Input: FC<InputProps> = ({
         maxLength={maxLength}
         className={inputClasses}
       />
+
+      {suffix && (
+        <span className="absolute inset-y-0 right-0 flex items-center pr-3">
+          {suffix}
+        </span>
+      )}
 
       {hint && (
         <p

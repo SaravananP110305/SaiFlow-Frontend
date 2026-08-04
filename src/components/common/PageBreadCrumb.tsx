@@ -34,8 +34,8 @@ const getMeetingTitle = (id: string | number): string => {
 const getUserName = (id: string | number): string => {
   const users = getStorage<any[]>("saiflow_users", []);
   const user = users.find((u) => String(u.id) === String(id));
-  if (!user) return `User #${id}`;
-  return user.name || `User #${id}`;
+  if (!user) return "User Details";
+  return user.name || "User Details";
 };
 
 const getProposalNo = (id: string | number): string => {

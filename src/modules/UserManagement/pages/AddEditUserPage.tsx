@@ -11,6 +11,7 @@ import { DEPARTMENTS } from "../../Master/data/masterData";
 import { userService } from "../../../services/userService";
 import { roleService } from "../../../services/roleService";
 import { masterService } from "../../../services/masterService";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 
 interface User {
   id: number;
@@ -82,6 +83,8 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
   });
 
   const watchPassword = watch("password");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -145,9 +148,9 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
   const handleSave = async (data: UserFormValues) => {
     if (mode === "view") return;
 
-    const parts = data.name.trim().split(" ");
+    const parts = data.name.trim().split(/\s+/);
     const firstName = parts[0] || "";
-    const lastName = parts.slice(1).join(" ") || "User";
+    const lastName = parts.slice(1).join(" ") || "";
 
     const payload = {
       firstName,
@@ -230,17 +233,17 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
               {/* Name */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Full Name <span className="text-error-500">*</span>
+                  Name <span className="text-error-500">*</span>
                 </label>
                 <Controller
                   name="name"
                   control={control}
-                  rules={{ required: "Full name is required" }}
+                  rules={{ required: "Name is required" }}
                   render={({ field }) => (
                     <Input
                       {...field}
                       type="text"
-                      placeholder="Enter Full Name"
+                      placeholder="Enter Name"
                       disabled={mode === "view"}
                       className={errors.name ? "border-error-500" : ""}
                     />
@@ -282,7 +285,9 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                   rules={{ required: "User role is required" }}
                   render={({ field: { value, onChange } }) => (
                     <Select
-                      options={roles.map((r) => ({ value: String(r.id), label: r.name }))}
+                      options={roles
+                        .filter((r: any) => r.status === "Active")
+                        .map((r) => ({ value: String(r.id), label: r.name }))}
                       placeholder="Select Role"
                       defaultValue={value}
                       disabled={mode === "view"}
@@ -344,9 +349,19 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                     render={({ field }) => (
                       <Input
                         {...field}
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         placeholder="Enter Password"
                         className={errors.password ? "border-error-500" : ""}
+                        suffix={
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+                            title={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? <FiEyeOff className="size-4" /> : <FiEye className="size-4" />}
+                          </button>
+                        }
                       />
                     )}
                   />
@@ -373,9 +388,19 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                     render={({ field }) => (
                       <Input
                         {...field}
-                        type="password"
+                        type={showConfirmPassword ? "text" : "password"}
                         placeholder="Re-Enter Password"
                         className={errors.confirmPassword ? "border-error-500" : ""}
+                        suffix={
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword((prev) => !prev)}
+                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+                            title={showConfirmPassword ? "Hide password" : "Show password"}
+                          >
+                            {showConfirmPassword ? <FiEyeOff className="size-4" /> : <FiEye className="size-4" />}
+                          </button>
+                        }
                       />
                     )}
                   />

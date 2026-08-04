@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
-  FiArrowLeft,
   FiBriefcase,
   FiCheckCircle,
-  FiEdit,
   FiMail,
   FiPhone,
   FiShield,
@@ -219,23 +217,6 @@ export default function UserDetailsPage() {
       />
       <PageBreadcrumb pageTitle="User Details" />
 
-      <div className="mb-5 flex items-center justify-between">
-        <button
-          onClick={() => navigate("/users")}
-          className="flex cursor-pointer items-center gap-1.5 text-sm text-gray-500 transition hover:text-gray-800 dark:hover:text-white"
-        >
-          <FiArrowLeft className="size-4" />
-          Back to List
-        </button>
-        <Button
-          size="sm"
-          onClick={() => navigate(`/users/${user.id}/edit`)}
-          startIcon={<FiEdit className="size-4" />}
-        >
-          Edit User
-        </Button>
-      </div>
-
       <div className="mb-5 rounded-xl border border-gray-200 bg-white px-6 py-6 dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-5">
           <div
@@ -307,31 +288,6 @@ export default function UserDetailsPage() {
                 </Badge>
               }
             />
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white p-5 lg:col-span-2 dark:border-white/[0.05] dark:bg-white/[0.03]">
-          <h3 className="mb-4 flex items-center gap-2 border-b border-gray-100 pb-2 text-sm font-semibold text-gray-700 dark:border-white/[0.05] dark:text-gray-300">
-            <FiShield className="size-4 text-brand-500" />
-            Account Summary
-          </h3>
-          <div className="flex flex-wrap items-center gap-6 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400 dark:text-gray-500">Role:</span>
-              <span className="font-medium text-gray-800 dark:text-white/90">{user.role}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400 dark:text-gray-500">Created:</span>
-              <span className="font-medium text-gray-800 dark:text-white/90">
-                {formatDate(user.createdAt)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400 dark:text-gray-500">Status:</span>
-              <Badge size="sm" color={getStatusBadgeColor(user.status)}>
-                {user.status}
-              </Badge>
-            </div>
           </div>
         </div>
       </div>
