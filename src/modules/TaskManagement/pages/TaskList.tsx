@@ -10,8 +10,8 @@ import { Modal } from "../../../components/ui/modal";
 import DatePicker from "../../../components/form/date-picker";
 import { formatDate } from "../../../utils/dateFormatter";
 import { useModal } from "../../../hooks/useModal";
-import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
-import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
+// import { Dropdown } from "../../../components/ui/dropdown/Dropdown"; // Status filter commented out
+// import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem"; // Status filter commented out
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import {
   Table,
@@ -32,14 +32,15 @@ export default function TaskList() {
   );
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  // setStatusFilter removed while the Status filter dropdown is commented out
+  const [statusFilter] = useState("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<keyof Task>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Dropdown states
-  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  // const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false); // Status filter commented out
 
   // Modal control states
   const formModal = useModal();
@@ -254,6 +255,7 @@ export default function TaskList() {
               }}
             />
           </div>
+          {/* Status filter (commented out per Task 1)
           <div className="relative">
             <button
               onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
@@ -301,6 +303,7 @@ export default function TaskList() {
               </ul>
             </Dropdown>
           </div>
+          */}
         </div>
         <Button onClick={handleOpenCreate} variant="primary" size="sm" startIcon={<FiPlus />}>
           Create Task

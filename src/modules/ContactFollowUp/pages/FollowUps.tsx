@@ -6,8 +6,8 @@ import Badge from "../../../components/ui/badge/Badge";
 import Input from "../../../components/form/input/InputField";
 import DatePicker from "../../../components/form/date-picker";
 import { formatDate, formatTime } from "../../../utils/dateFormatter";
-import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
-import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
+// import { Dropdown } from "../../../components/ui/dropdown/Dropdown"; // Filter dropdowns commented out
+// import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem"; // Filter dropdowns commented out
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import {
   Table,
@@ -23,18 +23,21 @@ import {
   getFollowUpStatusColor,
   type FollowUp,
 } from "../data/contactData";
-import { ASSIGNEES, initialLeads, type Lead } from "../../LeadManagement/data/leadsData";
+// ASSIGNEES removed from this import while the Assignee filter dropdown is commented out
+import { initialLeads, type Lead } from "../../LeadManagement/data/leadsData";
 import { useToast } from "../../../hooks/useToast";
 import { Modal } from "../../../components/ui/modal";
 import Button from "../../../components/ui/button/Button";
 import { FiCheckCircle, FiEye, FiXCircle, FiClock } from "react-icons/fi";
 
+/* Status filter commented out (per Task 1)
 const FOLLOW_UP_STATUS_OPTIONS = [
   { value: "all", label: "All Statuses" },
   { value: "Scheduled", label: "Scheduled" },
   { value: "Completed", label: "Completed" },
   { value: "Missed", label: "Missed" },
 ];
+*/
 
 export default function FollowUps() {
   const navigate = useNavigate();
@@ -55,14 +58,15 @@ export default function FollowUps() {
     return allFollowUps.filter((f) => f.assignedTo === currentUserName);
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  // setStatusFilter removed while the Status filter dropdown is commented out
+  const [statusFilter] = useState("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<keyof FollowUp>("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
-  const [assigneeFilter, setAssigneeFilter] = useState("all");
-  const [isAssigneeOpen, setIsAssigneeOpen] = useState(false);
+  // setIsStatusOpen / isAssigneeOpen states removed while the filter dropdowns are commented out
+  // setAssigneeFilter removed while the Assignee filter dropdown is commented out
+  const [assigneeFilter] = useState("all");
 
   const handleSort = (field: keyof FollowUp) => {
     if (sortField === field) {
@@ -396,6 +400,7 @@ export default function FollowUps() {
             />
           </div>
 
+          {/* Status filter (commented out per Task 1)
           <div className="relative">
             <button
               onClick={() => {
@@ -436,7 +441,9 @@ export default function FollowUps() {
               </ul>
             </Dropdown>
           </div>
+          */}
 
+          {/* Assignee filter (commented out per Task 1)
           {isAdmin && (
             <div className="relative">
               <button
@@ -479,6 +486,7 @@ export default function FollowUps() {
               </Dropdown>
             </div>
           )}
+          */}
         </div>
       </div>
 

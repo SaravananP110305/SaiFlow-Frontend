@@ -8,8 +8,8 @@ import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
-import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
-import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
+// import { Dropdown } from "../../../components/ui/dropdown/Dropdown"; // Status filter commented out
+// import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem"; // Status filter commented out
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import {
   Table,
@@ -30,14 +30,15 @@ export default function QaList() {
   );
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  // setStatusFilter removed while the Status filter dropdown is commented out
+  const [statusFilter] = useState("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<keyof QaTicket>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Dropdown states
-  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  // const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false); // Status filter commented out
 
   // Modal states
   const formModal = useModal();
@@ -257,6 +258,7 @@ export default function QaList() {
               }}
             />
           </div>
+          {/* Status filter (commented out per Task 1)
           <div className="relative">
             <button
               onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
@@ -304,6 +306,7 @@ export default function QaList() {
               </ul>
             </Dropdown>
           </div>
+          */}
         </div>
         <Button onClick={handleOpenCreate} variant="primary" size="sm" startIcon={<FiPlus />}>
           Log Defect

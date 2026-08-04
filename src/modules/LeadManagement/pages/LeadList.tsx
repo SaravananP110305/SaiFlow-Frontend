@@ -7,8 +7,8 @@ import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
-import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
-import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
+// import { Dropdown } from "../../../components/ui/dropdown/Dropdown"; // Filter dropdowns commented out
+// import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem"; // Filter dropdowns commented out
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import {
   Table,
@@ -80,25 +80,24 @@ export default function LeadList() {
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [industries, setIndustries] = useState<any[]>([]);
-  const [sources, setSources] = useState<any[]>([]);
+  // industries/sources getters removed while the filter dropdowns are commented out
+  const [, setIndustries] = useState<any[]>([]);
+  const [, setSources] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  // setAssigneeFilter removed while the Assignee filter dropdown is commented out
+  const [assigneeFilter] = useState("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<keyof Lead>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-  const [industryFilter, setIndustryFilter] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [isIndustryOpen, setIsIndustryOpen] = useState(false);
-  const [isSourceOpen, setIsSourceOpen] = useState(false);
-
-  // Filter dropdown open states
-  const [isAssigneeOpen, setIsAssigneeOpen] = useState(false);
+  // setIndustryFilter / setSourceFilter removed while the filter dropdowns are commented out
+  const [industryFilter] = useState("all");
+  const [sourceFilter] = useState("all");
+  // isIndustryOpen / isSourceOpen / isAssigneeOpen states removed while the filter dropdowns are commented out
 
   // Upload dialog state
   const [dragOver, setDragOver] = useState(false);
@@ -228,6 +227,7 @@ export default function LeadList() {
     setCurrentPage(1);
   };
 
+  /* Filter option lists commented out per Task 1
   const assigneeOptions = useMemo(() => [
     { value: "all", label: "All Assignees" },
     ...users.map((u) => ({ value: u.name, label: u.name })),
@@ -242,6 +242,7 @@ export default function LeadList() {
     { value: "all", label: "All Sources" },
     ...sources.filter((s: any) => s.status === "Active").map((s: any) => ({ value: s.name, label: s.name }))
   ], [sources]);
+  */
 
   const processedLeads = useMemo(() => {
     let result = [...leads];
@@ -392,8 +393,9 @@ export default function LeadList() {
             />
           </div>
 
+          {/* Filter dropdowns (Assignee, Industry, Source) commented out per Task 1
           <div className="flex items-center gap-3">
-            {/* Assignee Filter */}
+            // Assignee Filter
             <div className="relative">
               <button
                 onClick={() => {
@@ -433,7 +435,7 @@ export default function LeadList() {
               </Dropdown>
             </div>
 
-            {/* Industry Filter */}
+            // Industry Filter
             <div className="relative">
               <button
                 onClick={() => {
@@ -475,7 +477,7 @@ export default function LeadList() {
               </Dropdown>
             </div>
 
-            {/* Source Filter */}
+            // Source Filter
             <div className="relative">
               <button
                 onClick={() => {
@@ -517,6 +519,7 @@ export default function LeadList() {
               </Dropdown>
             </div>
           </div>
+          */}
         </div>
 
         {/* Action Buttons */}

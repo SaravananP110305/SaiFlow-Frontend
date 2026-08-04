@@ -8,9 +8,9 @@ import Switch from "../../../components/form/switch/Switch";
 import Input from "../../../components/form/input/InputField";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
-import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
+// import { Dropdown } from "../../../components/ui/dropdown/Dropdown"; // Status filter commented out
 import { useDebounce } from "../../../hooks/useDebounce";
-import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
+// import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem"; // Status filter commented out
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import {
   Table,
@@ -68,7 +68,7 @@ export default function MasterConfigPage({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Dropdown filter open states
-  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  // const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false); // Status filter commented out
 
   // Modal control states
   const deleteModal = useModal();
@@ -270,6 +270,7 @@ export default function MasterConfigPage({
           </div>
 
           {/* Custom Dropdown Filter for Status */}
+          {/* Commented out per Task 1: Status filter hidden
           <div className="relative">
             <button
               onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
@@ -310,6 +311,7 @@ export default function MasterConfigPage({
               </ul>
             </Dropdown>
           </div>
+          */}
         </div>
 
         {/* Primary Action Button */}

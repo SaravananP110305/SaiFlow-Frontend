@@ -6,10 +6,10 @@ import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
 import Input from "../../../components/form/input/InputField";
-import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
-import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
+// import { Dropdown } from "../../../components/ui/dropdown/Dropdown"; // Filter dropdowns commented out
+// import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem"; // Filter dropdowns commented out
 import { Pagination } from "../../../components/ui/pagination/Pagination";
-import { ChevronDownIcon } from "../../../icons";
+// import { ChevronDownIcon } from "../../../icons"; // Filter dropdowns commented out
 import Button from "../../../components/ui/button/Button";
 import {
   FiEye,
@@ -67,14 +67,17 @@ export default function ClientList() {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [handoverFilter, setHandoverFilter] = useState<string>("all");
+  // setHandoverFilter removed while the Onboarding filter dropdown is commented out
+  const [handoverFilter] = useState<string>("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<keyof Client>("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  // setSortField removed while the Sort dropdown is commented out
+  const [sortField] = useState<keyof Client>("id");
+  // setSortOrder removed while the Sort dropdown is commented out
+  const [sortOrder] = useState<"asc" | "desc">("asc");
 
-  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
-  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  // const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false); // Onboarding filter commented out
+  // const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false); // Sort dropdown commented out
 
   // ── Employees / Project Managers ───────────────────────────────────────────
   const employeesList = useMemo(() => {
@@ -285,6 +288,7 @@ export default function ClientList() {
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             />
           </div>
+          {/* Onboarding (status) filter (commented out per Task 1)
           <div className="relative">
             <button
               onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
@@ -320,8 +324,9 @@ export default function ClientList() {
               </ul>
             </Dropdown>
           </div>
+          */}
 
-          {/* Sort Dropdown */}
+          {/* Sort Dropdown (commented out per Task 1)
           <div className="relative">
             <button
               onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
@@ -363,6 +368,7 @@ export default function ClientList() {
               </ul>
             </Dropdown>
           </div>
+          */}
         </div>
       </div>
 

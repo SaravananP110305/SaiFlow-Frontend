@@ -3,8 +3,8 @@ import { useNavigate } from "react-router";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
 import Input from "../../../components/form/input/InputField";
-import { Dropdown } from "../../../components/ui/dropdown/Dropdown";
-import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem";
+// import { Dropdown } from "../../../components/ui/dropdown/Dropdown"; // Table filter dropdowns commented out
+// import { DropdownItem } from "../../../components/ui/dropdown/DropdownItem"; // Table filter dropdowns commented out
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
@@ -66,13 +66,13 @@ export default function Dashboard() {
   const proposals = getStorage<Proposal[]>("saiflow_proposals", initialProposals);
 
   // ── Dropdown states ─────────────────────────────────────────
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
-  const [isAssigneeOpen, setIsAssigneeOpen] = useState(false);
+  // isStatusOpen / isAssigneeOpen states removed while the Recent Leads filter dropdowns are commented out
 
   // ── Table state ─────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  // setStatusFilter / setAssigneeFilter removed while the filter dropdowns are commented out
+  const [statusFilter] = useState("all");
+  const [assigneeFilter] = useState("all");
   const [sortField, setSortField] = useState<keyof Lead>("sNo");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,14 +80,14 @@ export default function Dashboard() {
 
   // ── Today's call table state ─────────────────────────────────
   const [callSearchQuery, setCallSearchQuery] = useState("");
-  const [callStatusFilter, setCallStatusFilter] = useState("all");
-  const [callAssigneeFilter, setCallAssigneeFilter] = useState("all");
+  // setCallStatusFilter / setCallAssigneeFilter removed while the filter dropdowns are commented out
+  const [callStatusFilter] = useState("all");
+  const [callAssigneeFilter] = useState("all");
   const [callCurrentPage, setCallCurrentPage] = useState(1);
   const [callRowsPerPage, setCallRowsPerPage] = useState(5);
   const [callSortField, setCallSortField] = useState<keyof CallLead>("sNo");
   const [callSortOrder, setCallSortOrder] = useState<"asc" | "desc">("asc");
-  const [isCallStatusOpen, setIsCallStatusOpen] = useState(false);
-  const [isCallAssigneeOpen, setIsCallAssigneeOpen] = useState(false);
+  // isCallStatusOpen / isCallAssigneeOpen states removed while the Today's Lead Calls filter dropdowns are commented out
 
   // ── Today Lead Calls & Reassign Action ────────────────────────
   const todayCalls = useMemo<CallLead[]>(() => {
@@ -205,6 +205,7 @@ export default function Dashboard() {
     setCallCurrentPage(1);
   };
 
+  /* Filter option lists commented out per Task 1 / Task 2
   const statusOptions = [
     { value: "all", label: "All Statuses" },
     { value: "New", label: "New" },
@@ -226,6 +227,7 @@ export default function Dashboard() {
     { value: "all", label: "All Assignees" },
     ...ASSIGNEES.map((a) => ({ value: a, label: a })),
   ];
+  */
 
   const processedLeads = useMemo(() => {
     let result = [...localLeads];
@@ -522,6 +524,7 @@ export default function Dashboard() {
                 }}
               />
             </div>
+            {/* Today's Lead Calls filter dropdowns (Status, Assignee) commented out per Task 1
             <div className="flex items-center gap-3">
               <div className="relative">
                 <button
@@ -605,6 +608,7 @@ export default function Dashboard() {
                 </Dropdown>
               </div>
             </div>
+            */}
           </div>
         </div>
 
@@ -729,6 +733,7 @@ export default function Dashboard() {
                   onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                 />
               </div>
+              {/* Recent Leads filter dropdowns (Status, Assignee) commented out per Task 2
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <button
@@ -792,6 +797,7 @@ export default function Dashboard() {
                   </Dropdown>
                 </div>
               </div>
+              */}
             </div>
           </div>
 

@@ -169,12 +169,13 @@ export default function QuotationList() {
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  // setStatusFilter removed while the Status filter dropdown is commented out
+  const [statusFilter] = useState<string>("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<keyof Proposal>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  // const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false); // Status filter commented out
 
   // Status dropdown (per row in list view)
   const [activeStatusDropdown, setActiveStatusDropdown] = useState<number | null>(null);
@@ -438,6 +439,7 @@ export default function QuotationList() {
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             />
           </div>
+          {/* Status filter (commented out per Task 1)
           <div className="relative">
             <button
               onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
@@ -469,6 +471,7 @@ export default function QuotationList() {
               </ul>
             </div>
           </div>
+          */}
         </div>
         {hasPermission('proposals', 'create') && (
           <Button onClick={() => navigate("/proposals/add")} variant="primary" size="sm" startIcon={<FiPlus />}>
