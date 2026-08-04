@@ -182,15 +182,15 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
   };
 
   if (loading) {
-    return <div className="text-center py-10 text-gray-500">Loading details...</div>;
+    return <div className="text-center py-10 text-gray-500">Loading Details...</div>;
   }
 
   const pageTitle =
     mode === "create"
-      ? "Add user"
+      ? "Add User"
       : mode === "edit"
-        ? "Edit user"
-        : "View user";
+        ? "Edit User"
+        : "View User";
 
   return (
     <>
@@ -205,7 +205,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
           {/* Section: Basic Information */}
           <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
             <h3 className="text-sm font-semibold text-gray-800 dark:text-white/95 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-              User details
+              User Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Employee ID */}
@@ -221,7 +221,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                       {...field}
                       type="text"
                       disabled={true}
-                      placeholder="Auto-generated upon save"
+                      placeholder="Auto-Generated Upon Save"
                     />
                   )}
                 />
@@ -230,7 +230,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
               {/* Name */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Full name <span className="text-error-500">*</span>
+                  Full Name <span className="text-error-500">*</span>
                 </label>
                 <Controller
                   name="name"
@@ -240,7 +240,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                     <Input
                       {...field}
                       type="text"
-                      placeholder="Enter full name"
+                      placeholder="Enter Full Name"
                       disabled={mode === "view"}
                       className={errors.name ? "border-error-500" : ""}
                     />
@@ -262,7 +262,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                   render={({ field: { value, onChange } }) => (
                     <Select
                       options={departmentOptions}
-                      placeholder="Select department"
+                      placeholder="Select Department"
                       defaultValue={value}
                       disabled={mode === "view"}
                       onChange={onChange}
@@ -274,7 +274,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
               {/* User role */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  User role <span className="text-error-500">*</span>
+                  User Role <span className="text-error-500">*</span>
                 </label>
                 <Controller
                   name="role"
@@ -283,7 +283,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                   render={({ field: { value, onChange } }) => (
                     <Select
                       options={roles.map((r) => ({ value: String(r.id), label: r.name }))}
-                      placeholder="Select role"
+                      placeholder="Select Role"
                       defaultValue={value}
                       disabled={mode === "view"}
                       onChange={onChange}
@@ -298,7 +298,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
               {/* Email */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Email address <span className="text-error-500">*</span>
+                  Email Address <span className="text-error-500">*</span>
                 </label>
                 <Controller
                   name="email"
@@ -314,7 +314,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                     <Input
                       {...field}
                       type="email"
-                      placeholder="Enter email address"
+                      placeholder="Enter Email Address"
                       disabled={mode === "view"}
                       className={errors.email ? "border-error-500" : ""}
                     />
@@ -345,7 +345,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                       <Input
                         {...field}
                         type="password"
-                        placeholder="Enter password"
+                        placeholder="Enter Password"
                         className={errors.password ? "border-error-500" : ""}
                       />
                     )}
@@ -360,7 +360,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
               {mode === "create" && (
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Confirm password <span className="text-error-500">*</span>
+                    Confirm Password <span className="text-error-500">*</span>
                   </label>
                   <Controller
                     name="confirmPassword"
@@ -374,7 +374,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                       <Input
                         {...field}
                         type="password"
-                        placeholder="Re-enter password"
+                        placeholder="Re-Enter Password"
                         className={errors.confirmPassword ? "border-error-500" : ""}
                       />
                     )}
@@ -388,7 +388,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
               {/* Phone */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Phone number <span className="text-error-500">*</span>
+                  Phone Number <span className="text-error-500">*</span>
                 </label>
                 <Controller
                   name="phone"
@@ -405,7 +405,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
                       {...rest}
                       value={value}
                       type="text"
-                      placeholder="Enter 10-digit phone number"
+                      placeholder="Enter 10-Digit Phone Number"
                       maxLength={10}
                       disabled={mode === "view"}
                       onChange={(e) => {
@@ -427,7 +427,7 @@ export default function AddEditUserPage({ mode }: AddEditUserPageProps) {
           {/* Form Actions */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/[0.05]">
             <Button size="sm" type="button" variant="outline" onClick={() => navigate("/users")}>
-              {mode === "view" ? "Back to list" : "Cancel"}
+              {mode === "view" ? "Back to List" : "Cancel"}
             </Button>
             {mode !== "view" && (
               <Button size="sm" type="submit">

@@ -68,7 +68,7 @@ export const permissionModules: PermissionModuleConfig[] = [
   { name: "Manage Users", key: "users", actions: ["view", "create", "edit", "delete"], subItems: ["User Roles", "Users"] },
   { name: "Roles", key: "roles", actions: ["view", "create", "edit", "delete"] },
   { name: "Leads", key: "leads", actions: ["view", "create", "edit", "delete", "assign"] },
-  { name: "Connect", key: "connect", actions: ["view", "create", "edit", "delete"], subItems: ["Contacts", "Follow-ups"] },
+  { name: "Connect", key: "connect", actions: ["view", "create", "edit", "delete"], subItems: ["Contacts", "Follow-Ups"] },
   { name: "Meetings", key: "meetings", actions: ["view", "create", "edit", "delete"] },
   { name: "Proposals", key: "proposals", actions: ["view", "create", "edit", "delete", "approve"] },
   { name: "Clients", key: "clients", actions: ["view", "create", "edit", "approve"] },
@@ -77,12 +77,12 @@ export const permissionModules: PermissionModuleConfig[] = [
     key: "reports",
     actions: ["view"],
     subItems: [
-      "Lead report",
-      "Meeting report",
-      "Employee report",
-      "Follow-up report",
-      "Proposal report",
-      "Client report",
+      "Lead Report",
+      "Meeting Report",
+      "Employee Report",
+      "Follow-Up Report",
+      "Proposal Report",
+      "Client Report",
     ],
   },
   { name: "Settings", key: "settings", actions: ["view", "edit"] },
@@ -293,14 +293,14 @@ export default function UserRoleManagement() {
         <span className="flex flex-col">
           <ChevronUpIcon
             className={`w-3 h-3 -mb-1 transition-colors ${isActive && sortOrder === "asc"
-                ? "text-brand-500"
-                : "text-gray-300 dark:text-gray-600"
+              ? "text-brand-500"
+              : "text-gray-300 dark:text-gray-600"
               }`}
           />
           <ChevronDownIcon
             className={`w-3 h-3 transition-colors ${isActive && sortOrder === "desc"
-                ? "text-brand-500"
-                : "text-gray-300 dark:text-gray-600"
+              ? "text-brand-500"
+              : "text-gray-300 dark:text-gray-600"
               }`}
           />
         </span>
@@ -335,7 +335,7 @@ export default function UserRoleManagement() {
               onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
               className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-205 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
             >
-              <span>{statusFilter === "all" ? "All statuses" : statusFilter}</span>
+              <span>{statusFilter === "all" ? "All Statuses" : statusFilter}</span>
               <ChevronDownIcon className="w-4 h-4 text-gray-555" />
             </button>
             <Dropdown
@@ -345,7 +345,7 @@ export default function UserRoleManagement() {
             >
               <ul className="flex flex-col gap-0.5">
                 {[
-                  { value: "all", label: "All statuses" },
+                  { value: "all", label: "All Statuses" },
                   { value: "Active", label: "Active" },
                   { value: "Inactive", label: "Inactive" },
                 ].map((option) => (
@@ -357,8 +357,8 @@ export default function UserRoleManagement() {
                         setIsStatusFilterOpen(false);
                       }}
                       className={`cursor-pointer rounded-lg text-left w-full px-3 py-2 text-sm ${statusFilter === option.value
-                          ? "bg-brand-500 text-white font-medium"
-                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
+                        ? "bg-brand-500 text-white font-medium"
+                        : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                         }`}
                     >
                       {option.label}
@@ -378,7 +378,7 @@ export default function UserRoleManagement() {
               startIcon={<FiPlus className="size-4" />}
               className="w-full sm:w-auto h-11 px-4 py-2.5"
             >
-              Add role
+              Add Role
             </Button>
           </div>
         )}
@@ -399,7 +399,7 @@ export default function UserRoleManagement() {
                   isHeader
                   className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
                 >
-                  {renderSortHeader("Role name", "roleName")}
+                  {renderSortHeader("Role Name", "roleName")}
                 </TableCell>
                 <TableCell
                   isHeader
@@ -421,7 +421,7 @@ export default function UserRoleManagement() {
                   <TableCell colSpan={4} className="px-5 py-8 text-center text-sm text-gray-500">
                     <div className="flex items-center justify-center gap-2">
                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
-                      <span>Loading roles...</span>
+                      <span>Loading Roles...</span>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -516,7 +516,7 @@ export default function UserRoleManagement() {
               <FiTrash2 className="size-6" />
             </div>
             <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">
-              Delete role
+              Delete Role
             </h4>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Are you sure you want to delete this role? This action cannot be undone.

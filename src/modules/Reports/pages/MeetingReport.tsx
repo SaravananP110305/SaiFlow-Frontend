@@ -39,7 +39,7 @@ export default function MeetingReport() {
   const [isTypeOpen, setIsTypeOpen] = useState(false);
 
   const statusOptions = [
-    { value: "all", label: "All statuses" },
+    { value: "all", label: "All Statuses" },
     { value: "Scheduled", label: "Scheduled" },
     { value: "Completed", label: "Completed" },
     { value: "Cancelled", label: "Cancelled" },
@@ -47,7 +47,7 @@ export default function MeetingReport() {
   ];
 
   const typeOptions = [
-    { value: "all", label: "All types" },
+    { value: "all", label: "All Types" },
     { value: "Google Meet", label: "Google Meet" },
     { value: "Offline", label: "Offline" },
   ];
@@ -156,7 +156,7 @@ export default function MeetingReport() {
         title="Meeting Report | SaiFlow"
         description="View meeting performance reports in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle="Meeting report" />
+      <PageBreadcrumb pageTitle="Meeting Report" />
 
       {/* Control Area */}
       <div className="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -297,7 +297,7 @@ export default function MeetingReport() {
                   {renderSortHeader("Company", "company")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Contact person", "contactPerson")}
+                  {renderSortHeader("Contact Person", "contactPerson")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Date", "date")}
@@ -306,7 +306,7 @@ export default function MeetingReport() {
                   {renderSortHeader("Time", "time")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Meeting type", "type")}
+                  {renderSortHeader("Meeting Type", "type")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Status", "status")}

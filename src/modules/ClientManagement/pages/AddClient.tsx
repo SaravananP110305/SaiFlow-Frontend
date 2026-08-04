@@ -318,7 +318,7 @@ export default function AddClient() {
   );
 
   if (loading) {
-    return <div className="text-center py-10 text-gray-500">Loading client details...</div>;
+    return <div className="text-center py-10 text-gray-500">Loading Client Details...</div>;
   }
 
   return (
@@ -327,7 +327,7 @@ export default function AddClient() {
         title={isEditMode ? "Edit Client | SaiFlow" : "Add Client | SaiFlow"}
         description={isEditMode ? "Edit an existing client in SaiFlow CRM." : "Add a new client to SaiFlow CRM."}
       />
-      <PageBreadcrumb pageTitle={isEditMode ? "Edit client" : "Add client"} />
+      <PageBreadcrumb pageTitle={isEditMode ? "Edit Client" : "Add Client"} />
 
       <form onSubmit={handleSave} className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-6 space-y-6">
         {/* Section 1: Basic Information */}
@@ -341,7 +341,7 @@ export default function AddClient() {
               <Input
                 type="text"
                 disabled={true}
-                value={isEditMode ? `SF-CLI-${String(id).padStart(4, "0")}` : "Auto-generated"}
+                value={isEditMode ? `SF-CLI-${String(id).padStart(4, "0")}` : "Auto-Generated"}
                 className="bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
               />
             </div>
@@ -363,7 +363,7 @@ export default function AddClient() {
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Industry</label>
               <Select
                 options={industryOptions}
-                placeholder="Select industry"
+                placeholder="Select Industry"
                 defaultValue={industry}
                 onChange={(val) => setIndustry(val)}
               />
@@ -384,7 +384,7 @@ export default function AddClient() {
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Country</label>
               <Select
                 options={countryOptions}
-                placeholder="Select country"
+                placeholder="Select Country"
                 defaultValue={country}
                 onChange={(val) => {
                   setCountry(val);
@@ -397,7 +397,7 @@ export default function AddClient() {
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">State</label>
               <Select
                 options={stateOptions}
-                placeholder="Select state"
+                placeholder="Select State"
                 defaultValue={state}
                 onChange={(val) => {
                   setState(val);
@@ -409,7 +409,7 @@ export default function AddClient() {
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">City</label>
               <Select
                 options={cityOptions}
-                placeholder="Select city"
+                placeholder="Select City"
                 defaultValue={city}
                 onChange={(val) => setCity(val)}
               />
@@ -427,7 +427,7 @@ export default function AddClient() {
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Designation</label>
               <Select
                 options={designationOptions}
-                placeholder="Select designation"
+                placeholder="Select Designation"
                 defaultValue={designation}
                 onChange={(val) => setDesignation(val)}
               />
@@ -444,7 +444,7 @@ export default function AddClient() {
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Relationship Manager</label>
               <Select
                 options={ASSIGNEES.map((a) => ({ value: a, label: a }))}
-                placeholder="Select manager"
+                placeholder="Select Manager"
                 defaultValue={relationshipManager}
                 onChange={(val) => setRelationshipManager(val)}
               />
@@ -453,7 +453,7 @@ export default function AddClient() {
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Account Manager</label>
               <Select
                 options={ASSIGNEES.map((a) => ({ value: a, label: a }))}
-                placeholder="Select manager"
+                placeholder="Select Manager"
                 defaultValue={accountManager}
                 onChange={(val) => setAccountManager(val)}
               />
@@ -470,7 +470,7 @@ export default function AddClient() {
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Payment Type</label>
               <Select
                 options={paymentTypeOptions}
-                placeholder="Select payment type"
+                placeholder="Select Payment Type"
                 defaultValue={paymentTerms}
                 onChange={(val) => setPaymentTerms(val)}
               />
@@ -479,7 +479,7 @@ export default function AddClient() {
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Preferred Communication</label>
               <Select
                 options={COMMUNICATION_OPTS.map((c) => ({ value: c, label: c }))}
-                placeholder="Select method"
+                placeholder="Select Method"
                 defaultValue={preferredCommunication}
                 onChange={(val) => setPreferredCommunication(val)}
               />

@@ -61,16 +61,16 @@ export default function ClientDetails() {
   if (!client) {
     return (
       <>
-        <PageBreadcrumb pageTitle="Client details" />
+        <PageBreadcrumb pageTitle="Client Details" />
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-base font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Client not found
+            Client Not Found
           </p>
           <p className="text-sm text-gray-400 mb-6">
             The client you're looking for does not exist or has been deleted.
           </p>
           <Button size="sm" onClick={() => navigate("/clients")}>
-            Back to client list
+            Back to Client List
           </Button>
         </div>
       </>
@@ -90,7 +90,7 @@ export default function ClientDetails() {
         title={`Client Details: ${client.company} | SaiFlow`}
         description="View enterprise profile, meetings, contracts and payment terms."
       />
-      <PageBreadcrumb pageTitle="Client details" />
+      <PageBreadcrumb pageTitle="Client Details" />
 
       {/* Top Action Bar */}
       <div className="flex items-center justify-between mb-5">
@@ -99,7 +99,7 @@ export default function ClientDetails() {
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-white transition cursor-pointer"
         >
           <FiArrowLeft className="size-4" />
-          Back to list
+          Back to List
         </button>
       </div>
 
@@ -177,7 +177,7 @@ export default function ClientDetails() {
             {/* Business Details */}
             <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
               <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-wider">
-                Business details
+                Business Details
               </h3>
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <InfoCard icon={<FiCalendar className="size-4" />} label="Client Since" value={client.clientSince || "2024-01-10"} />
@@ -190,7 +190,7 @@ export default function ClientDetails() {
             {/* Address Details */}
             <div className="md:col-span-2 rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
               <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-wider">
-                Address details
+                Address Details
               </h3>
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
                 <div className="sm:col-span-3">
@@ -208,7 +208,7 @@ export default function ClientDetails() {
         {activeTab === "contacts" && (
           <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
             <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05] uppercase tracking-wider">
-              Primary contact person
+              Primary Contact Person
             </h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <InfoCard icon={<FiUser className="size-4" />} label="Contact Name" value={client.contactName || client.name} />
@@ -218,7 +218,7 @@ export default function ClientDetails() {
             </div>
 
             <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 mt-6 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05] uppercase tracking-wider">
-              Relationship assignment
+              Relationship Assignment
             </h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <InfoCard icon={<FiUser className="size-4" />} label="Relationship Manager" value={client.relationshipManager || "John Doe"} />

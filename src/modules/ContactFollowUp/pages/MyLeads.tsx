@@ -335,7 +335,7 @@ export default function MyLeads() {
                   {renderSortHeader("Company", "company")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Contact person", "contactPerson")}
+                  {renderSortHeader("Contact Person", "contactPerson")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Phone", "phone")}
@@ -349,7 +349,7 @@ export default function MyLeads() {
                   </TableCell>
                 )}
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Assigned to", "assignedTo")}
+                  {renderSortHeader("Assigned To", "assignedTo")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   Action
@@ -399,7 +399,7 @@ export default function MyLeads() {
                       {activeTab === "new" ? (
                         <button
                           onClick={() => handleCallLead(lead)}
-                          title="Call lead — mark as Contacted"
+                          title="Call Lead — Mark as Contacted"
                           className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
                         >
                           <FiPhone className="size-4" />
@@ -408,7 +408,7 @@ export default function MyLeads() {
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => navigate(`/connect/${lead.id}`)}
-                            title="View lead details"
+                            title="View Lead Details"
                             className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
                           >
                             <FiEye className="size-4" />
@@ -422,7 +422,7 @@ export default function MyLeads() {
                           </button>
                           <button
                             onClick={() => handleOpenOutcomeModal(lead, "Call Later")}
-                            title="Call Later — schedule follow-up"
+                            title="Call Later — Schedule Follow-Up"
                             className="p-1.5 text-warning-600 hover:text-warning-700 hover:bg-warning-50 dark:text-warning-400 dark:hover:bg-warning-500/10 rounded-lg transition cursor-pointer"
                           >
                             <FiClock className="size-4" />
@@ -474,7 +474,7 @@ export default function MyLeads() {
               {contactResult === "Not Interested" && <FiXCircle className="size-5 text-error-500" />}
               <h4 className="text-xl font-semibold text-gray-800 dark:text-white/90">
                 {contactResult === "Interested" && "Mark as Interested"}
-                {contactResult === "Call Later" && "Schedule follow-up"}
+                {contactResult === "Call Later" && "Schedule Follow-Up"}
                 {contactResult === "Not Interested" && "Mark as Not Interested"}
               </h4>
             </div>
@@ -520,7 +520,7 @@ export default function MyLeads() {
               <div className="space-y-4">
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
-                    Follow-up Type <span className="text-error-500">*</span>
+                    Follow-Up Type <span className="text-error-500">*</span>
                   </label>
                   <div className="relative">
                     <select
@@ -551,7 +551,7 @@ export default function MyLeads() {
                   <div>
                     <DatePicker
                       id="call-later-date"
-                      label="Follow-up date"
+                      label="Follow-Up Date"
                       required={true}
                       defaultDate={callLaterDate}
                       onChange={(_, dateStr) => setCallLaterDate(dateStr)}
@@ -564,7 +564,7 @@ export default function MyLeads() {
                     <DatePicker
                       id="call-later-time"
                       mode="time"
-                      label="Follow-up time"
+                      label="Follow-Up Time"
                       required={true}
                       defaultDate={callLaterTime}
                       onChange={(_, timeStr) => setCallLaterTime(timeStr)}
@@ -595,7 +595,7 @@ export default function MyLeads() {
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-50 dark:bg-success-500/10 mb-4">
             <FiCheckCircle className="size-7 text-success-600 dark:text-success-400" />
           </div>
-          <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">Result saved</h4>
+          <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">Result Saved</h4>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">{savedOutcome}</p>
           <Button size="sm" onClick={successModal.closeModal} className="w-full">
             Done

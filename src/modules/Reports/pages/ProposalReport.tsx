@@ -37,7 +37,7 @@ export default function ProposalReport() {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
 
   const statusOptions = [
-    { value: "all", label: "All statuses" },
+    { value: "all", label: "All Statuses" },
     { value: "Draft", label: "Draft" },
     { value: "Sent", label: "Sent" },
     { value: "Under Review", label: "Under Review" },
@@ -154,7 +154,7 @@ export default function ProposalReport() {
         title="Proposal Report | SaiFlow"
         description="View proposal performance reports in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle="Proposal report" />
+      <PageBreadcrumb pageTitle="Proposal Report" />
 
       {/* Control Area */}
       <div className="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -246,10 +246,10 @@ export default function ProposalReport() {
                   {renderSortHeader("S.No", "id")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Proposal no", "proposalNo")}
+                  {renderSortHeader("Proposal No", "proposalNo")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Lead name", "leadName")}
+                  {renderSortHeader("Lead Name", "leadName")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Company", "companyName")}
@@ -273,7 +273,7 @@ export default function ProposalReport() {
                   {renderSortHeader("Amount", "totalAmount")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Payment terms", "paymentTerms")}
+                  {renderSortHeader("Payment Terms", "paymentTerms")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Timeline", "deliveryTimeline")}

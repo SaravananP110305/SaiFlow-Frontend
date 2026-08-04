@@ -80,7 +80,7 @@ export default function SignUpForm() {
     <div className="flex flex-col justify-center flex-1 w-full max-w-md px-6 mx-auto overflow-y-auto lg:px-0 no-scrollbar">
       <div className="mb-8">
         <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-          Create account
+          Create Account
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Fill in the details below to get started.
@@ -93,7 +93,7 @@ export default function SignUpForm() {
             {/* First Name */}
             <div>
               <Label>
-                First name <span className="text-error-500">*</span>
+                First Name <span className="text-error-500">*</span>
               </Label>
               <Controller
                 name="fname"
@@ -117,7 +117,7 @@ export default function SignUpForm() {
                   <Input
                     {...field}
                     type="text"
-                    placeholder="Enter first name"
+                    placeholder="Enter First Name"
                     className={errors.fname ? "border-error-500" : ""}
                   />
                 )}
@@ -130,7 +130,7 @@ export default function SignUpForm() {
             {/* Last Name */}
             <div>
               <Label>
-                Last name <span className="text-error-500">*</span>
+                Last Name <span className="text-error-500">*</span>
               </Label>
               <Controller
                 name="lname"
@@ -154,7 +154,7 @@ export default function SignUpForm() {
                   <Input
                     {...field}
                     type="text"
-                    placeholder="Enter last name"
+                    placeholder="Enter Last Name"
                     className={errors.lname ? "border-error-500" : ""}
                   />
                 )}
@@ -184,7 +184,7 @@ export default function SignUpForm() {
                 <Input
                   {...field}
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="Enter Your Email"
                   className={errors.email ? "border-error-500" : ""}
                 />
               )}
@@ -215,7 +215,7 @@ export default function SignUpForm() {
                 render={({ field }) => (
                   <Input
                     {...field}
-                    placeholder="Enter your password"
+                    placeholder="Enter Your Password"
                     type={showPassword ? "text" : "password"}
                     className={errors.password ? "border-error-500" : ""}
                   />
@@ -240,7 +240,7 @@ export default function SignUpForm() {
           {/* Confirm Password */}
           <div>
             <Label>
-              Confirm password <span className="text-error-500">*</span>
+              Confirm Password <span className="text-error-500">*</span>
             </Label>
             <div className="relative">
               <Controller
@@ -254,7 +254,7 @@ export default function SignUpForm() {
                 render={({ field }) => (
                   <Input
                     {...field}
-                    placeholder="Confirm your password"
+                    placeholder="Confirm Your Password"
                     type={showConfirm ? "text" : "password"}
                     className={errors.confirmPassword ? "border-error-500" : ""}
                   />
@@ -277,7 +277,7 @@ export default function SignUpForm() {
           </div>
 
           <Button type="submit" className="w-full">
-            Create account
+            Create Account
           </Button>
         </div>
       </form>
@@ -286,7 +286,7 @@ export default function SignUpForm() {
         <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400">
           Already have an account?{" "}
           <Link to="/signin" className="text-brand-500 hover:text-brand-600 dark:text-brand-400">
-            Sign in
+            Sign In
           </Link>
         </p>
       </div>

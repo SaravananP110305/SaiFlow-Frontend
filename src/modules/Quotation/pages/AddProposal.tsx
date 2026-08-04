@@ -344,7 +344,7 @@ export default function AddProposal() {
         title={isEditMode ? "Edit Proposal | SaiFlow" : "New Proposal | SaiFlow"}
         description={isEditMode ? "Edit an existing business proposal." : "Create a new business proposal with requirement, estimation, and pricing."}
       />
-      <PageBreadcrumb pageTitle={isEditMode ? "Edit proposal" : "New proposal"} />
+      <PageBreadcrumb pageTitle={isEditMode ? "Edit Proposal" : "New Proposal"} />
 
       <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-5">
         {/* ── Lead Information ──────────────────────────────────────────────── */}
@@ -356,7 +356,7 @@ export default function AddProposal() {
           {!isEditMode && (
             <div className="mb-4 p-3 rounded-lg bg-brand-50/50 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/20">
               <label className="mb-1.5 block text-xs font-semibold text-brand-700 dark:text-brand-400">
-                🔍 Quick select from existing lead <span className="text-xs font-normal text-gray-500">(auto-fills all fields below)</span>
+                🔍 Quick Select from Existing Lead <span className="text-xs font-normal text-gray-500">(auto-fills all fields below)</span>
               </label>
               <Select
                 options={leadsList}
@@ -420,7 +420,7 @@ export default function AddProposal() {
               <div className="flex-1">
                 <Select
                   options={techStackOptions}
-                  placeholder="Select technology..."
+                  placeholder="Select Technology..."
                   defaultValue=""
                   onChange={handleAddTechStack}
                 />
@@ -471,7 +471,7 @@ export default function AddProposal() {
               ))}
               <button type="button" onClick={() => addReqArrayItem(field)}
                 className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1 mt-1 cursor-pointer">
-                <FiPlus className="size-3" /> Add more
+                <FiPlus className="size-3" /> Add More
               </button>
             </div>
           ))}
@@ -588,7 +588,7 @@ export default function AddProposal() {
               <Select
                 key={isEditMode ? `payment-${formPaymentTerms}` : 'payment-create'}
                 options={paymentTypeOptions}
-                placeholder="Select payment type..."
+                placeholder="Select Payment Type..."
                 defaultValue={formPaymentTerms}
                 onChange={(val) => setFormPaymentTerms(val)}
               />

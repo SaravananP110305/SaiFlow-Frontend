@@ -154,16 +154,16 @@ export default function LeadDetails() {
   if (!lead) {
     return (
       <>
-        <PageBreadcrumb pageTitle="Lead details" />
+        <PageBreadcrumb pageTitle="Lead Details" />
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-base font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Lead not found
+            Lead Not Found
           </p>
           <p className="text-sm text-gray-400 mb-6">
             The lead you're looking for does not exist or has been deleted.
           </p>
           <Button size="sm" onClick={() => navigate("/leads")}>
-            Back to lead list
+            Back to Lead List
           </Button>
         </div>
       </>
@@ -196,7 +196,7 @@ export default function LeadDetails() {
       events.push({
         id: `created-${lead.id}`,
         type: "lead_created",
-        title: "Lead created",
+        title: "Lead Created",
         description: `Lead for ${lead.company} was created by ${lead.assignedTo || "the system"}.`,
         timestamp: new Date(lead.createdAt).getTime(),
         icon: <FiActivity className="size-4" />,
@@ -212,7 +212,7 @@ export default function LeadDetails() {
       events.push({
         id: `assigned-${lead.id}`,
         type: "lead_assigned",
-        title: "Lead assigned",
+        title: "Lead Assigned",
         description: `Lead assigned to ${lead.assignedTo}.`,
         timestamp: assignedTs,
         icon: <FiUserCheck className="size-4" />,
@@ -252,14 +252,14 @@ export default function LeadDetails() {
         type: log.action,
         title:
           log.action === "lead_created"
-            ? "Lead created"
+            ? "Lead Created"
             : log.action === "lead_updated"
-            ? "Lead updated"
+            ? "Lead Updated"
             : log.action === "lead_deleted"
-            ? "Lead deleted"
+            ? "Lead Deleted"
             : log.action === "lead_reassigned"
-            ? "Lead reassigned"
-            : "Lead assigned",
+            ? "Lead Reassigned"
+            : "Lead Assigned",
         description: log.description,
         timestamp: new Date(log.timestamp).getTime(),
         icon,
@@ -281,7 +281,7 @@ export default function LeadDetails() {
         title="Lead Details | SaiFlow"
         description="View detailed information about a lead in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle="Lead details" />
+      <PageBreadcrumb pageTitle="Lead Details" />
 
       {/* Top action bar */}
       <div className="flex items-center justify-between mb-5">
@@ -290,7 +290,7 @@ export default function LeadDetails() {
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-white transition cursor-pointer"
         >
           <FiArrowLeft className="size-4" />
-          Back to list
+          Back to List
         </button>
         <div className="flex items-center gap-3">
           {lead.status === "Qualified" && (
@@ -300,7 +300,7 @@ export default function LeadDetails() {
               onClick={() => navigate(`/meetings/add?relatedType=Lead&relatedId=${lead.id}`)}
               startIcon={<FiCalendar className="size-4" />}
             >
-              Schedule meeting
+              Schedule Meeting
             </Button>
           )}
           {lead.status === "Won" && (
@@ -317,7 +317,7 @@ export default function LeadDetails() {
             onClick={() => navigate(`/leads/${lead.id}/edit`)}
             startIcon={<FiEdit className="size-4" />}
           >
-            Edit lead
+            Edit Lead
           </Button>
         </div>
       </div>
@@ -342,7 +342,7 @@ export default function LeadDetails() {
         {/* Card 1: Lead Information */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-            Lead information
+            Lead Information
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
@@ -371,7 +371,7 @@ export default function LeadDetails() {
         {/* Card 2: Contact Details */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-            Contact details
+            Contact Details
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
@@ -428,7 +428,7 @@ export default function LeadDetails() {
         {/* Card 3: Company Details */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-            Company details
+            Company Details
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
@@ -483,7 +483,7 @@ export default function LeadDetails() {
         {/* Card 5: Lead Details */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-            Lead details
+            Lead Details
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
@@ -614,7 +614,7 @@ export default function LeadDetails() {
                       { value: "Net 45", label: "Net 45" },
                       { value: "Immediate", label: "Immediate" }
                     ]}
-                    placeholder="Select terms"
+                    placeholder="Select Terms"
                     defaultValue={paymentTerms}
                     onChange={(val) => setPaymentTerms(val)}
                   />
@@ -643,7 +643,7 @@ export default function LeadDetails() {
                       { value: "Alice Johnson", label: "Alice Johnson" },
                       { value: "Robert Lee", label: "Robert Lee" }
                     ]}
-                    placeholder="Select manager"
+                    placeholder="Select Manager"
                     defaultValue={relManager}
                     onChange={(val) => setRelManager(val)}
                   />
@@ -660,7 +660,7 @@ export default function LeadDetails() {
                       { value: "Alice Johnson", label: "Alice Johnson" },
                       { value: "Robert Lee", label: "Robert Lee" }
                     ]}
-                    placeholder="Select manager"
+                    placeholder="Select Manager"
                     defaultValue={accManager}
                     onChange={(val) => setAccManager(val)}
                   />

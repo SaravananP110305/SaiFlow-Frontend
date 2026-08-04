@@ -38,13 +38,13 @@ export default function EmployeeReport() {
   const [isRoleOpen, setIsRoleOpen] = useState(false);
 
   const statusOptions = [
-    { value: "all", label: "All statuses" },
+    { value: "all", label: "All Statuses" },
     { value: "Active", label: "Active" },
     { value: "Inactive", label: "Inactive" },
   ];
 
   const roleOptions = [
-    { value: "all", label: "All roles" },
+    { value: "all", label: "All Roles" },
     { value: "Administrator", label: "Administrator" },
     { value: "Business Development Manager", label: "Business Development Manager" },
     { value: "Business Development Executive", label: "Business Development Executive" },
@@ -140,7 +140,7 @@ export default function EmployeeReport() {
         title="Employee Report | SaiFlow"
         description="View employee performance reports in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle="Employee report" />
+      <PageBreadcrumb pageTitle="Employee Report" />
 
       {/* Control Area */}
       <div className="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -275,7 +275,7 @@ export default function EmployeeReport() {
                   {renderSortHeader("S.No", "id")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Employee name", "name")}
+                  {renderSortHeader("Employee Name", "name")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Email", "email")}
@@ -284,13 +284,13 @@ export default function EmployeeReport() {
                   {renderSortHeader("Role", "role")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Leads assigned", "totalLeads")}
+                  {renderSortHeader("Leads Assigned", "totalLeads")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Won leads", "wonLeads")}
+                  {renderSortHeader("Won Leads", "wonLeads")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Lost leads", "lostLeads")}
+                  {renderSortHeader("Lost Leads", "lostLeads")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Status", "status")}

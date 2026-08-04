@@ -88,7 +88,7 @@ interface StatusAction {
 
 const STATUS_TRANSITIONS: Record<ProposalStatus, StatusAction[]> = {
   Draft: [
-    { key: "send", label: "Send to client", status: "Sent", icon: <FiSend className="size-3.5 text-blue-500" /> },
+    { key: "send", label: "Send to Client", status: "Sent", icon: <FiSend className="size-3.5 text-blue-500" /> },
   ],
   Sent: [
     { key: "review", label: "Mark as Reviewed", status: "Under Review", icon: <FiClock className="size-3.5 text-amber-500" /> },
@@ -652,7 +652,7 @@ export default function QuotationList() {
                                 : "top-full mt-1"
                                 }`}
                             >
-                              <p className="text-xs text-gray-400 dark:text-gray-500">No more transitions</p>
+                              <p className="text-xs text-gray-400 dark:text-gray-500">No More Transitions</p>
                             </div>
                           )}
                         </div>

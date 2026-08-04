@@ -32,7 +32,7 @@ export default function DefaultInputs() {
           <Label>Select Input</Label>
           <Select
             options={options}
-            placeholder="Select an option"
+            placeholder="Select an Option"
             onChange={handleSelectChange}
             className="dark:bg-dark-900"
           />
@@ -42,7 +42,7 @@ export default function DefaultInputs() {
           <div className="relative">
             <Input
               type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
+              placeholder="Enter Your Password"
             />
             <button
               onClick={() => setShowPassword(!showPassword)}
@@ -61,7 +61,7 @@ export default function DefaultInputs() {
           <DatePicker
             id="date-picker"
             label="Date Picker Input"
-            placeholder="Select a date"
+            placeholder="Select a Date"
             onChange={(dates, currentDateString) => {
               // Handle your logic
               console.log({ dates, currentDateString });
@@ -74,7 +74,7 @@ export default function DefaultInputs() {
             id="tm"
             mode="time"
             label="Time Picker Input"
-            placeholder="Select time"
+            placeholder="Select Time"
             onChange={(dates, currentTimeString) => {
               console.log({ dates, currentTimeString });
             }}
@@ -85,7 +85,7 @@ export default function DefaultInputs() {
           <div className="relative">
             <Input
               type="text"
-              placeholder="Card number"
+              placeholder="Card Number"
               className="pl-[62px]"
             />
             <span className="absolute left-0 top-1/2 flex h-11 w-[46px] -translate-y-1/2 items-center justify-center border-r border-gray-200 dark:border-gray-800">

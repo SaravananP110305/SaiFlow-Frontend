@@ -301,16 +301,16 @@ export default function MeetingDetails() {
   if (!meeting) {
     return (
       <>
-        <PageBreadcrumb pageTitle="Meeting details" />
+        <PageBreadcrumb pageTitle="Meeting Details" />
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-base font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Meeting not found
+            Meeting Not Found
           </p>
           <p className="text-sm text-gray-400 mb-6">
             The meeting you're looking for does not exist or has been deleted.
           </p>
           <Button size="sm" onClick={() => navigate("/meetings")}>
-            Back to meeting list
+            Back to Meeting List
           </Button>
         </div>
       </>
@@ -323,7 +323,7 @@ export default function MeetingDetails() {
         title="Meeting Details | SaiFlow"
         description="View details and manage scheduled meeting outcome."
       />
-      <PageBreadcrumb pageTitle="Meeting details" />
+      <PageBreadcrumb pageTitle="Meeting Details" />
 
       {/* Top action bar */}
       <div className="flex items-center justify-between mb-5">
@@ -332,14 +332,14 @@ export default function MeetingDetails() {
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-white transition cursor-pointer"
         >
           <FiArrowLeft className="size-4" />
-          Back to list
+          Back to List
         </button>
         <Button
           size="sm"
           onClick={() => navigate(`/meetings/${meeting.id}/edit`)}
           startIcon={<FiEdit className="size-4" />}
         >
-          Edit meeting
+          Edit Meeting
         </Button>
       </div>
 
@@ -398,12 +398,12 @@ export default function MeetingDetails() {
             />
             <InfoCard
               icon={<FiClock className="size-4" />}
-              label="Start time"
+              label="Start Time"
               value={formatTime(meeting.startTime || meeting.time)}
             />
             <InfoCard
               icon={<FiClock className="size-4" />}
-              label="End time"
+              label="End Time"
               value={formatTime(meeting.endTime || "")}
             />
             <InfoCard
@@ -432,7 +432,7 @@ export default function MeetingDetails() {
             />
             <InfoCard
               icon={<FiUser className="size-4" />}
-              label="Contact person"
+              label="Contact Person"
               value={meeting.contactPerson}
             />
           </div>
@@ -491,7 +491,7 @@ export default function MeetingDetails() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <span className="block text-xs font-semibold text-gray-400 dark:text-gray-500 mb-2">
-                Meeting owner
+                Meeting Owner
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {meeting.meetingOwner && meeting.meetingOwner.length > 0 ? (
@@ -511,7 +511,7 @@ export default function MeetingDetails() {
 
             <div>
               <span className="block text-xs font-semibold text-gray-400 dark:text-gray-500 mb-2">
-                Client contact person
+                Client Contact Person
               </span>
               <span className="text-sm font-medium text-gray-800 dark:text-white/95">
                 {meeting.clientContactPerson || meeting.contactPerson || "—"}
@@ -524,7 +524,7 @@ export default function MeetingDetails() {
         <div className="sm:col-span-2 rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05] flex items-center gap-2">
             <FiFileText className="size-4 text-brand-500" />
-            Status-wise Summary
+            Status-Wise Summary
           </h3>
 
           <div className="space-y-4">
@@ -561,7 +561,7 @@ export default function MeetingDetails() {
                     <button
                       onClick={openEditSummary}
                       className="p-1 text-gray-400 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-md transition cursor-pointer"
-                      title="Edit summary"
+                      title="Edit Summary"
                     >
                       <FiEdit className="size-3.5" />
                     </button>
@@ -584,7 +584,7 @@ export default function MeetingDetails() {
                   <button
                     onClick={openEditSummary}
                     className="p-1 text-gray-400 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-md text-xs font-medium transition cursor-pointer flex items-center gap-1"
-                    title="Add summary"
+                    title="Add Summary"
                   >
                     <FiEdit className="size-3" />
                     Add Summary
@@ -902,7 +902,7 @@ export default function MeetingDetails() {
                     { value: "Net 45", label: "Net 45" },
                     { value: "Immediate", label: "Immediate" }
                   ]}
-                  placeholder="Select terms"
+                  placeholder="Select Terms"
                   defaultValue={paymentTerms}
                   onChange={(val) => setPaymentTerms(val)}
                 />
@@ -931,7 +931,7 @@ export default function MeetingDetails() {
                     { value: "Alice Johnson", label: "Alice Johnson" },
                     { value: "Robert Lee", label: "Robert Lee" }
                   ]}
-                  placeholder="Select manager"
+                  placeholder="Select Manager"
                   defaultValue={relManager}
                   onChange={(val) => setRelManager(val)}
                 />
@@ -948,7 +948,7 @@ export default function MeetingDetails() {
                     { value: "Alice Johnson", label: "Alice Johnson" },
                     { value: "Robert Lee", label: "Robert Lee" }
                   ]}
-                  placeholder="Select manager"
+                  placeholder="Select Manager"
                   defaultValue={accManager}
                   onChange={(val) => setAccManager(val)}
                 />

@@ -266,7 +266,7 @@ export default function UserManagement() {
               onClick={() => setIsRoleFilterOpen(!isRoleFilterOpen)}
               className="flex items-center justify-between h-11 w-48 rounded-lg border border-gray-205 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
             >
-              <span>{roleFilter === "all" ? "All roles" : roleFilter}</span>
+              <span>{roleFilter === "all" ? "All Roles" : roleFilter}</span>
               <ChevronDownIcon className="w-4 h-4 text-gray-555" />
             </button>
             <Dropdown
@@ -287,7 +287,7 @@ export default function UserManagement() {
                         : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                       }`}
                   >
-                    All roles
+                    All Roles
                   </DropdownItem>
                 </li>
                 {roles.map((r) => (
@@ -317,7 +317,7 @@ export default function UserManagement() {
               onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
               className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-205 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
             >
-              <span>{statusFilter === "all" ? "All statuses" : statusFilter}</span>
+              <span>{statusFilter === "all" ? "All Statuses" : statusFilter}</span>
               <ChevronDownIcon className="w-4 h-4 text-gray-555" />
             </button>
             <Dropdown
@@ -327,7 +327,7 @@ export default function UserManagement() {
             >
               <ul className="flex flex-col gap-0.5">
                 {[
-                  { value: "all", label: "All statuses" },
+                  { value: "all", label: "All Statuses" },
                   { value: "Active", label: "Active" },
                   { value: "Inactive", label: "Inactive" },
                 ].map((opt) => (
@@ -361,7 +361,7 @@ export default function UserManagement() {
               startIcon={<FiPlus className="size-4" />}
               className="w-full sm:w-auto h-11 px-4 py-2.5"
             >
-              Add user
+              Add User
             </Button>
           </div>
         )}
@@ -389,13 +389,13 @@ export default function UserManagement() {
                   isHeader
                   className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
                 >
-                  {renderSortHeader("Employee name", "name")}
+                  {renderSortHeader("Employee Name", "name")}
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
                 >
-                  {renderSortHeader("Email address", "email")}
+                  {renderSortHeader("Email Address", "email")}
                 </TableCell>
                 <TableCell
                   isHeader
@@ -407,7 +407,7 @@ export default function UserManagement() {
                   isHeader
                   className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
                 >
-                  {renderSortHeader("User role", "role")}
+                  {renderSortHeader("User Role", "role")}
                 </TableCell>
                 <TableCell
                   isHeader
@@ -435,7 +435,7 @@ export default function UserManagement() {
                   <TableCell colSpan={9} className="px-5 py-8 text-center text-sm text-gray-500">
                     <div className="flex items-center justify-center gap-2">
                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
-                      <span>Loading users...</span>
+                      <span>Loading Users...</span>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -547,7 +547,7 @@ export default function UserManagement() {
               <FiTrash2 className="size-6" />
             </div>
             <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">
-              Delete user
+              Delete User
             </h4>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Are you sure you want to delete this user? This action cannot be undone.

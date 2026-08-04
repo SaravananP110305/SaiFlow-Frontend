@@ -304,7 +304,7 @@ export default function AddLead() {
   };
 
   if (loading) {
-    return <div className="text-center py-10 text-gray-500">Loading details...</div>;
+    return <div className="text-center py-10 text-gray-500">Loading Details...</div>;
   }
 
   return (
@@ -313,7 +313,7 @@ export default function AddLead() {
         title={isEditMode ? "Edit Lead | SaiFlow" : "Add Lead | SaiFlow"}
         description={isEditMode ? "Edit an existing lead in SaiFlow CRM." : "Add a new lead to SaiFlow CRM."}
       />
-      <PageBreadcrumb pageTitle={isEditMode ? "Edit lead" : "Add lead"} />
+      <PageBreadcrumb pageTitle={isEditMode ? "Edit Lead" : "Add Lead"} />
 
       <form onSubmit={handleSubmit(handleSave, handleFormError)} className="space-y-10">
         {/* ═══════════════════ SECTION 1: Contact Information ═══════════════════ */}
@@ -343,7 +343,7 @@ export default function AddLead() {
                       <Input
                         {...field}
                         type="text"
-                        placeholder="Enter company name"
+                        placeholder="Enter Company Name"
                         error={!!errors.company}
                       />
                     )}
@@ -366,7 +366,7 @@ export default function AddLead() {
                       <Input
                         {...field}
                         type="text"
-                        placeholder="Enter contact person"
+                        placeholder="Enter Contact Person"
                         error={!!errors.contactPerson}
                       />
                     )}
@@ -387,7 +387,7 @@ export default function AddLead() {
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={designationOptions}
-                        placeholder="Select designation"
+                        placeholder="Select Designation"
                         onChange={onChange}
                         defaultValue={value}
                       />
@@ -422,7 +422,7 @@ export default function AddLead() {
                         {...rest}
                         value={value}
                         type="text"
-                        placeholder="Enter 10-digit number"
+                        placeholder="Enter 10-Digit Number"
                         maxLength={10}
                         onChange={(e) => {
                           const digits = e.target.value.replace(/\D/g, "");
@@ -448,7 +448,7 @@ export default function AddLead() {
                         {...rest}
                         value={value}
                         type="text"
-                        placeholder="Enter alternate number"
+                        placeholder="Enter Alternate Number"
                         maxLength={15}
                         onChange={(e) => {
                           const digits = e.target.value.replace(/\D/g, "");
@@ -574,7 +574,7 @@ export default function AddLead() {
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={industryOptions}
-                        placeholder="Select industry"
+                        placeholder="Select Industry"
                         onChange={onChange}
                         defaultValue={value}
                       />
@@ -591,7 +591,7 @@ export default function AddLead() {
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={companyTypeOptions}
-                        placeholder="Select company type"
+                        placeholder="Select Company Type"
                         onChange={onChange}
                         defaultValue={value}
                       />
@@ -616,7 +616,7 @@ export default function AddLead() {
                     control={control}
                     rules={{ required: "Address line 1 is required" }}
                     render={({ field }) => (
-                      <Input {...field} type="text" placeholder="Floor, block, street address" error={!!errors.addressLine1} />
+                      <Input {...field} type="text" placeholder="Floor, Block, Street Address" error={!!errors.addressLine1} />
                     )}
                   />
                   {errors.addressLine1 && (
@@ -634,7 +634,7 @@ export default function AddLead() {
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={countryOptions}
-                        placeholder="Select country"
+                        placeholder="Select Country"
                         onChange={(val) => {
                           onChange(val);
                           setValue("state", "");
@@ -659,7 +659,7 @@ export default function AddLead() {
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={stateOptions}
-                        placeholder="Select state"
+                        placeholder="Select State"
                         onChange={(val) => {
                           onChange(val);
                           setValue("city", "");
@@ -683,7 +683,7 @@ export default function AddLead() {
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={cityOptions}
-                        placeholder="Select city"
+                        placeholder="Select City"
                         onChange={onChange}
                         defaultValue={value}
                       />
@@ -744,7 +744,7 @@ export default function AddLead() {
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={sourceOptions}
-                        placeholder="Select source"
+                        placeholder="Select Source"
                         onChange={onChange}
                         defaultValue={value}
                       />
@@ -765,7 +765,7 @@ export default function AddLead() {
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={priorityOptions}
-                        placeholder="Select priority"
+                        placeholder="Select Priority"
                         onChange={onChange}
                         defaultValue={value}
                       />
@@ -795,7 +795,7 @@ export default function AddLead() {
                     render={({ field: { value, onChange } }) => (
                       <Select
                         options={employeeOptions}
-                        placeholder="Select lead owner"
+                        placeholder="Select Lead Owner"
                         onChange={onChange}
                         defaultValue={value}
                       />
@@ -824,7 +824,7 @@ export default function AddLead() {
                     <textarea
                       value={value || ""}
                       onChange={onChange}
-                      placeholder="Enter any additional remarks or notes..."
+                      placeholder="Enter Any Additional Remarks or Notes..."
                       className="w-full min-h-[100px] rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                     />
                   )}

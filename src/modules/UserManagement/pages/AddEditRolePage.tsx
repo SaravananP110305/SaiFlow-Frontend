@@ -211,11 +211,11 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
   };
 
   if (loading) {
-    return <div className="py-10 text-center text-gray-500">Loading details...</div>;
+    return <div className="py-10 text-center text-gray-500">Loading Details...</div>;
   }
 
   const pageTitle =
-    mode === "create" ? "Add role" : mode === "edit" ? "Edit role" : "View role";
+    mode === "create" ? "Add Role" : mode === "edit" ? "Edit Role" : "View Role";
 
   return (
     <>
@@ -229,7 +229,7 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
         <form onSubmit={handleSubmit(handleSave, handleFormError)} className="space-y-6">
           <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
             <h3 className="mb-4 border-b border-gray-100 pb-2 text-sm font-semibold text-gray-800 dark:border-white/[0.05] dark:text-white/95">
-              Role details
+              Role Details
             </h3>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
@@ -262,7 +262,7 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
           <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
             <div className="border-b border-gray-100 p-6 dark:border-white/[0.05]">
               <h3 className="text-sm font-semibold text-gray-800 dark:text-white/95">
-                Module permissions
+                Module Permissions
               </h3>
             </div>
 
@@ -335,7 +335,7 @@ export default function AddEditRolePage({ mode }: AddEditRolePageProps) {
 
           <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-white/[0.05]">
             <Button size="sm" type="button" variant="outline" onClick={() => navigate("/roles")}>
-              {mode === "view" ? "Back to list" : "Cancel"}
+              {mode === "view" ? "Back to List" : "Cancel"}
             </Button>
             {mode !== "view" && (
               <Button size="sm" type="submit">

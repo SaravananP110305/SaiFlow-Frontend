@@ -374,21 +374,21 @@ export default function MeetingsScopePage({
             <button
               onClick={() => openRescheduleModal(meeting)}
               className="p-1.5 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-lg transition cursor-pointer"
-              title="Reschedule meeting"
+              title="Reschedule Meeting"
             >
               <FiRefreshCw className="size-4" />
             </button>
             <button
               onClick={() => openCompleteModal(meeting)}
               className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
-              title="Complete meeting"
+              title="Complete Meeting"
             >
               <FiCheckCircle className="size-4" />
             </button>
             <button
               onClick={() => openCancelModal(meeting)}
               className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-              title="Cancel meeting"
+              title="Cancel Meeting"
             >
               <FiXCircle className="size-4" />
             </button>
@@ -400,21 +400,21 @@ export default function MeetingsScopePage({
             <button
               onClick={() => openRescheduleModal(meeting)}
               className="p-1.5 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-lg transition cursor-pointer"
-              title="Reschedule meeting"
+              title="Reschedule Meeting"
             >
               <FiRefreshCw className="size-4" />
             </button>
             <button
               onClick={() => openCompleteModal(meeting)}
               className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
-              title="Complete meeting"
+              title="Complete Meeting"
             >
               <FiCheckCircle className="size-4" />
             </button>
             <button
               onClick={() => openCancelModal(meeting)}
               className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-              title="Cancel meeting"
+              title="Cancel Meeting"
             >
               <FiXCircle className="size-4" />
             </button>
@@ -425,14 +425,14 @@ export default function MeetingsScopePage({
           <button
             onClick={() => openProposalConfirmModal(meeting)}
             className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10 rounded-lg transition cursor-pointer"
-            title="Create business proposal"
+            title="Create Business Proposal"
           >
             <FiFileText className="size-4" />
           </button>
         );
       case "Cancelled":
         return (
-          <span className="inline-flex items-center text-gray-300 dark:text-gray-600" title="Lead marked as lost">
+          <span className="inline-flex items-center text-gray-300 dark:text-gray-600" title="Lead Marked as Lost">
             <FiXCircle className="size-4" />
           </span>
         );
@@ -672,7 +672,7 @@ export default function MeetingsScopePage({
 
             <div>
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-                Follow-up Date & Time <span className="text-error-500">*</span>
+                Follow-Up Date & Time <span className="text-error-500">*</span>
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <DatePicker
@@ -821,7 +821,7 @@ export default function MeetingsScopePage({
                 options={getStorage<any[]>("saiflow_master_lost_reasons", LOST_REASONS)
                   .filter((r: any) => r.status === "Active")
                   .map((r: any) => ({ value: r.name, label: r.name }))}
-                placeholder="Select lost reason"
+                placeholder="Select Lost Reason"
                 onChange={(val: string) => setCancelLostReason(val)}
               />
               {!cancelLostReason && (
@@ -858,7 +858,7 @@ export default function MeetingsScopePage({
           <div className="mb-6 space-y-4">
             <div>
               <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
-                Create business proposal
+                Create Business Proposal
               </h4>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Are you sure you want to generate a new business proposal for{" "}
@@ -895,7 +895,7 @@ export default function MeetingsScopePage({
               Cancel
             </Button>
             <Button size="sm" onClick={handleConfirmProposal} className="w-1/2">
-              Create proposal
+              Create Proposal
             </Button>
           </div>
         </div>

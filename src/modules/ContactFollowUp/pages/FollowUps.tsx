@@ -30,7 +30,7 @@ import Button from "../../../components/ui/button/Button";
 import { FiCheckCircle, FiEye, FiXCircle, FiClock } from "react-icons/fi";
 
 const FOLLOW_UP_STATUS_OPTIONS = [
-  { value: "all", label: "All statuses" },
+  { value: "all", label: "All Statuses" },
   { value: "Scheduled", label: "Scheduled" },
   { value: "Completed", label: "Completed" },
   { value: "Missed", label: "Missed" },
@@ -379,10 +379,10 @@ export default function FollowUps() {
   return (
     <>
       <PageMeta
-        title="Follow-ups | SaiFlow"
+        title="Follow-Ups | SaiFlow"
         description="Track and manage follow-up activities in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle="Follow-ups" />
+      <PageBreadcrumb pageTitle="Follow-Ups" />
 
       {/* Control Panel */}
       <div className="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -447,7 +447,7 @@ export default function FollowUps() {
                 className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
               >
                 <span className="truncate">
-                  {assigneeFilter === "all" ? "All assignees" : assigneeFilter}
+                  {assigneeFilter === "all" ? "All Assignees" : assigneeFilter}
                 </span>
                 <ChevronDownIcon className="w-4 h-4 text-gray-500 shrink-0 ml-1" />
               </button>
@@ -457,7 +457,7 @@ export default function FollowUps() {
                 className="left-0 right-auto w-44 p-1 mt-2"
               >
                 <ul className="flex flex-col gap-0.5">
-                  {[{ value: "all", label: "All assignees" }, ...ASSIGNEES.map((a) => ({ value: a, label: a }))].map((opt) => (
+                  {[{ value: "all", label: "All Assignees" }, ...ASSIGNEES.map((a) => ({ value: a, label: a }))].map((opt) => (
                     <li key={opt.value}>
                       <DropdownItem
                         onItemClick={() => {
@@ -498,7 +498,7 @@ export default function FollowUps() {
                   {renderSortHeader("Company", "company")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Contact person", "contactPerson")}
+                  {renderSortHeader("Contact Person", "contactPerson")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Date", "date")}
@@ -510,7 +510,7 @@ export default function FollowUps() {
                   {renderSortHeader("Type", "followUpType" as any)}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Assigned to", "assignedTo")}
+                  {renderSortHeader("Assigned To", "assignedTo")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Status", "status")}
@@ -539,7 +539,7 @@ export default function FollowUps() {
                       <button
                         onClick={() => navigate(`/connect/follow-ups/${item.leadId}`)}
                         className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors font-medium cursor-pointer text-left"
-                        title="View lead details"
+                        title="View Lead Details"
                       >
                         {item.company}
                       </button>
@@ -574,7 +574,7 @@ export default function FollowUps() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => navigate(`/connect/follow-ups/${item.leadId}`)}
-                          title="View lead details"
+                          title="View Lead Details"
                           className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer"
                         >
                           <FiEye className="size-4" />
@@ -583,7 +583,7 @@ export default function FollowUps() {
                           <>
                             <button
                               onClick={() => handleOpenCompleteModal(item)}
-                              title="Log contact outcome"
+                              title="Log Contact Outcome"
                               className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
                             >
                               <FiCheckCircle className="size-4" />
@@ -601,7 +601,7 @@ export default function FollowUps() {
                           <>
                             <button
                               onClick={() => handleOpenCompleteModal(item)}
-                              title="Log contact outcome"
+                              title="Log Contact Outcome"
                               className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
                             >
                               <FiCheckCircle className="size-4" />
@@ -654,7 +654,7 @@ export default function FollowUps() {
           <div className="mb-5 flex items-center gap-2 pb-3 border-b border-gray-100 dark:border-gray-800">
             <FiCheckCircle className="size-5 text-brand-500" />
             <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-              Update follow-up outcome
+              Update Follow-Up Outcome
             </h4>
           </div>
 
@@ -730,9 +730,9 @@ export default function FollowUps() {
           <div className="space-y-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                {completeOutcome === "Interested" && <>Summary / Notes <span className="text-gray-400 font-normal">(optional)</span></>}
-                {completeOutcome === "Call Later" && <>Reason for follow-up <span className="text-error-500">*</span></>}
-                {completeOutcome === "Not Interested" && <>Reason for declining interest <span className="text-error-500">*</span></>}
+                {completeOutcome === "Interested" && <>Summary / Notes <span className="text-gray-400 font-normal">(Optional)</span></>}
+                {completeOutcome === "Call Later" && <>Reason for Follow-Up <span className="text-error-500">*</span></>}
+                {completeOutcome === "Not Interested" && <>Reason for Declining Interest <span className="text-error-500">*</span></>}
               </label>
               <textarea
                 value={completeSummary}
@@ -753,7 +753,7 @@ export default function FollowUps() {
               <div className="space-y-4">
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
-                    Follow-up Type <span className="text-error-500">*</span>
+                    Follow-Up Type <span className="text-error-500">*</span>
                   </label>
                   <div className="relative">
                     <select
@@ -779,7 +779,7 @@ export default function FollowUps() {
                   <div>
                     <DatePicker
                       id="modal-reschedule-date"
-                      label="New follow-up date"
+                      label="New Follow-Up Date"
                       required={true}
                       defaultDate={rescheduleDate}
                       onChange={(_, dateStr) => setRescheduleDate(dateStr)}
@@ -792,7 +792,7 @@ export default function FollowUps() {
                     <DatePicker
                       id="modal-reschedule-time"
                       mode="time"
-                      label="New follow-up time"
+                      label="New Follow-Up Time"
                       required={true}
                       defaultDate={rescheduleTime}
                       onChange={(_, timeStr) => setRescheduleTime(timeStr)}
@@ -845,7 +845,7 @@ export default function FollowUps() {
             <div className="flex items-center gap-2 mb-1">
               <FiXCircle className="size-5 text-error-500" />
               <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-                Follow-up missed — Reschedule
+                Follow-Up missed — Reschedule
               </h4>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
@@ -873,7 +873,7 @@ export default function FollowUps() {
           <div className="space-y-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Summary of missed call <span className="text-error-500">*</span>
+                Summary of Missed Call <span className="text-error-500">*</span>
               </label>
               <textarea
                 value={missedSummary}
@@ -886,7 +886,7 @@ export default function FollowUps() {
 
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
-                Follow-up Type <span className="text-error-500">*</span>
+                Follow-Up Type <span className="text-error-500">*</span>
               </label>
               <div className="relative">
                 <select
@@ -913,7 +913,7 @@ export default function FollowUps() {
               <div>
                 <DatePicker
                   id="missed-follow-up-date"
-                  label="New follow-up date"
+                  label="New Follow-Up Date"
                   required={true}
                   defaultDate={missedDate}
                   onChange={(_, dateStr) => setMissedDate(dateStr)}
@@ -923,7 +923,7 @@ export default function FollowUps() {
                 <DatePicker
                   id="missed-follow-up-time"
                   mode="time"
-                  label="New follow-up time"
+                  label="New Follow-Up Time"
                   required={true}
                   defaultDate={missedTime}
                   onChange={(_, timeStr) => setMissedTime(timeStr)}

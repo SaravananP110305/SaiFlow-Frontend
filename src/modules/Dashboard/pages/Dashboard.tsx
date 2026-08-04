@@ -206,24 +206,24 @@ export default function Dashboard() {
   };
 
   const statusOptions = [
-    { value: "all", label: "All statuses" },
+    { value: "all", label: "All Statuses" },
     { value: "New", label: "New" },
     { value: "Contacted", label: "Contacted" },
     { value: "Qualified", label: "Qualified" },
-    { value: "Proposal sent", label: "Proposal sent" },
+    { value: "Proposal sent", label: "Proposal Sent" },
     { value: "Won", label: "Won" },
     { value: "Lost", label: "Lost" },
   ];
 
   const callStatusOptions = [
-    { value: "all", label: "All statuses" },
+    { value: "all", label: "All Statuses" },
     { value: "New", label: "New" },
     { value: "Contacted", label: "Contacted" },
     { value: "Scheduled", label: "Scheduled" },
   ];
 
   const assigneeOptions = [
-    { value: "all", label: "All assignees" },
+    { value: "all", label: "All Assignees" },
     ...ASSIGNEES.map((a) => ({ value: a, label: a })),
   ];
 
@@ -339,17 +339,17 @@ export default function Dashboard() {
 
     return [
       {
-        label: "Total leads",
+        label: "Total Leads",
         value: rawLeads.length,
         icon: <FiLayers className="text-brand-500 w-5 h-5" />,
       },
       {
-        label: "Active clients",
+        label: "Active Clients",
         value: clients.filter((c: any) => c.status === "Active").length,
         icon: <FiUsers className="text-info-500 w-5 h-5" />,
       },
       {
-        label: "Won leads",
+        label: "Won Leads",
         value: rawLeads.filter((l) => l.status === "Won").length,
         icon: <FiCheckCircle className="text-success-500 w-5 h-5" />,
       },
@@ -471,7 +471,7 @@ export default function Dashboard() {
         {/* Task 1: Placed Lead generation trend in place of Lead status breakdown */}
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
           <h3 className="mb-4 text-base font-semibold text-gray-850 dark:text-white">
-            Lead generation trend
+            Lead Generation Trend
           </h3>
           <div className="max-w-full overflow-hidden">
             <Chart
@@ -486,7 +486,7 @@ export default function Dashboard() {
         {/* Lead conversion rate */}
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
           <h3 className="mb-4 text-base font-semibold text-gray-850 dark:text-white">
-            Lead conversion rate
+            Lead Conversion Rate
           </h3>
           <div className="max-w-full overflow-hidden">
             <Chart
@@ -504,7 +504,7 @@ export default function Dashboard() {
         <div className="mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
           <h3 className="text-base font-semibold text-gray-800 dark:text-white flex items-center gap-2">
             <FiPhoneCall className="text-brand-500 size-5" />
-            Today's lead calls
+            Today's Lead Calls
           </h3>
         </div>
 
@@ -514,7 +514,7 @@ export default function Dashboard() {
             <div className="w-full sm:w-64">
               <Input
                 type="text"
-                placeholder="Search calls..."
+                placeholder="Search Calls..."
                 value={callSearchQuery}
                 onChange={(e) => {
                   setCallSearchQuery(e.target.value);
@@ -533,7 +533,7 @@ export default function Dashboard() {
                 >
                   <span>
                     {callStatusOptions.find((o) => o.value === callStatusFilter)?.label ||
-                      "Filter by status"}
+                      "Filter by Status"}
                   </span>
                   <ChevronDownIcon className="w-4 h-4 text-gray-500" />
                 </button>
@@ -574,7 +574,7 @@ export default function Dashboard() {
                 >
                   <span>
                     {assigneeOptions.find((o) => o.value === callAssigneeFilter)?.label ||
-                      "Filter by assignee"}
+                      "Filter by Assignee"}
                   </span>
                   <ChevronDownIcon className="w-4 h-4 text-gray-500" />
                 </button>
@@ -615,10 +615,10 @@ export default function Dashboard() {
                 <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("S.No", "sNo")}</th>
                 <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Lead ID", "id")}</th>
                 <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Company", "company")}</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Contact person", "contactPerson")}</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Scheduled time", "followUpTime")}</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Current assignee", "assignedTo")}</th>
-                <th className="px-4 py-2.5 text-end text-xs font-semibold text-gray-500 dark:text-gray-400">Quick reassign</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Contact Person", "contactPerson")}</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Scheduled Time", "followUpTime")}</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Current Assignee", "assignedTo")}</th>
+                <th className="px-4 py-2.5 text-end text-xs font-semibold text-gray-500 dark:text-gray-400">Quick Reassign</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
@@ -662,7 +662,7 @@ export default function Dashboard() {
                         }}
                       >
                         <option value="" disabled className="text-gray-400 dark:bg-gray-900 dark:text-gray-500">
-                          Reassign to...
+                          Reassign To...
                         </option>
                         {ASSIGNEES.filter((a) => a !== lead.assignedTo).map((assignee) => (
                           <option
@@ -714,7 +714,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 p-4 pb-3 border-b border-gray-100 dark:border-gray-800">
             <h3 className="text-base font-semibold text-gray-800 dark:text-white flex items-center gap-2">
               <FiLayers className="text-brand-500 size-5" />
-              Recent leads
+              Recent Leads
             </h3>
           </div>
 
@@ -735,7 +735,7 @@ export default function Dashboard() {
                     onClick={() => { setIsStatusOpen(!isStatusOpen); setIsAssigneeOpen(false); }}
                     className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-55 dark:hover:bg-white/5"
                   >
-                    <span>{statusOptions.find((o) => o.value === statusFilter)?.label || "Filter by status"}</span>
+                    <span>{statusOptions.find((o) => o.value === statusFilter)?.label || "Filter by Status"}</span>
                     <ChevronDownIcon className="w-4 h-4 text-gray-500" />
                   </button>
                   <Dropdown
@@ -766,7 +766,7 @@ export default function Dashboard() {
                     onClick={() => { setIsAssigneeOpen(!isAssigneeOpen); setIsStatusOpen(false); }}
                     className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-55 dark:hover:bg-white/5"
                   >
-                    <span>{assigneeOptions.find((o) => o.value === assigneeFilter)?.label || "Filter by assignee"}</span>
+                    <span>{assigneeOptions.find((o) => o.value === assigneeFilter)?.label || "Filter by Assignee"}</span>
                     <ChevronDownIcon className="w-4 h-4 text-gray-500" />
                   </button>
                   <Dropdown
@@ -806,7 +806,7 @@ export default function Dashboard() {
                     {renderSortHeader("Company", "company")}
                   </th>
                   <th className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                    {renderSortHeader("Contact person", "contactPerson")}
+                    {renderSortHeader("Contact Person", "contactPerson")}
                   </th>
                   <th className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                     Phone
@@ -815,7 +815,7 @@ export default function Dashboard() {
                     {renderSortHeader("Status", "status")}
                   </th>
                   <th className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                    {renderSortHeader("Assigned to", "assignedTo")}
+                    {renderSortHeader("Assigned To", "assignedTo")}
                   </th>
                   <th className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                     Action

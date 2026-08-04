@@ -276,7 +276,7 @@ export default function MasterConfigPage({
               className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-205 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
             >
               <span>
-                {statusFilter === "all" ? "All statuses" : statusFilter}
+                {statusFilter === "all" ? "All Statuses" : statusFilter}
               </span>
               <ChevronDownIcon className="w-4 h-4 text-gray-505" />
             </button>
@@ -287,7 +287,7 @@ export default function MasterConfigPage({
             >
               <ul className="flex flex-col gap-0.5">
                 {[
-                  { value: "all", label: "All statuses" },
+                  { value: "all", label: "All Statuses" },
                   { value: "Active", label: "Active" },
                   { value: "Inactive", label: "Inactive" },
                 ].map((opt) => (

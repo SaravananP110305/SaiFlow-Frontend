@@ -46,7 +46,7 @@ export default function ResetPasswordForm() {
     <div className="flex flex-col justify-center flex-1 w-full max-w-md px-6 mx-auto lg:px-0">
       <div className="mb-8">
         <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-          Reset password
+          Reset Password
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Enter your new password below.
@@ -58,7 +58,7 @@ export default function ResetPasswordForm() {
           {/* New Password */}
           <div>
             <Label>
-              New password <span className="text-error-500">*</span>
+              New Password <span className="text-error-500">*</span>
             </Label>
             <div className="relative">
               <Controller
@@ -76,7 +76,7 @@ export default function ResetPasswordForm() {
                 render={({ field }) => (
                   <Input
                     {...field}
-                    placeholder="Enter new password"
+                    placeholder="Enter New Password"
                     type={showPassword ? "text" : "password"}
                     className={errors.password ? "border-error-500" : ""}
                   />
@@ -101,7 +101,7 @@ export default function ResetPasswordForm() {
           {/* Confirm Password */}
           <div>
             <Label>
-              Confirm password <span className="text-error-500">*</span>
+              Confirm Password <span className="text-error-500">*</span>
             </Label>
             <div className="relative">
               <Controller
@@ -115,7 +115,7 @@ export default function ResetPasswordForm() {
                 render={({ field }) => (
                   <Input
                     {...field}
-                    placeholder="Confirm new password"
+                    placeholder="Confirm New Password"
                     type={showConfirm ? "text" : "password"}
                     className={errors.confirmPassword ? "border-error-500" : ""}
                   />
@@ -138,7 +138,7 @@ export default function ResetPasswordForm() {
           </div>
 
           <Button type="submit" className="w-full" size="sm">
-            Reset password
+            Reset Password
           </Button>
         </div>
       </form>
@@ -147,7 +147,7 @@ export default function ResetPasswordForm() {
         <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400">
           Remember your password?{" "}
           <Link to="/signin" className="text-brand-500 hover:text-brand-600 dark:text-brand-400">
-            Sign in
+            Sign In
           </Link>
         </p>
       </div>

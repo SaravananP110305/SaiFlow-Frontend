@@ -60,7 +60,7 @@ function getActivitiesForLead(leadId: number, lead: Lead): Activity[] {
     result.push({
       id: `created-${lead.id}`,
       type: "lead_created",
-      title: "Lead created",
+      title: "Lead Created",
       description: `Lead was created and assigned to ${lead.assignedTo}.`,
       timestamp: lead.createdAt,
       icon: <FiActivity className="size-4" />,
@@ -111,7 +111,7 @@ function getActivitiesForLead(leadId: number, lead: Lead): Activity[] {
     result.push({
       id: `followup-${f.id}`,
       type: "follow_up",
-      title: `Follow-up ${f.status}`,
+      title: `Follow-Up ${f.status}`,
       description: `${f.reason || "No reason provided"} — ${f.date} at ${f.time}`,
       timestamp: `${f.date}T${f.time}`,
       icon: <FiMessageSquare className="size-4" />,
@@ -230,7 +230,7 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
 
   const isFromFollowUps = isFollowUpView || location.pathname.startsWith("/connect/follow-ups");
   const backTarget = isFromFollowUps ? "/connect/follow-ups" : "/connect/contacts";
-  const backLabel = isFromFollowUps ? "Back to follow-ups" : "Back to Contacts";
+  const backLabel = isFromFollowUps ? "Back to Follow-Ups" : "Back to Contacts";
 
   // Get the currently logged-in user
   const loggedInUser = getStorage<any>("saiflow_logged_in_user", {
@@ -304,10 +304,10 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
   if (!lead) {
     return (
       <>
-        <PageBreadcrumb pageTitle="Lead details" />
+        <PageBreadcrumb pageTitle="Lead Details" />
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-base font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Lead not found
+            Lead Not Found
           </p>
           <div className="flex gap-3">
             <button
@@ -329,7 +329,7 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
         title="Lead Details | SaiFlow"
         description="View lead details and activity log in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle="Lead details" />
+      <PageBreadcrumb pageTitle="Lead Details" />
 
       {/* Top action bar */}
       <div className="mb-5">
@@ -372,7 +372,7 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
         {/* Card 1: Lead Information */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-            Lead information
+            Lead Information
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
@@ -406,7 +406,7 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
         {/* Card 2: Contact Details */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-            Contact details
+            Contact Details
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
@@ -463,7 +463,7 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
         {/* Card 3: Company Details */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-            Company details
+            Company Details
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
@@ -518,7 +518,7 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
         {/* Card 5: Lead Details */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-            Lead details
+            Lead Details
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard
@@ -570,12 +570,12 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
         {latestFollowUp && (
           <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-              Follow-up details
+              Follow-Up details
             </h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <InfoCard
                 icon={<FiCalendar className="size-4" />}
-                label="Follow-up Date & Time"
+                label="Follow-Up Date & Time"
                 value={`${formatDate(latestFollowUp.date)} at ${formatTime(latestFollowUp.time)}`}
               />
               <InfoCard
@@ -603,13 +603,13 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
           <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Summary details
+                Summary Details
               </h3>
               {!isEditingSummary && (
                 <button
                   onClick={handleStartEditSummary}
                   className="text-gray-400 hover:text-brand-500 dark:text-gray-500 dark:hover:text-brand-400 transition cursor-pointer"
-                  title="Edit summary"
+                  title="Edit Summary"
                 >
                   <FiEdit className="size-4" />
                 </button>
@@ -675,7 +675,7 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
       <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 dark:border-white/[0.05] dark:bg-white/[0.03]">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-5 pb-2 border-b border-gray-100 dark:border-white/[0.05] flex items-center gap-2">
           <FiActivity className="size-4" />
-          Activity log
+          Activity Log
         </h3>
 
         {activities.length > 0 ? (
@@ -705,7 +705,7 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                   </svg>
-                  Load More ({activities.length - activityVisibleCount} remaining)
+                  Load More ({activities.length - activityVisibleCount} Remaining)
                 </button>
               </div>
             )}

@@ -6,7 +6,7 @@ export default function UserMetaCard({ onEdit }: { onEdit?: () => void }) {
       <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-col items-center gap-6 xl:flex-row">
           <div className="w-20 h-20 overflow-hidden border border-gray-200 rounded-full dark:border-gray-800">
-            <img src={ownerImg} alt="user" className="object-cover w-full h-full" />
+            <img src={ownerImg} alt="User" className="object-cover w-full h-full" />
           </div>
           <div>
             <h4 className="text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left">

@@ -39,7 +39,7 @@ export default function ForgotPasswordForm() {
     <div className="flex flex-col justify-center flex-1 w-full max-w-md px-6 mx-auto lg:px-0">
       <div className="mb-8">
         <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-          Forgot password?
+          Forgot Password?
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Enter your email address and we'll send you a link to reset your password.
@@ -77,7 +77,7 @@ export default function ForgotPasswordForm() {
           </div>
 
           <Button type="submit" className="w-full" size="sm">
-            Send reset link
+            Send Reset Link
           </Button>
         </div>
       </form>
@@ -86,7 +86,7 @@ export default function ForgotPasswordForm() {
         <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400">
           Remember your password?{" "}
           <Link to="/signin" className="text-brand-500 hover:text-brand-600 dark:text-brand-400">
-            Sign in
+            Sign In
           </Link>
         </p>
       </div>

@@ -38,14 +38,14 @@ export default function ClientReport() {
   const [isIndustryOpen, setIsIndustryOpen] = useState(false);
 
   const statusOptions = [
-    { value: "all", label: "All statuses" },
+    { value: "all", label: "All Statuses" },
     { value: "Active", label: "Active" },
     { value: "Inactive", label: "Inactive" },
     { value: "Blacklisted", label: "Blacklisted" },
   ];
 
   const industryOptions = [
-    { value: "all", label: "All industries" },
+    { value: "all", label: "All Industries" },
     { value: "Information Technology", label: "Information Technology" },
     { value: "Manufacturing", label: "Manufacturing" },
     { value: "Retail", label: "Retail" },
@@ -166,7 +166,7 @@ export default function ClientReport() {
         title="Client Report | SaiFlow"
         description="View client performance reports in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle="Client report" />
+      <PageBreadcrumb pageTitle="Client Report" />
 
       {/* Control Area */}
       <div className="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -304,7 +304,7 @@ export default function ClientReport() {
                   {renderSortHeader("Company", "companyName")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Contact person", "contactName")}
+                  {renderSortHeader("Contact Person", "contactName")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Email", "email")}
@@ -319,7 +319,7 @@ export default function ClientReport() {
                   {renderSortHeader("Status", "status")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Client since", "clientSince")}
+                  {renderSortHeader("Client Since", "clientSince")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Projects", "projectsCount")}
@@ -328,10 +328,10 @@ export default function ClientReport() {
                   {renderSortHeader("Handover", "handoverStatus")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Payment terms", "paymentTerms")}
+                  {renderSortHeader("Payment Terms", "paymentTerms")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Credit limit", "creditLimit")}
+                  {renderSortHeader("Credit Limit", "creditLimit")}
                 </TableCell>
               </TableRow>
             </TableHeader>

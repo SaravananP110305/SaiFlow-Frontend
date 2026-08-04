@@ -208,7 +208,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
               </span>
               <input
                 type="text"
-                placeholder="Search leads, clients, meetings..."
+                placeholder="Search Leads, Clients, Meetings..."
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 onFocus={() => { if (searchResults.length > 0) setShowResults(true); }}

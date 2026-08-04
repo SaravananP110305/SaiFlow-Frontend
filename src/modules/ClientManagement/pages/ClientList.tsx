@@ -522,7 +522,7 @@ export default function ClientList() {
                   <button
                     onClick={() => openHandoverModal(client)}
                     className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 rounded-lg border border-indigo-200 dark:border-indigo-800/50 transition cursor-pointer"
-                    title="Handover project details"
+                    title="Handover Project Details"
                   >
                     <FiShield className="size-4" />
                   </button>
@@ -560,7 +560,7 @@ export default function ClientList() {
           <div className="mb-6 space-y-4">
             <div>
               <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1 flex items-center gap-2">
-                <FiShield className="size-5 text-brand-500" /> Project handover details
+                <FiShield className="size-5 text-brand-500" /> Project Handover Details
               </h4>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Enter project management and scope handover details for{" "}
@@ -627,7 +627,7 @@ export default function ClientList() {
                       setHandoverStartDate(dateStr);
                       if (handoverError) setHandoverError("");
                     }}
-                    placeholder="Select start date"
+                    placeholder="Select Start Date"
                   />
                 </div>
                 <div>
@@ -638,7 +638,7 @@ export default function ClientList() {
                     id="handover-target-date"
                     defaultDate={handoverTargetDate}
                     onChange={(_: Date[], dateStr: string) => setHandoverTargetDate(dateStr)}
-                    placeholder="Select delivery date"
+                    placeholder="Select Delivery Date"
                   />
                 </div>
               </div>
@@ -653,7 +653,7 @@ export default function ClientList() {
                     setHandoverNotes(e.target.value);
                     if (handoverError) setHandoverError("");
                   }}
-                  placeholder="Enter key deliverables, repository link, client expectations, or handover instructions..."
+                  placeholder="Enter Key Deliverables, Repository Link, Client Expectations, or Handover Instructions..."
                   rows={3}
                   className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                 />
@@ -667,7 +667,7 @@ export default function ClientList() {
                   id="handover-kickoff-date"
                   defaultDate={handoverKickoffDate}
                   onChange={(_: Date[], dateStr: string) => setHandoverKickoffDate(dateStr)}
-                  placeholder="Select kickoff date"
+                  placeholder="Select Kickoff Date"
                 />
               </div>
 
@@ -682,7 +682,7 @@ export default function ClientList() {
               Cancel
             </Button>
             <Button size="sm" onClick={handleSaveHandover} className="w-1/2">
-              Complete handover
+              Complete Handover
             </Button>
           </div>
         </div>
@@ -696,7 +696,7 @@ export default function ClientList() {
               <FiShield className="size-6" />
             </div>
             <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-              Confirm project handover
+              Confirm Project Handover
             </h4>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Are you sure you want to complete project handover for{" "}
@@ -714,7 +714,7 @@ export default function ClientList() {
               Cancel
             </Button>
             <Button size="sm" onClick={executeSaveHandover} className="w-1/2">
-              Confirm handover
+              Confirm Handover
             </Button>
           </div>
         </div>

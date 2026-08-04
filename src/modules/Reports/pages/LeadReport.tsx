@@ -38,17 +38,17 @@ export default function LeadReport() {
   const [isSourceOpen, setIsSourceOpen] = useState(false);
 
   const statusOptions = [
-    { value: "all", label: "All statuses" },
+    { value: "all", label: "All Statuses" },
     { value: "New", label: "New" },
     { value: "Contacted", label: "Contacted" },
     { value: "Qualified", label: "Qualified" },
-    { value: "Proposal sent", label: "Proposal sent" },
+    { value: "Proposal sent", label: "Proposal Sent" },
     { value: "Won", label: "Won" },
     { value: "Lost", label: "Lost" },
   ];
 
   const sourceOptions = [
-    { value: "all", label: "All sources" },
+    { value: "all", label: "All Sources" },
     { value: "Website", label: "Website" },
     { value: "Referral", label: "Referral" },
     { value: "LinkedIn", label: "LinkedIn" },
@@ -163,7 +163,7 @@ export default function LeadReport() {
         title="Lead Report | SaiFlow"
         description="View lead performance reports in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle="Lead report" />
+      <PageBreadcrumb pageTitle="Lead Report" />
 
       {/* Control Area */}
       <div className="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -303,7 +303,7 @@ export default function LeadReport() {
                   {renderSortHeader("Company", "company")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Contact person", "contactPerson")}
+                  {renderSortHeader("Contact Person", "contactPerson")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Email", "email")}
@@ -312,7 +312,7 @@ export default function LeadReport() {
                   {renderSortHeader("Phone", "phone")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Lead source", "source")}
+                  {renderSortHeader("Lead Source", "source")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Industry", "industry")}
@@ -321,7 +321,7 @@ export default function LeadReport() {
                   {renderSortHeader("Status", "status")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Assigned to", "assignedTo")}
+                  {renderSortHeader("Assigned To", "assignedTo")}
                 </TableCell>
               </TableRow>
             </TableHeader>

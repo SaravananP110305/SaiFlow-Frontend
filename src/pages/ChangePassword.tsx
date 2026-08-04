@@ -86,7 +86,7 @@ export default function ChangePassword() {
         title="Change Password | SaiFlow"
         description="Change your account password in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle="Change password" />
+      <PageBreadcrumb pageTitle="Change Password" />
 
       <div className="w-full max-w-[700px]">
         <form
@@ -94,14 +94,14 @@ export default function ChangePassword() {
           className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-6 shadow-theme-xs"
         >
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-6 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-            Password details
+            Password Details
           </h3>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             {/* Current Password */}
             <div className="sm:col-span-2">
               <Label htmlFor="currentPass">
-                Current password <span className="text-error-500">*</span>
+                Current Password <span className="text-error-500">*</span>
               </Label>
               <div className="relative">
                 <Controller
@@ -115,7 +115,7 @@ export default function ChangePassword() {
                       {...field}
                       id="currentPass"
                       type={showCurrentPass ? "text" : "password"}
-                      placeholder="Enter current password"
+                      placeholder="Enter Current Password"
                       className={errors.currentPass ? "border-error-500 focus:ring-error-500/10" : ""}
                     />
                   )}
@@ -139,7 +139,7 @@ export default function ChangePassword() {
             {/* New Password */}
             <div>
               <Label htmlFor="newPass">
-                New password <span className="text-error-500">*</span>
+                New Password <span className="text-error-500">*</span>
               </Label>
               <div className="relative">
                 <Controller
@@ -157,7 +157,7 @@ export default function ChangePassword() {
                       {...field}
                       id="newPass"
                       type={showNewPass ? "text" : "password"}
-                      placeholder="Enter new password"
+                      placeholder="Enter New Password"
                       className={errors.newPass ? "border-error-500 focus:ring-error-500/10" : ""}
                     />
                   )}
@@ -181,7 +181,7 @@ export default function ChangePassword() {
             {/* Confirm Password */}
             <div>
               <Label htmlFor="confirmPass">
-                Confirm new password <span className="text-error-500">*</span>
+                Confirm New Password <span className="text-error-500">*</span>
               </Label>
               <div className="relative">
                 <Controller
@@ -197,7 +197,7 @@ export default function ChangePassword() {
                       {...field}
                       id="confirmPass"
                       type={showConfirmPass ? "text" : "password"}
-                      placeholder="Confirm new password"
+                      placeholder="Confirm New Password"
                       className={errors.confirmPass ? "border-error-500 focus:ring-error-500/10" : ""}
                     />
                   )}

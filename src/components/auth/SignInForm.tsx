@@ -108,7 +108,7 @@ export default function SignInForm() {
                   <Input
                     {...field}
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder="Enter Your Password"
                     className={errors.password ? "border-error-500" : ""}
                   />
                 )}
@@ -130,7 +130,7 @@ export default function SignInForm() {
           </div>
 
           <Button type="submit" className="w-full" size="sm">
-            Sign in
+            Sign In
           </Button>
         </div>
       </form>

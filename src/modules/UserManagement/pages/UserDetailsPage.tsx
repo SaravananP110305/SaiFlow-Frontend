@@ -160,21 +160,21 @@ export default function UserDetailsPage() {
     return (
       <>
         <PageMeta
-          title="User details error | SaiFlow"
+          title="User Details Error | SaiFlow"
           description="There was a problem loading the requested user."
         />
-        <PageBreadcrumb pageTitle="User details" />
+        <PageBreadcrumb pageTitle="User Details" />
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-error-50 dark:bg-error-500/10">
             <FiXCircle className="size-7 text-error-500" />
           </div>
           <p className="mb-2 text-base font-medium text-gray-700 dark:text-gray-300">
-            Failed to load user
+            Failed to Load User
           </p>
           <p className="mb-6 text-sm text-gray-400">{error}</p>
           <div className="flex items-center gap-3">
             <Button size="sm" variant="outline" onClick={() => navigate("/users")}>
-              Back to user list
+              Back to User List
             </Button>
             <Button size="sm" onClick={() => window.location.reload()}>
               Retry
@@ -189,22 +189,22 @@ export default function UserDetailsPage() {
     return (
       <>
         <PageMeta
-          title="User not found | SaiFlow"
+          title="User Not Found | SaiFlow"
           description="The requested user does not exist."
         />
-        <PageBreadcrumb pageTitle="User details" />
+        <PageBreadcrumb pageTitle="User Details" />
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-white/[0.05]">
             <FiUser className="size-7 text-gray-400" />
           </div>
           <p className="mb-2 text-base font-medium text-gray-700 dark:text-gray-300">
-            User not found
+            User Not Found
           </p>
           <p className="mb-6 text-sm text-gray-400">
             The user you are looking for does not exist or has been deleted.
           </p>
           <Button size="sm" onClick={() => navigate("/users")}>
-            Back to user list
+            Back to User List
           </Button>
         </div>
       </>
@@ -217,7 +217,7 @@ export default function UserDetailsPage() {
         title="User Details | SaiFlow"
         description="View detailed employee information in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle="User details" />
+      <PageBreadcrumb pageTitle="User Details" />
 
       <div className="mb-5 flex items-center justify-between">
         <button
@@ -225,14 +225,14 @@ export default function UserDetailsPage() {
           className="flex cursor-pointer items-center gap-1.5 text-sm text-gray-500 transition hover:text-gray-800 dark:hover:text-white"
         >
           <FiArrowLeft className="size-4" />
-          Back to list
+          Back to List
         </button>
         <Button
           size="sm"
           onClick={() => navigate(`/users/${user.id}/edit`)}
           startIcon={<FiEdit className="size-4" />}
         >
-          Edit user
+          Edit User
         </Button>
       </div>
 

@@ -346,8 +346,8 @@ export default function App() {
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Country"
-                    itemNameSingular="country"
-                    itemNamePlural="countries"
+                    itemNameSingular="Country"
+                    itemNamePlural="Countries"
                     initialData={COUNTRIES}
                     storageKey="saiflow_master_countries"
                   />
@@ -360,8 +360,8 @@ export default function App() {
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="State"
-                    itemNameSingular="state"
-                    itemNamePlural="states"
+                    itemNameSingular="State"
+                    itemNamePlural="States"
                     initialData={STATES as any}
                     storageKey="saiflow_master_states"
                   />
@@ -374,8 +374,8 @@ export default function App() {
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="City"
-                    itemNameSingular="city"
-                    itemNamePlural="cities"
+                    itemNameSingular="City"
+                    itemNamePlural="Cities"
                     initialData={CITIES as any}
                     storageKey="saiflow_master_cities"
                   />
@@ -388,8 +388,8 @@ export default function App() {
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Department"
-                    itemNameSingular="department"
-                    itemNamePlural="departments"
+                    itemNameSingular="Department"
+                    itemNamePlural="Departments"
                     initialData={DEPARTMENTS}
                     storageKey="saiflow_master_departments"
                   />
@@ -402,8 +402,8 @@ export default function App() {
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Designation"
-                    itemNameSingular="designation"
-                    itemNamePlural="designations"
+                    itemNameSingular="Designation"
+                    itemNamePlural="Designations"
                     initialData={DESIGNATIONS as any}
                     storageKey="saiflow_master_designations"
                   />
@@ -415,9 +415,9 @@ export default function App() {
               element={
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
-                    pageTitle="Lead source"
-                    itemNameSingular="lead source"
-                    itemNamePlural="lead sources"
+                    pageTitle="Lead Source"
+                    itemNameSingular="Lead Source"
+                    itemNamePlural="Lead Sources"
                     initialData={LEAD_SOURCES}
                     storageKey="saiflow_master_lead_sources"
                   />
@@ -430,8 +430,8 @@ export default function App() {
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Industry"
-                    itemNameSingular="industry"
-                    itemNamePlural="industries"
+                    itemNameSingular="Industry"
+                    itemNamePlural="Industries"
                     initialData={INDUSTRIES}
                     storageKey="saiflow_master_industries"
                   />
@@ -443,9 +443,9 @@ export default function App() {
               element={
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
-                    pageTitle="Tech stack"
-                    itemNameSingular="tech"
-                    itemNamePlural="tech stack"
+                    pageTitle="Tech Stack"
+                    itemNameSingular="Tech"
+                    itemNamePlural="Tech Stack"
                     initialData={TECHNOLOGIES}
                     storageKey="saiflow_master_technologies"
                   />
@@ -458,8 +458,8 @@ export default function App() {
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Priority"
-                    itemNameSingular="priority"
-                    itemNamePlural="priorities"
+                    itemNameSingular="Priority"
+                    itemNamePlural="Priorities"
                     initialData={PRIORITIES}
                     storageKey="saiflow_master_priorities"
                   />
@@ -472,8 +472,8 @@ export default function App() {
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
                     pageTitle="Service"
-                    itemNameSingular="service"
-                    itemNamePlural="services"
+                    itemNameSingular="Service"
+                    itemNamePlural="Services"
                     initialData={PROJECT_CATEGORIES}
                     storageKey="saiflow_master_services"
                   />
@@ -485,9 +485,9 @@ export default function App() {
               element={
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
-                    pageTitle="Company type"
-                    itemNameSingular="company type"
-                    itemNamePlural="company types"
+                    pageTitle="Company Type"
+                    itemNameSingular="Company Type"
+                    itemNamePlural="Company Types"
                     initialData={COMPANY_TYPES}
                     storageKey="saiflow_master_company_types"
                   />
@@ -499,9 +499,9 @@ export default function App() {
               element={
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
-                    pageTitle="Payment type"
-                    itemNameSingular="payment type"
-                    itemNamePlural="payment types"
+                    pageTitle="Payment Type"
+                    itemNameSingular="Payment Type"
+                    itemNamePlural="Payment Types"
                     initialData={PAYMENT_TYPES}
                     storageKey="saiflow_master_payment_types"
                   />
@@ -513,9 +513,9 @@ export default function App() {
               element={
                 <ProtectedRoute requiredPermission={{ module: 'master', action: 'view' }}>
                   <MasterConfigPage
-                    pageTitle="Follow-up type"
-                    itemNameSingular="follow-up type"
-                    itemNamePlural="follow-up types"
+                    pageTitle="Follow-Up Type"
+                    itemNameSingular="Follow-Up Type"
+                    itemNamePlural="Follow-Up Types"
                     initialData={FOLLOWUP_TYPES}
                     storageKey="saiflow_master_followup_types"
                   />

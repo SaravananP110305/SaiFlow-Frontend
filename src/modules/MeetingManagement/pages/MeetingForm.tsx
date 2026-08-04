@@ -310,7 +310,7 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
   };
 
   if (loading) {
-    return <div className="text-center py-10 text-gray-500">Loading meeting details...</div>;
+    return <div className="text-center py-10 text-gray-500">Loading Meeting Details...</div>;
   }
 
   const isLockRelated = searchParams.get("relatedType") && searchParams.get("relatedId");
@@ -321,7 +321,7 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
         title={`${isEditMode ? "Edit Meeting" : "Schedule Meeting"} | SaiFlow`}
         description="Schedule or edit a meeting in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle={isEditMode ? "Edit meeting" : "Schedule meeting"} />
+      <PageBreadcrumb pageTitle={isEditMode ? "Edit Meeting" : "Schedule Meeting"} />
 
       <form
         onSubmit={handleSubmit(handleSave, handleError)}
@@ -360,7 +360,7 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
                         ? leads.map((l) => ({ value: l.id.toString(), label: `${l.company} (${l.contactPerson})` }))
                         : clients.map((c) => ({ value: c.id.toString(), label: `${c.company} (${c.name})` }))
                     }
-                    placeholder="Select lead"
+                    placeholder="Select Lead"
                     defaultValue={value ? value.toString() : ""}
                     onChange={(val) => handleRelatedChange(relatedToType, Number(val))}
                   />
@@ -388,7 +388,7 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
                   <DatePicker
                     id="meeting-date-picker"
                     label="Meeting Date"
-                    placeholder="Select meeting date"
+                    placeholder="Select Meeting Date"
                     defaultDate={value}
                     onChange={(_, dateStr) => onChange(dateStr)}
                     required={true}
@@ -489,7 +489,7 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
                       </span>
                     ))
                   ) : (
-                    <span className="text-gray-450 dark:text-gray-500 text-xs">Select employees...</span>
+                    <span className="text-gray-450 dark:text-gray-500 text-xs">Select Employees...</span>
                   )}
                 </div>
                 <ChevronDownIcon className="w-4 h-4 text-gray-500 shrink-0" />
@@ -539,7 +539,7 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
                   <Input
                     {...field}
                     type="text"
-                    placeholder="Contact person name"
+                    placeholder="Contact Person Name"
                   />
                 )}
               />
@@ -563,7 +563,7 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
                 render={({ field: { onChange, value } }) => (
                   <Select
                     options={MEETING_PLATFORMS.map((p) => ({ value: p, label: p }))}
-                    placeholder="Select platform"
+                    placeholder="Select Platform"
                     defaultValue={value}
                     onChange={(val) => {
                       onChange(val);
@@ -602,8 +602,8 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
                     type="text"
                     placeholder={
                       ["Google Meet", "Zoom", "Microsoft Teams"].includes(meetingPlatform)
-                        ? "Enter meeting URL"
-                        : "Enter office address"
+                        ? "Enter Meeting URL"
+                        : "Enter Office Address"
                     }
                     error={!!errors.linkOrLocation}
                   />
@@ -643,7 +643,7 @@ export default function MeetingForm({ onSave }: MeetingFormProps) {
             Cancel
           </Button>
           <Button size="sm" type="submit">
-            Save meeting
+            Save Meeting
           </Button>
         </div>
       </form>

@@ -39,18 +39,18 @@ export default function FollowUpReport() {
   const [isReasonOpen, setIsReasonOpen] = useState(false);
 
   const statusOptions = [
-    { value: "all", label: "All statuses" },
+    { value: "all", label: "All Statuses" },
     { value: "Scheduled", label: "Scheduled" },
     { value: "Completed", label: "Completed" },
     { value: "Missed", label: "Missed" },
   ];
 
   const reasonOptions = [
-    { value: "all", label: "All reasons" },
-    { value: "Pending decision", label: "Pending decision" },
-    { value: "Technical evaluation", label: "Technical evaluation" },
-    { value: "Budget review", label: "Budget review" },
-    { value: "No response", label: "No response" },
+    { value: "all", label: "All Reasons" },
+    { value: "Pending decision", label: "Pending Decision" },
+    { value: "Technical evaluation", label: "Technical Evaluation" },
+    { value: "Budget review", label: "Budget Review" },
+    { value: "No response", label: "No Response" },
   ];
 
   const handleSort = (field: keyof FollowUpReportData) => {
@@ -155,7 +155,7 @@ export default function FollowUpReport() {
         title="Follow-up Report | SaiFlow"
         description="View follow-up activity reports in SaiFlow CRM."
       />
-      <PageBreadcrumb pageTitle="Follow-up report" />
+      <PageBreadcrumb pageTitle="Follow-Up Report" />
 
       {/* Control Area */}
       <div className="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -269,7 +269,7 @@ export default function FollowUpReport() {
             onClick={() => {
               exportToCSV(
                 processedData,
-                ["S.No", "Company Name", "Contact Person", "Follow-up Date", "Follow-up Time", "Reason / Log", "Follow-up Status", "Assigned To"],
+                ["S.No", "Company Name", "Contact Person", "Follow-Up Date", "Follow-Up Time", "Reason / Log", "Follow-Up Status", "Assigned To"],
                 "FollowUp_Report"
               );
               showToast("Follow-up report exported successfully.", "success");
@@ -293,7 +293,7 @@ export default function FollowUpReport() {
                   {renderSortHeader("Company", "company")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Contact person", "contactPerson")}
+                  {renderSortHeader("Contact Person", "contactPerson")}
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Date", "date")}

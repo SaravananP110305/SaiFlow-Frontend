@@ -229,17 +229,17 @@ export default function LeadList() {
   };
 
   const assigneeOptions = useMemo(() => [
-    { value: "all", label: "All assignees" },
+    { value: "all", label: "All Assignees" },
     ...users.map((u) => ({ value: `${u.firstName} ${u.lastName}`.trim(), label: `${u.firstName} ${u.lastName}`.trim() })),
   ], [users]);
 
   const industryOptions = useMemo(() => [
-    { value: "all", label: "All industries" },
+    { value: "all", label: "All Industries" },
     ...industries.filter((i: any) => i.status === "Active").map((i: any) => ({ value: i.name, label: i.name }))
   ], [industries]);
 
   const sourceOptions = useMemo(() => [
-    { value: "all", label: "All sources" },
+    { value: "all", label: "All Sources" },
     ...sources.filter((s: any) => s.status === "Active").map((s: any) => ({ value: s.name, label: s.name }))
   ], [sources]);
 
@@ -538,7 +538,7 @@ export default function LeadList() {
                 startIcon={<FiPlus className="size-4" />}
                 className="h-11 px-4 py-2.5"
               >
-                Add lead
+                Add Lead
               </Button>
             </>
           )}
@@ -552,7 +552,7 @@ export default function LeadList() {
         <div className="flex items-center justify-between gap-3 mb-3 px-4 py-3 rounded-xl border border-brand-200 bg-brand-50 dark:border-brand-500/20 dark:bg-brand-500/10">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-brand-700 dark:text-brand-400">
-              {selectedIds.length} selected
+              {selectedIds.length} Selected
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -563,7 +563,7 @@ export default function LeadList() {
                   onChange={(e) => setBulkAssignee(e.target.value)}
                   className="h-9 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                 >
-                  <option value="">Select assignee...</option>
+                  <option value="">Select Assignee...</option>
                   {users.map((u) => (
                     <option key={u.id} value={String(u.id)}>{`${u.firstName} ${u.lastName}`.trim()}</option>
                   ))}
@@ -624,7 +624,7 @@ export default function LeadList() {
                       {renderSortHeader("Company", "company")}
                     </TableCell>
                     <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {renderSortHeader("Contact person", "contactPerson")}
+                      {renderSortHeader("Contact Person", "contactPerson")}
                     </TableCell>
                     <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       {renderSortHeader("Email", "email")}
@@ -633,7 +633,7 @@ export default function LeadList() {
                       {renderSortHeader("Phone", "phone")}
                     </TableCell>
                     <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {renderSortHeader("Assigned to", "assignedTo")}
+                      {renderSortHeader("Assigned To", "assignedTo")}
                     </TableCell>
                     <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       Action
@@ -646,7 +646,7 @@ export default function LeadList() {
                       <TableCell colSpan={9} className="px-5 py-8 text-center text-sm text-gray-500">
                         <div className="flex items-center justify-center gap-2">
                           <div className="h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
-                          <span>Loading leads...</span>
+                          <span>Loading Leads...</span>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -761,7 +761,7 @@ export default function LeadList() {
                 <div className="px-5 py-8 text-center text-sm text-gray-500">
                   <div className="flex items-center justify-center gap-2">
                     <div className="h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
-                    <span>Loading leads...</span>
+                    <span>Loading Leads...</span>
                   </div>
                 </div>
               ) : paginatedLeads.length > 0 ? (
@@ -837,7 +837,7 @@ export default function LeadList() {
                         <span className="text-gray-700 dark:text-gray-300 truncate block">{lead.phone}</span>
                       </div>
                       <div>
-                        <span className="block text-gray-400 dark:text-gray-500 mb-0.5">Assigned to</span>
+                        <span className="block text-gray-400 dark:text-gray-500 mb-0.5">Assigned To</span>
                         <select
                           value={users.find(u => `${u.firstName} ${u.lastName}`.trim() === lead.assignedTo)?.id || ""}
                           onChange={(e) => handleDirectAssign(lead.id, e.target.value)}
@@ -910,7 +910,7 @@ export default function LeadList() {
           {/* Template Download Banner */}
           <div className="mb-6 p-4 rounded-xl bg-gray-50 dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.05] flex items-center justify-between gap-4">
             <div className="flex flex-col">
-              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Need a template?</span>
+              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Need a Template?</span>
               <span className="text-[11px] text-gray-400 mt-0.5">Use our format for a smooth import.</span>
             </div>
             <button
@@ -918,7 +918,7 @@ export default function LeadList() {
               onClick={downloadSampleTemplate}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-750 text-xs font-semibold text-brand-500 hover:text-brand-600 cursor-pointer shadow-theme-xs transition-colors shrink-0"
             >
-              Download template
+              Download Template
             </button>
           </div>
 
@@ -1116,7 +1116,7 @@ export default function LeadList() {
                 uploadModal.closeModal();
               }}
             >
-              Import leads
+              Import Leads
             </Button>
           </div>
         </div>
@@ -1134,7 +1134,7 @@ export default function LeadList() {
               <FiTrash2 className="size-6" />
             </div>
             <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">
-              Delete lead
+              Delete Lead
             </h4>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Are you sure you want to delete{" "}

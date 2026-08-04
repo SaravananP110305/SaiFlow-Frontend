@@ -21,66 +21,66 @@ const MASTER_CONFIGS: Record<
 > = {
   countries: {
     pageTitle: "Country",
-    itemNameSingular: "country",
-    itemNamePlural: "countries",
+    itemNameSingular: "Country",
+    itemNamePlural: "Countries",
   },
   states: {
     pageTitle: "State",
-    itemNameSingular: "state",
-    itemNamePlural: "states",
+    itemNameSingular: "State",
+    itemNamePlural: "States",
     parentType: "countries",
   },
   cities: {
     pageTitle: "City",
-    itemNameSingular: "city",
-    itemNamePlural: "cities",
+    itemNameSingular: "City",
+    itemNamePlural: "Cities",
     parentType: "states",
   },
   departments: {
     pageTitle: "Department",
-    itemNameSingular: "department",
-    itemNamePlural: "departments",
+    itemNameSingular: "Department",
+    itemNamePlural: "Departments",
   },
   designations: {
     pageTitle: "Designation",
-    itemNameSingular: "designation",
-    itemNamePlural: "designations",
+    itemNameSingular: "Designation",
+    itemNamePlural: "Designations",
     parentType: "departments",
   },
   "lead-sources": {
-    pageTitle: "Lead source",
-    itemNameSingular: "lead source",
-    itemNamePlural: "lead sources",
+    pageTitle: "Lead Source",
+    itemNameSingular: "Lead Source",
+    itemNamePlural: "Lead Sources",
   },
   industries: {
     pageTitle: "Industry",
-    itemNameSingular: "industry",
-    itemNamePlural: "industries",
+    itemNameSingular: "Industry",
+    itemNamePlural: "Industries",
   },
   "tech-stack": {
-    pageTitle: "Tech stack",
-    itemNameSingular: "tech",
-    itemNamePlural: "tech stack",
+    pageTitle: "Tech Stack",
+    itemNameSingular: "Tech",
+    itemNamePlural: "Tech Stack",
   },
   priorities: {
     pageTitle: "Priority",
-    itemNameSingular: "priority",
-    itemNamePlural: "priorities",
+    itemNameSingular: "Priority",
+    itemNamePlural: "Priorities",
   },
   services: {
     pageTitle: "Service",
-    itemNameSingular: "service",
-    itemNamePlural: "services",
+    itemNameSingular: "Service",
+    itemNamePlural: "Services",
   },
   "company-types": {
-    pageTitle: "Company type",
-    itemNameSingular: "company type",
-    itemNamePlural: "company types",
+    pageTitle: "Company Type",
+    itemNameSingular: "Company Type",
+    itemNamePlural: "Company Types",
   },
   "payment-types": {
-    pageTitle: "Payment type",
-    itemNameSingular: "payment type",
-    itemNamePlural: "payment types",
+    pageTitle: "Payment Type",
+    itemNameSingular: "Payment Type",
+    itemNamePlural: "Payment Types",
   },
 };
 
@@ -216,7 +216,7 @@ export default function AddEditMasterPage() {
   };
 
   if (loading || !config) {
-    return <div className="text-center py-10 text-gray-500">Loading details...</div>;
+    return <div className="text-center py-10 text-gray-500">Loading Details...</div>;
   }
 
   const resolvedBreadcrumbTitle = isEditMode
@@ -236,7 +236,7 @@ export default function AddEditMasterPage() {
     <>
       <PageMeta
         title={`${resolvedBreadcrumbTitle} | SaiFlow`}
-        description={`Manage ${config.itemNamePlural} details in SaiFlow CRM.`}
+        description={`Manage ${config.itemNamePlural} in SaiFlow CRM.`}
       />
       <PageBreadcrumb pageTitle={resolvedBreadcrumbTitle} />
 
@@ -254,7 +254,7 @@ export default function AddEditMasterPage() {
                 </label>
                 <Select
                   options={parentOptions}
-                  placeholder={`Select parent ${parentLabel.toLowerCase()}`}
+                  placeholder={`Select Parent ${parentLabel}`}
                   defaultValue={parentId ? String(parentId) : ""}
                   onChange={(val) => {
                     setParentId(Number(val));
@@ -275,7 +275,7 @@ export default function AddEditMasterPage() {
               </label>
               <Input
                 type="text"
-                placeholder="Enter name"
+                placeholder="Enter Name"
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);

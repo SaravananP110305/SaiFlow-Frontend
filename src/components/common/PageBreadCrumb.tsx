@@ -51,28 +51,28 @@ const MASTER_LABELS: Record<string, string> = {
   cities: "City",
   departments: "Department",
   designations: "Designation",
-  "lead-sources": "Lead source",
+  "lead-sources": "Lead Source",
   industries: "Industry",
-  "tech-stack": "Tech stack",
+  "tech-stack": "Tech Stack",
   priorities: "Priority",
   services: "Service",
-  "company-types": "Company type",
-  "payment-types": "Payment type",
+  "company-types": "Company Type",
+  "payment-types": "Payment Type",
 };
 
 const MASTER_SINGULARS: Record<string, string> = {
-  countries: "country",
-  states: "state",
-  cities: "city",
-  departments: "department",
-  designations: "designation",
-  "lead-sources": "lead source",
-  industries: "industry",
-  "tech-stack": "tech",
-  priorities: "priority",
-  services: "service",
-  "company-types": "company type",
-  "payment-types": "payment type",
+  countries: "Country",
+  states: "State",
+  cities: "City",
+  departments: "Department",
+  designations: "Designation",
+  "lead-sources": "Lead Source",
+  industries: "Industry",
+  "tech-stack": "Tech",
+  priorities: "Priority",
+  services: "Service",
+  "company-types": "Company Type",
+  "payment-types": "Payment Type",
 };
 
 const MASTER_KEYS: Record<string, string> = {
@@ -99,10 +99,10 @@ const getMasterItemName = (tab: string, id: string | number): string => {
 };
 
 const REPORT_LABELS: Record<string, string> = {
-  leads: "Lead report",
-  meetings: "Meeting report",
-  employees: "Employee report",
-  "follow-ups": "Follow-up report",
+  leads: "Lead Report",
+  meetings: "Meeting Report",
+  employees: "Employee Report",
+  "follow-ups": "Follow-Up Report",
 };
 
 const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
@@ -156,7 +156,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
     } else if (pathname === "/users/add") {
       breadcrumbs.push({ label: "Manage Users", to: "/users" });
       breadcrumbs.push({ label: "Users", to: "/users" });
-      breadcrumbs.push({ label: "Add user" });
+      breadcrumbs.push({ label: "Add User" });
     } else if (pathname.startsWith("/users/")) {
       const parts = pathname.split("/");
       const userId = parts[2];
@@ -167,7 +167,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       breadcrumbs.push({ label: "Users", to: "/users" });
       if (isEdit) {
         breadcrumbs.push({ label: userName, to: `/users/${userId}` });
-        breadcrumbs.push({ label: "Edit user" });
+        breadcrumbs.push({ label: "Edit User" });
       } else {
         breadcrumbs.push({ label: userName });
       }
@@ -177,7 +177,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
     } else if (pathname === "/roles/add") {
       breadcrumbs.push({ label: "Manage Users", to: "/users" });
       breadcrumbs.push({ label: "User Roles", to: "/roles" });
-      breadcrumbs.push({ label: "Add role" });
+      breadcrumbs.push({ label: "Add Role" });
     } else if (pathname.startsWith("/roles/")) {
       const parts = pathname.split("/");
       const id = parts[2];
@@ -201,7 +201,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       breadcrumbs.push({ label: "Leads" });
     } else if (pathname === "/leads/add") {
       breadcrumbs.push({ label: "Leads", to: "/leads" });
-      breadcrumbs.push({ label: "Add lead" });
+      breadcrumbs.push({ label: "Add Lead" });
     } else if (pathname.startsWith("/leads/")) {
       const parts = pathname.split("/");
       const id = parts[2];
@@ -211,7 +211,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       breadcrumbs.push({ label: "Leads", to: "/leads" });
       if (isEdit) {
         breadcrumbs.push({ label: leadName, to: `/leads/${id}` });
-        breadcrumbs.push({ label: "Edit lead" });
+        breadcrumbs.push({ label: "Edit Lead" });
       } else {
         breadcrumbs.push({ label: leadName });
       }
@@ -220,14 +220,14 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       breadcrumbs.push({ label: "Contacts" });
     } else if (pathname === "/connect/follow-ups") {
       breadcrumbs.push({ label: "Connect", to: "/connect/contacts" });
-      breadcrumbs.push({ label: "Follow-ups" });
+      breadcrumbs.push({ label: "Follow-Ups" });
     } else if (pathname.startsWith("/connect/follow-ups/")) {
       const parts = pathname.split("/");
       const id = parts[3];
       const leadName = getLeadName(id);
 
       breadcrumbs.push({ label: "Connect", to: "/connect/contacts" });
-      breadcrumbs.push({ label: "Follow-ups", to: "/connect/follow-ups" });
+      breadcrumbs.push({ label: "Follow-Ups", to: "/connect/follow-ups" });
       breadcrumbs.push({ label: leadName });
     } else if (pathname.startsWith("/connect/")) {
       const parts = pathname.split("/");
@@ -241,7 +241,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       breadcrumbs.push({ label: "Meetings" });
     } else if (pathname === "/meetings/add") {
       breadcrumbs.push({ label: "Meetings", to: "/meetings" });
-      breadcrumbs.push({ label: "Schedule meeting" });
+      breadcrumbs.push({ label: "Schedule Meeting" });
     } else if (pathname.startsWith("/meetings/")) {
       const parts = pathname.split("/");
       const id = parts[2];
@@ -251,7 +251,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       breadcrumbs.push({ label: "Meetings", to: "/meetings" });
       if (isEdit) {
         breadcrumbs.push({ label: meetingTitle, to: `/meetings/${id}` });
-        breadcrumbs.push({ label: "Edit meeting" });
+        breadcrumbs.push({ label: "Edit Meeting" });
       } else {
         breadcrumbs.push({ label: meetingTitle });
       }
@@ -259,7 +259,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       breadcrumbs.push({ label: "Clients" });
     } else if (pathname === "/clients/add") {
       breadcrumbs.push({ label: "Clients", to: "/clients" });
-      breadcrumbs.push({ label: "Add client" });
+      breadcrumbs.push({ label: "Add Client" });
     } else if (pathname.startsWith("/clients/")) {
       const parts = pathname.split("/");
       const id = parts[2];
@@ -269,7 +269,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       breadcrumbs.push({ label: "Clients", to: "/clients" });
       if (isEdit) {
         breadcrumbs.push({ label: clientName, to: `/clients/${id}` });
-        breadcrumbs.push({ label: "Edit client" });
+        breadcrumbs.push({ label: "Edit Client" });
       } else {
         breadcrumbs.push({ label: clientName });
       }
@@ -277,7 +277,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       breadcrumbs.push({ label: "Proposals" });
     } else if (pathname === "/proposals/add") {
       breadcrumbs.push({ label: "Proposals", to: "/proposals" });
-      breadcrumbs.push({ label: "New proposal" });
+      breadcrumbs.push({ label: "New Proposal" });
     } else if (pathname.startsWith("/proposals/")) {
       const parts = pathname.split("/");
       const id = parts[2];
@@ -287,7 +287,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       breadcrumbs.push({ label: "Proposals", to: "/proposals" });
       if (isEdit) {
         breadcrumbs.push({ label: proposalNo, to: `/proposals` });
-        breadcrumbs.push({ label: "Edit proposal" });
+        breadcrumbs.push({ label: "Edit Proposal" });
       } else {
         breadcrumbs.push({ label: proposalNo });
       }
