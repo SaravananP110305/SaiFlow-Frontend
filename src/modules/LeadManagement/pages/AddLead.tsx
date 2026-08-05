@@ -40,9 +40,6 @@ interface LeadFormValues {
   // Card 5: Lead Details
   source: string;
   priority: string;
-  budget: string;
-  currency: string;
-  expectedCloseDate: string;
 
   // Card 6: Assignment
   assignedTo: string;
@@ -98,9 +95,6 @@ export default function AddLead() {
       pincode: "",
       source: "",
       priority: "",
-      budget: "",
-      currency: "USD",
-      expectedCloseDate: "",
       assignedTo: "",
       notes: "",
     },
@@ -160,7 +154,17 @@ export default function AddLead() {
         setCountryOptions(activeOnly(countriesData).map((x: any) => ({ value: x.name, label: x.name })));
         setIndustryOptions(activeOnly(industriesData).map((x: any) => ({ value: x.name, label: x.name })));
         setDesignationOptions(activeOnly(designationsData).map((x: any) => ({ value: x.name, label: x.name })));
-        setEmployeeOptions(usersList.filter((x: any) => x.status === "ACTIVE").map((x: any) => ({ value: x.name, label: x.name })));
+        // Show only ACTIVE users, excluding the System Administrator account.
+        setEmployeeOptions(
+          usersList
+            .filter(
+              (x: any) =>
+                x.status === "ACTIVE" &&
+                x.name !== "System Administrator" &&
+                x.role?.name !== "System Administrator"
+            )
+            .map((x: any) => ({ value: x.name, label: x.name }))
+        );
       } catch (err) {
         console.error("Failed to load drop-down lists", err);
       }
@@ -232,11 +236,6 @@ export default function AddLead() {
               pincode: lead.company?.pincode || "",
               source: lead.source?.name || lead.source || "",
               priority: lead.priority?.name || lead.priority || "Medium",
-              budget: lead.budget ? String(lead.budget) : "",
-              currency: lead.currency || "USD",
-              expectedCloseDate: lead.expectedCloseDate
-                ? String(lead.expectedCloseDate).split("T")[0]
-                : "",
               assignedTo: lead.assignedTo?.name || "",
               notes: lead.notes || "",
             });
@@ -310,9 +309,6 @@ export default function AddLead() {
         sourceId,
         priorityId,
         assignedToId,
-        budget: data.budget !== "" ? Number(data.budget) : null,
-        currency: data.currency || "USD",
-        expectedCloseDate: data.expectedCloseDate || null,
         requirements: data.notes.trim()
       };
 
@@ -477,20 +473,32 @@ export default function AddLead() {
                   <Controller
                     name="alternatePhone"
                     control={control}
+                    rules={{
+                      pattern: {
+                        value: /^[6-9]\d{9}$/,
+                        message: "Please enter a valid 10-digit mobile number",
+                      },
+                    }}
                     render={({ field: { value, onChange, ...rest } }) => (
                       <Input
                         {...rest}
                         value={value}
                         type="text"
                         placeholder="Enter Alternate Number"
-                        maxLength={15}
+                        maxLength={10}
                         onChange={(e) => {
                           const digits = e.target.value.replace(/\D/g, "");
                           onChange(digits);
                         }}
+                        error={!!errors.alternatePhone}
                       />
                     )}
                   />
+                  {errors.alternatePhone && (
+                    <span className="mt-1 text-xs text-error-600 block">
+                      {errors.alternatePhone.message}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -549,11 +557,12 @@ export default function AddLead() {
                 </div>
                 <div className="sm:col-span-2">
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Website
+                    Website <span className="text-error-500">*</span>
                   </label>
                   <Controller
                     name="website"
                     control={control}
+                    rules={{ required: "Website is required" }}
                     render={({ field }) => (
                       <Input
                         {...field}
@@ -803,56 +812,6 @@ export default function AddLead() {
                   {errors.priority && (
                     <span className="mt-1 text-xs text-error-600 block">{errors.priority.message}</span>
                   )}
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Budget
-                  </label>
-                  <Controller
-                    name="budget"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        {...field}
-                        type="number"
-                        min="0"
-                        step={0.01}
-                        placeholder="Enter budget amount"
-                      />
-                    )}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Currency
-                  </label>
-                  <Controller
-                    name="currency"
-                    control={control}
-                    render={({ field: { value, onChange } }) => (
-                      <Select
-                        options={["USD", "INR", "EUR", "GBP", "AUD"].map((c) => ({
-                          value: c,
-                          label: c,
-                        }))}
-                        placeholder="Select Currency"
-                        onChange={onChange}
-                        defaultValue={value || "USD"}
-                      />
-                    )}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Expected Close Date
-                  </label>
-                  <Controller
-                    name="expectedCloseDate"
-                    control={control}
-                    render={({ field }) => (
-                      <Input {...field} type="date" />
-                    )}
-                  />
                 </div>
               </div>
             </div>
