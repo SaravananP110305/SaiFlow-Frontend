@@ -8,7 +8,6 @@ export interface LeadQuery {
   sourceId?: number;
   priorityId?: number;
   assignedToId?: number;
-  companyId?: number;
   createdFrom?: string;
   createdTo?: string;
   sortBy?: string;
@@ -23,18 +22,19 @@ export interface LeadPayload {
   designation?: string;
   alternatePhone?: string;
   alternateEmail?: string;
-  companyId?: number | null;
+  website?: string | null;
+  industryId?: number | null;
+  companyType?: string | null;
+  address?: string | null;
+  countryId?: number | null;
+  stateId?: number | null;
+  cityId?: number | null;
+  pincode?: string | null;
   sourceId?: number | null;
   priorityId?: number | null;
   assignedToId?: number | null;
-  budget?: number | null;
-  currency?: string;
   status?: string;
   requirements?: string;
-  expectedCloseDate?: string | null;
-  nextFollowUpDate?: string | null;
-  lostReason?: string | null;
-  wonAmount?: number | null;
 }
 
 export interface ImportRow {
@@ -57,8 +57,6 @@ export interface ImportRow {
   sourceId?: number | null;
   priorityId?: number | null;
   assignedToId?: number | null;
-  budget?: number | null;
-  currency?: string | null;
   status?: string | null;
   requirements?: string | null;
 }
@@ -69,7 +67,6 @@ export interface ConvertPayload {
   creditLimit?: number | null;
   relationshipManagerId?: number | null;
   accountManagerId?: number | null;
-  wonAmount?: number | null;
 }
 
 export const leadService = {

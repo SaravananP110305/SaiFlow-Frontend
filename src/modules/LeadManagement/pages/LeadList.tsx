@@ -56,7 +56,7 @@ interface LeadRow {
 
 const toLeadRow = (l: any): LeadRow => ({
   id: l.id,
-  companyName: l.company?.name || l.title || "—",
+  companyName: l.title || "—",
   contactPerson: l.contactPerson || "—",
   email: l.email || "—",
   phone: l.phone || "—",
@@ -266,7 +266,6 @@ export default function LeadList() {
             resolveByName(priorities, priorityName) ||
             resolveByName(priorities, "Medium"),
           assignedToId: resolveByName(users, String(r["Lead Owner"] || "")),
-          budget: r["Budget"] ? Number(r["Budget"]) || null : null,
           status: "NEW",
         });
       }

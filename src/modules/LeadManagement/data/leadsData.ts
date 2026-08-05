@@ -43,16 +43,10 @@ export interface Lead {
   createdAt: string;
   companyId?: number;
 
-  // Backend lifecycle fields
+  // Backend fields
   designation?: string;
   alternatePhone?: string;
   alternateEmail?: string;
-  budget?: number | null;
-  currency?: string;
-  expectedCloseDate?: string | null;
-  nextFollowUpDate?: string | null;
-  lostReason?: string | null;
-  wonAmount?: number | null;
   assignedAt?: string | null;
   assignedToId?: number | null;
   sourceId?: number | null;
@@ -76,7 +70,6 @@ export interface Lead {
   followUpNotes?: string;
   summary?: string;
   remarks?: string;
-  lastContactResult?: string;
 }
 
 export const LEAD_STATUSES: LeadStatus[] = [

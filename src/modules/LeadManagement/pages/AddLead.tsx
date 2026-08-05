@@ -7,11 +7,9 @@ import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
 import { useToast } from "../../../hooks/useToast";
-import { useAuth } from "../../../context/AuthContext";
 import { leadService } from "../../../services/leadService";
 import { masterService } from "../../../services/masterService";
 import { userService } from "../../../services/userService";
-import api from "../../../services/api";
 
 interface LeadFormValues {
   // Card 1: Lead Information
@@ -53,7 +51,6 @@ export default function AddLead() {
   const { id } = useParams();
   const isEditMode = !!id;
   const { showToast } = useToast();
-  const { hasPermission } = useAuth();
   const [loading, setLoading] = useState(true);
 
   // Collapsible sections for progressive disclosure
@@ -219,21 +216,21 @@ export default function AddLead() {
           const lead = await leadService.getLeadById(Number(id));
           if (lead) {
             reset({
-              company: lead.company?.name || lead.title || "",
+              company: lead.title || "",
               contactPerson: lead.contactPerson || "",
               designation: lead.designation || "",
               phone: lead.phone ? lead.phone.replace(/\D/g, "").slice(-10) : "",
               alternatePhone: lead.alternatePhone || "",
               email: lead.email || "",
               alternateEmail: lead.alternateEmail || "",
-              website: lead.company?.website || "",
-              industry: lead.company?.industry?.name || "",
-              companyType: lead.company?.companyType || "",
-              addressLine1: lead.company?.address || "",
-              country: lead.company?.country?.name || "",
-              state: lead.company?.state?.name || "",
-              city: lead.company?.city?.name || "",
-              pincode: lead.company?.pincode || "",
+              website: lead.website || "",
+              industry: lead.industry?.name || "",
+              companyType: lead.companyType || "",
+              addressLine1: lead.address || "",
+              country: lead.country?.name || "",
+              state: lead.state?.name || "",
+              city: lead.city?.name || "",
+              pincode: lead.pincode || "",
               source: lead.source?.name || lead.source || "",
               priority: lead.priority?.name || lead.priority || "Medium",
               assignedTo: lead.assignedTo?.name || "",
@@ -252,42 +249,7 @@ export default function AddLead() {
 
   const handleSave = async (data: LeadFormValues) => {
     try {
-      // 1. Resolve company (create or update with full enrichment)
-      const companyData = {
-        name: data.company.trim(),
-        website: data.website.trim() || null,
-        address: data.addressLine1.trim() || null,
-        pincode: data.pincode.trim() || null,
-        companyType: data.companyType.trim() || null,
-        industryId: industriesList.find((i) => i.name === data.industry)?.id ?? null,
-        countryId: countriesList.find((c) => c.name === data.country)?.id ?? null,
-        stateId: statesList.find((s) => s.name === data.state)?.id ?? null,
-        cityId: citiesList.find((c) => c.name === data.city)?.id ?? null
-      };
-
-      let companyId: number | null = null;
-      const searchRes = await api.get('/companies', { params: { search: data.company.trim() } });
-      const existingCompany = searchRes.data?.data?.find(
-        (c: any) => c.name.toLowerCase() === data.company.trim().toLowerCase()
-      );
-
-      if (existingCompany) {
-        if (!hasPermission('companies', 'edit')) {
-          showToast("You don't have permission to update company details.", "error");
-          return;
-        }
-        await api.put(`/companies/${existingCompany.id}`, companyData);
-        companyId = existingCompany.id;
-      } else {
-        if (!hasPermission('companies', 'create')) {
-          showToast("You don't have permission to create companies. Contact your admin.", "error");
-          return;
-        }
-        const newCompany = await api.post('/companies', companyData);
-        companyId = newCompany.data?.data?.id;
-      }
-
-      // 2. Resolve relational IDs
+      // 1. Resolve relational IDs
       const selectedSource = sources.find((s) => s.name === data.source);
       const sourceId = selectedSource ? selectedSource.id : null;
 
@@ -305,7 +267,14 @@ export default function AddLead() {
         phone: data.phone,
         alternatePhone: data.alternatePhone,
         alternateEmail: data.alternateEmail,
-        companyId,
+        website: data.website.trim() || null,
+        industryId: industriesList.find((i) => i.name === data.industry)?.id ?? null,
+        companyType: data.companyType.trim() || null,
+        address: data.addressLine1.trim() || null,
+        countryId: countriesList.find((c) => c.name === data.country)?.id ?? null,
+        stateId: statesList.find((s) => s.name === data.state)?.id ?? null,
+        cityId: citiesList.find((c) => c.name === data.city)?.id ?? null,
+        pincode: data.pincode.trim() || null,
         sourceId,
         priorityId,
         assignedToId,
