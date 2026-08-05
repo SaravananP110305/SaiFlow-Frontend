@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
@@ -18,13 +18,50 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from "../../../icons";
-import { FiDownload } from "react-icons/fi";
+import { FiDownload, FiLoader } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
-import { EMPLOYEE_REPORT_DATA, EmployeeReportData } from "../data/reportsData";
+import { useDebounce } from "../../../hooks/useDebounce";
+import { EmployeeReportData } from "../data/reportsData";
 import { exportToCSV } from "../../../utils/export";
+import { reportService } from "../../../services/reportService";
+
+const PAGE_SIZE = 100;
+
+const getStatusDisplayLabel = (status: string) => {
+  if (status === "ACTIVE") return "Active";
+  if (status === "INACTIVE") return "Inactive";
+  return status;
+};
+
+interface BackendEmployee {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  status?: string;
+  role?: { name: string } | null;
+  totalLeads?: number;
+  wonLeads?: number;
+  lostLeads?: number;
+}
+
+const toReportRow = (u: BackendEmployee): EmployeeReportData => ({
+  id: u.id,
+  name: u.name,
+  email: u.email,
+  phone: u.phone || "",
+  role: u.role?.name || "—",
+  status: (u.status === "ACTIVE" ? "Active" : u.status === "INACTIVE" ? "Inactive" : u.status || "Active") as EmployeeReportData["status"],
+  totalLeads: u.totalLeads ?? 0,
+  wonLeads: u.wonLeads ?? 0,
+  lostLeads: u.lostLeads ?? 0,
+});
 
 export default function EmployeeReport() {
   const { showToast } = useToast();
+  const [employees, setEmployees] = useState<EmployeeReportData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -32,25 +69,74 @@ export default function EmployeeReport() {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [sortField, setSortField] = useState<keyof EmployeeReportData>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [totalItems, setTotalItems] = useState(0);
+  const [filterOptions, setFilterOptions] = useState<{ statuses: string[]; roles: string[] }>({
+    statuses: [],
+    roles: [],
+  });
+
+  const debouncedSearch = useDebounce(searchQuery, 400);
 
   // Dropdown states
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isRoleOpen, setIsRoleOpen] = useState(false);
 
-  const statusOptions = [
-    { value: "all", label: "All Statuses" },
-    { value: "Active", label: "Active" },
-    { value: "Inactive", label: "Inactive" },
-  ];
+  const fetchEmployees = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await reportService.getEmployeeReport({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: debouncedSearch.trim() || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        role: roleFilter === "all" ? undefined : roleFilter,
+        sortBy: sortField,
+        sortOrder,
+      });
+      setEmployees(Array.isArray(res?.data) ? res.data.map(toReportRow) : []);
+      setTotalItems(res?.meta?.total ?? 0);
+      setFilterOptions((prev) => ({
+        statuses: res?.meta?.filters?.statuses ?? prev.statuses,
+        roles: res?.meta?.filters?.roles ?? prev.roles,
+      }));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load employee report data.");
+      showToast("Failed to load employee report data.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    currentPage,
+    rowsPerPage,
+    debouncedSearch,
+    statusFilter,
+    roleFilter,
+    sortField,
+    sortOrder,
+    showToast,
+  ]);
 
-  const roleOptions = [
-    { value: "all", label: "All Roles" },
-    { value: "Administrator", label: "Administrator" },
-    { value: "Business Development Manager", label: "Business Development Manager" },
-    { value: "Business Development Executive", label: "Business Development Executive" },
-    { value: "Presales Consultant", label: "Presales Consultant" },
-    { value: "Guest User", label: "Guest User" },
-  ];
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "all", label: "All Statuses" },
+      ...(filterOptions.statuses || []).map((value) => ({ value, label: getStatusDisplayLabel(value) })),
+    ],
+    [filterOptions.statuses]
+  );
+
+  const roleOptions = useMemo(
+    () => [
+      { value: "all", label: "All Roles" },
+      ...(filterOptions.roles || []).map((value) => ({ value, label: value })),
+    ],
+    [filterOptions.roles]
+  );
 
   const handleSort = (field: keyof EmployeeReportData) => {
     if (sortField === field) {
@@ -62,52 +148,6 @@ export default function EmployeeReport() {
     setCurrentPage(1);
   };
 
-  const processedData = useMemo(() => {
-    let result = [...EMPLOYEE_REPORT_DATA];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.email.toLowerCase().includes(q) ||
-          e.role.toLowerCase().includes(q)
-      );
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter((e) => e.status === statusFilter);
-    }
-
-    if (roleFilter !== "all") {
-      result = result.filter((e) => e.role === roleFilter);
-    }
-
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-
-      const strA = String(aVal).toLowerCase();
-      const strB = String(bVal).toLowerCase();
-
-      if (strA < strB) return sortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return result;
-  }, [searchQuery, statusFilter, roleFilter, sortField, sortOrder]);
-
-  const paginatedData = useMemo(() => {
-    const startIdx = (currentPage - 1) * rowsPerPage;
-    return processedData.slice(startIdx, startIdx + rowsPerPage);
-  }, [processedData, currentPage, rowsPerPage]);
-
-  const totalItems = processedData.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
 
   const renderSortHeader = (label: string, field: keyof EmployeeReportData) => {
@@ -207,7 +247,7 @@ export default function EmployeeReport() {
                   setIsRoleOpen(!isRoleOpen);
                   setIsStatusOpen(false);
                 }}
-                className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-202 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
+                className="flex items-center justify-between h-11 w-44 rounded-lg border border-gray-202 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
               >
                 <span className="truncate">
                   {roleOptions.find((o) => o.value === roleFilter)?.label}
@@ -217,7 +257,7 @@ export default function EmployeeReport() {
               <Dropdown
                 isOpen={isRoleOpen}
                 onClose={() => setIsRoleOpen(false)}
-                className="left-0 right-auto w-44 p-1 mt-2"
+                className="left-0 right-auto w-48 p-1 mt-2"
               >
                 <ul className="flex flex-col gap-0.5">
                   {roleOptions.map((opt) => (
@@ -251,13 +291,50 @@ export default function EmployeeReport() {
             variant="outline"
             startIcon={<FiDownload className="size-4" />}
             className="w-full sm:w-auto h-11 px-4 py-2.5"
-            onClick={() => {
-              exportToCSV(
-                processedData,
-                ["S.No", "Employee Name", "Email Address", "Designation / Role", "Performance Status", "Leads Managed", "Won Count", "Lost Count", "Conversion Rate"],
-                "Employee_Report"
-              );
-              showToast("Employee report exported successfully.", "success");
+            onClick={async () => {
+              // Fetch every page matching the current filters so the exported
+              // file always contains the complete, filtered dataset.
+              const allRows: EmployeeReportData[] = [];
+              let page = 1;
+              let total = Infinity;
+              try {
+                while (allRows.length < total) {
+                  const res = await reportService.getEmployeeReport({
+                    page,
+                    limit: PAGE_SIZE,
+                    search: debouncedSearch.trim() || undefined,
+                    status: statusFilter === "all" ? undefined : statusFilter,
+                    role: roleFilter === "all" ? undefined : roleFilter,
+                    sortBy: sortField,
+                    sortOrder,
+                  });
+                  const rows = (res?.data || []).map(toReportRow);
+                  allRows.push(...rows);
+                  total = res?.meta?.total ?? allRows.length;
+                  if (rows.length === 0) break;
+                  page += 1;
+                }
+                const exportRows = allRows.map((r, idx) => ({
+                  sno: idx + 1,
+                  name: r.name,
+                  email: r.email,
+                  role: r.role,
+                  status: r.status,
+                  totalLeads: r.totalLeads,
+                  wonLeads: r.wonLeads,
+                  lostLeads: r.lostLeads,
+                  conversionRate: r.totalLeads > 0 ? `${((r.wonLeads / r.totalLeads) * 100).toFixed(1)}%` : "0%",
+                }));
+                exportToCSV(
+                  exportRows,
+                  ["S.No", "Employee Name", "Email Address", "Designation / Role", "Performance Status", "Leads Managed", "Won Count", "Lost Count", "Conversion Rate"],
+                  "Employee_Report"
+                );
+                showToast("Employee report exported successfully.", "success");
+              } catch (err) {
+                console.error(err);
+                showToast("Failed to export employee report.", "error");
+              }
             }}
           >
             Export
@@ -298,14 +375,34 @@ export default function EmployeeReport() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {paginatedData.length > 0 ? (
-                paginatedData.map((row) => (
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={8}
+                    className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <FiLoader className="size-4 animate-spin" /> Loading employee report data...
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={8}
+                    className="px-5 py-8 text-center text-sm text-error-500"
+                  >
+                    {error}
+                  </TableCell>
+                </TableRow>
+              ) : employees.length > 0 ? (
+                employees.map((row, index) => (
                   <TableRow
                     key={row.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                   >
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90">
-                      {row.id}
+                      {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
                       {row.name}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { formatDate, formatTime } from "../../../utils/dateFormatter";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
@@ -19,13 +19,75 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from "../../../icons";
-import { FiDownload } from "react-icons/fi";
+import { FiDownload, FiLoader } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
-import { FOLLOW_UP_REPORT_DATA, FollowUpReportData } from "../data/reportsData";
+import { useDebounce } from "../../../hooks/useDebounce";
+import { FollowUpReportData } from "../data/reportsData";
 import { exportToCSV } from "../../../utils/export";
+import { reportService } from "../../../services/reportService";
+
+const PAGE_SIZE = 100;
+
+interface BackendConnect {
+  id: number;
+  company: string;
+  contactPerson?: string | null;
+  assignedTo?: string | null;
+  outcome?: string | null;
+  summary?: string | null;
+  followUpType?: string | null;
+  followUpDate?: string | null;
+  followUpTime?: string | null;
+  status: string;
+}
+
+const getFollowUpStatusLabel = (status: string) => {
+  switch (status) {
+    case "SCHEDULED":
+      return "Scheduled";
+    case "RESCHEDULED":
+      return "Rescheduled";
+    case "COMPLETED":
+      return "Completed";
+    case "MISSED":
+      return "Missed";
+    default:
+      return status;
+  }
+};
+
+const getOutcomeLabel = (outcome: string | null | undefined) => {
+  switch (outcome) {
+    case "CONTACTED":
+      return "Contacted";
+    case "INTERESTED":
+      return "Interested";
+    case "CALL_LATER":
+      return "Call Later";
+    case "NOT_INTERESTED":
+      return "Not Interested";
+    default:
+      return outcome || "";
+  }
+};
+
+const toReportRow = (c: BackendConnect): FollowUpReportData => ({
+  id: c.id,
+  company: c.company || "—",
+  contactPerson: c.contactPerson || "—",
+  date: c.followUpDate || "",
+  time: c.followUpTime || "",
+  reason: c.followUpType || "—",
+  status: getFollowUpStatusLabel(c.status),
+  outcome: getOutcomeLabel(c.outcome),
+  assignedTo: c.assignedTo || "",
+});
 
 export default function FollowUpReport() {
   const { showToast } = useToast();
+  const [followUps, setFollowUps] = useState<FollowUpReportData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [reasonFilter, setReasonFilter] = useState("all");
@@ -33,25 +95,77 @@ export default function FollowUpReport() {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [sortField, setSortField] = useState<keyof FollowUpReportData>("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [totalItems, setTotalItems] = useState(0);
+  const [filterOptions, setFilterOptions] = useState<{ statuses: string[]; reasons: string[] }>({
+    statuses: [],
+    reasons: [],
+  });
+
+  const debouncedSearch = useDebounce(searchQuery, 400);
 
   // Dropdown states
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isReasonOpen, setIsReasonOpen] = useState(false);
 
-  const statusOptions = [
-    { value: "all", label: "All Statuses" },
-    { value: "Scheduled", label: "Scheduled" },
-    { value: "Completed", label: "Completed" },
-    { value: "Missed", label: "Missed" },
-  ];
+  const fetchFollowUps = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await reportService.getFollowUpReport({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: debouncedSearch.trim() || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        reason: reasonFilter === "all" ? undefined : reasonFilter,
+        sortBy: sortField,
+        sortOrder,
+      });
+      setFollowUps(Array.isArray(res?.data) ? res.data.map(toReportRow) : []);
+      setTotalItems(res?.meta?.total ?? 0);
+      setFilterOptions((prev) => ({
+        statuses: res?.meta?.filters?.statuses ?? prev.statuses,
+        reasons: res?.meta?.filters?.reasons ?? prev.reasons,
+      }));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load follow-up report data.");
+      showToast("Failed to load follow-up report data.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    currentPage,
+    rowsPerPage,
+    debouncedSearch,
+    statusFilter,
+    reasonFilter,
+    sortField,
+    sortOrder,
+    showToast,
+  ]);
 
-  const reasonOptions = [
-    { value: "all", label: "All Reasons" },
-    { value: "Pending decision", label: "Pending Decision" },
-    { value: "Technical evaluation", label: "Technical Evaluation" },
-    { value: "Budget review", label: "Budget Review" },
-    { value: "No response", label: "No Response" },
-  ];
+  useEffect(() => {
+    fetchFollowUps();
+  }, [fetchFollowUps]);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "all", label: "All Statuses" },
+      ...(filterOptions.statuses || []).map((value) => ({
+        value,
+        label: getFollowUpStatusLabel(value),
+      })),
+    ],
+    [filterOptions.statuses]
+  );
+
+  const reasonOptions = useMemo(
+    () => [
+      { value: "all", label: "All Reasons" },
+      ...(filterOptions.reasons || []).map((value) => ({ value, label: value })),
+    ],
+    [filterOptions.reasons]
+  );
 
   const handleSort = (field: keyof FollowUpReportData) => {
     if (sortField === field) {
@@ -63,58 +177,14 @@ export default function FollowUpReport() {
     setCurrentPage(1);
   };
 
-  const processedData = useMemo(() => {
-    let result = [...FOLLOW_UP_REPORT_DATA];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (f) =>
-          f.company.toLowerCase().includes(q) ||
-          f.contactPerson.toLowerCase().includes(q) ||
-          f.outcome.toLowerCase().includes(q)
-      );
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter((f) => f.status === statusFilter);
-    }
-
-    if (reasonFilter !== "all") {
-      result = result.filter((f) => f.reason === reasonFilter);
-    }
-
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-
-      const strA = String(aVal).toLowerCase();
-      const strB = String(bVal).toLowerCase();
-
-      if (strA < strB) return sortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return result;
-  }, [searchQuery, statusFilter, reasonFilter, sortField, sortOrder]);
-
-  const paginatedData = useMemo(() => {
-    const startIdx = (currentPage - 1) * rowsPerPage;
-    return processedData.slice(startIdx, startIdx + rowsPerPage);
-  }, [processedData, currentPage, rowsPerPage]);
-
-  const totalItems = processedData.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
 
   const getFollowUpStatusColor = (status: string) => {
     switch (status) {
       case "Scheduled":
         return "warning";
+      case "Rescheduled":
+        return "info";
       case "Completed":
         return "success";
       case "Missed":
@@ -123,7 +193,6 @@ export default function FollowUpReport() {
         return "light";
     }
   };
-
 
   const renderSortHeader = (label: string, field: keyof FollowUpReportData) => {
     const isActive = sortField === field;
@@ -222,7 +291,7 @@ export default function FollowUpReport() {
                   setIsReasonOpen(!isReasonOpen);
                   setIsStatusOpen(false);
                 }}
-                className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-202 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
+                className="flex items-center justify-between h-11 w-44 rounded-lg border border-gray-202 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
               >
                 <span className="truncate">
                   {reasonOptions.find((o) => o.value === reasonFilter)?.label}
@@ -232,7 +301,7 @@ export default function FollowUpReport() {
               <Dropdown
                 isOpen={isReasonOpen}
                 onClose={() => setIsReasonOpen(false)}
-                className="left-0 right-auto w-44 p-1 mt-2"
+                className="left-0 right-auto w-48 p-1 mt-2"
               >
                 <ul className="flex flex-col gap-0.5">
                   {reasonOptions.map((opt) => (
@@ -266,13 +335,49 @@ export default function FollowUpReport() {
             variant="outline"
             startIcon={<FiDownload className="size-4" />}
             className="w-full sm:w-auto h-11 px-4 py-2.5"
-            onClick={() => {
-              exportToCSV(
-                processedData,
-                ["S.No", "Company Name", "Contact Person", "Follow-Up Date", "Follow-Up Time", "Reason / Log", "Follow-Up Status", "Assigned To"],
-                "FollowUp_Report"
-              );
-              showToast("Follow-up report exported successfully.", "success");
+            onClick={async () => {
+              // Fetch every page matching the current filters so the exported
+              // file always contains the complete, filtered dataset.
+              const allRows: FollowUpReportData[] = [];
+              let page = 1;
+              let total = Infinity;
+              try {
+                while (allRows.length < total) {
+                  const res = await reportService.getFollowUpReport({
+                    page,
+                    limit: PAGE_SIZE,
+                    search: debouncedSearch.trim() || undefined,
+                    status: statusFilter === "all" ? undefined : statusFilter,
+                    reason: reasonFilter === "all" ? undefined : reasonFilter,
+                    sortBy: sortField,
+                    sortOrder,
+                  });
+                  const rows = (res?.data || []).map(toReportRow);
+                  allRows.push(...rows);
+                  total = res?.meta?.total ?? allRows.length;
+                  if (rows.length === 0) break;
+                  page += 1;
+                }
+                const exportRows = allRows.map((r, idx) => ({
+                  sno: idx + 1,
+                  company: r.company,
+                  contactPerson: r.contactPerson,
+                  date: r.date,
+                  time: r.time,
+                  reason: r.reason,
+                  status: r.status,
+                  assignedTo: r.assignedTo || "",
+                }));
+                exportToCSV(
+                  exportRows,
+                  ["S.No", "Company Name", "Contact Person", "Follow-Up Date", "Follow-Up Time", "Reason / Log", "Follow-Up Status", "Assigned To"],
+                  "FollowUp_Report"
+                );
+                showToast("Follow-up report exported successfully.", "success");
+              } catch (err) {
+                console.error(err);
+                showToast("Failed to export follow-up report.", "error");
+              }
             }}
           >
             Export
@@ -313,14 +418,34 @@ export default function FollowUpReport() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {paginatedData.length > 0 ? (
-                paginatedData.map((row) => (
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={8}
+                    className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <FiLoader className="size-4 animate-spin" /> Loading follow-up report data...
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={8}
+                    className="px-5 py-8 text-center text-sm text-error-500"
+                  >
+                    {error}
+                  </TableCell>
+                </TableRow>
+              ) : followUps.length > 0 ? (
+                followUps.map((row, index) => (
                   <TableRow
                     key={row.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                   >
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90">
-                      {row.id}
+                      {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
                       {row.company}
@@ -343,7 +468,7 @@ export default function FollowUpReport() {
                       </Badge>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                      {row.outcome}
+                      {row.outcome || "—"}
                     </TableCell>
                   </TableRow>
                 ))

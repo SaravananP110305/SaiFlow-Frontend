@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
@@ -18,13 +18,59 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from "../../../icons";
-import { FiDownload } from "react-icons/fi";
-import { CLIENT_REPORT_DATA, ClientReportData } from "../data/reportsData";
+import { FiDownload, FiLoader } from "react-icons/fi";
+import { ClientReportData } from "../data/reportsData";
 import { useToast } from "../../../hooks/useToast";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { exportToCSV } from "../../../utils/export";
+import { reportService } from "../../../services/reportService";
+
+const PAGE_SIZE = 100;
+
+interface BackendClient {
+  id: number;
+  status?: string;
+  paymentTerms?: string | null;
+  creditLimit?: string | number | null;
+  createdAt: string;
+  company?: {
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    industry?: { name: string } | null;
+  } | null;
+  lead?: {
+    contactPerson?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
+  relationshipManager?: { name: string } | null;
+  accountManager?: { name: string } | null;
+  projects?: unknown[] | null;
+}
+
+const toReportRow = (c: BackendClient): ClientReportData => ({
+  id: c.id,
+  companyName: c.company?.name || "—",
+  contactName: c.lead?.contactPerson || "—",
+  email: c.lead?.email || c.company?.email || "—",
+  phone: c.lead?.phone || c.company?.phone || "—",
+  industry: c.company?.industry?.name || "",
+  status: (c.status || "Active") as ClientReportData["status"],
+  clientSince: c.createdAt ? c.createdAt.split("T")[0] : "",
+  relationshipManager: c.relationshipManager?.name || "",
+  accountManager: c.accountManager?.name || "",
+  projectsCount: c.projects?.length || 0,
+  handoverStatus: c.projects && c.projects.length > 0 ? "Onboarded" : "Pending",
+  paymentTerms: c.paymentTerms || "",
+  creditLimit: c.creditLimit != null ? String(c.creditLimit) : "",
+});
 
 export default function ClientReport() {
   const { showToast } = useToast();
+  const [clients, setClients] = useState<ClientReportData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [industryFilter, setIndustryFilter] = useState("all");
@@ -32,27 +78,74 @@ export default function ClientReport() {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [sortField, setSortField] = useState<keyof ClientReportData>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [totalItems, setTotalItems] = useState(0);
+  const [filterOptions, setFilterOptions] = useState<{ statuses: string[]; industries: string[] }>({
+    statuses: [],
+    industries: [],
+  });
+
+  const debouncedSearch = useDebounce(searchQuery, 400);
 
   // Dropdown states
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isIndustryOpen, setIsIndustryOpen] = useState(false);
 
-  const statusOptions = [
-    { value: "all", label: "All Statuses" },
-    { value: "Active", label: "Active" },
-    { value: "Inactive", label: "Inactive" },
-    { value: "Blacklisted", label: "Blacklisted" },
-  ];
+  const fetchClients = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await reportService.getClientReport({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: debouncedSearch.trim() || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        industry: industryFilter === "all" ? undefined : industryFilter,
+        sortBy: sortField,
+        sortOrder,
+      });
+      setClients(Array.isArray(res?.data) ? res.data.map(toReportRow) : []);
+      setTotalItems(res?.meta?.total ?? 0);
+      setFilterOptions((prev) => ({
+        statuses: res?.meta?.filters?.statuses ?? prev.statuses,
+        industries: res?.meta?.filters?.industries ?? prev.industries,
+      }));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load client report data.");
+      showToast("Failed to load client report data.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    currentPage,
+    rowsPerPage,
+    debouncedSearch,
+    statusFilter,
+    industryFilter,
+    sortField,
+    sortOrder,
+    showToast,
+  ]);
 
-  const industryOptions = [
-    { value: "all", label: "All Industries" },
-    { value: "Information Technology", label: "Information Technology" },
-    { value: "Manufacturing", label: "Manufacturing" },
-    { value: "Retail", label: "Retail" },
-    { value: "Logistics", label: "Logistics" },
-    { value: "Media", label: "Media" },
-    { value: "Healthcare", label: "Healthcare" },
-  ];
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "all", label: "All Statuses" },
+      ...(filterOptions.statuses || []).map((value) => ({ value, label: value })),
+    ],
+    [filterOptions.statuses]
+  );
+
+  const industryOptions = useMemo(
+    () => [
+      { value: "all", label: "All Industries" },
+      ...(filterOptions.industries || []).map((value) => ({ value, label: value })),
+    ],
+    [filterOptions.industries]
+  );
 
   const handleSort = (field: keyof ClientReportData) => {
     if (sortField === field) {
@@ -64,52 +157,6 @@ export default function ClientReport() {
     setCurrentPage(1);
   };
 
-  const processedData = useMemo(() => {
-    let result = [...CLIENT_REPORT_DATA];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (c) =>
-          c.companyName.toLowerCase().includes(q) ||
-          c.contactName.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q)
-      );
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter((c) => c.status === statusFilter);
-    }
-
-    if (industryFilter !== "all") {
-      result = result.filter((c) => c.industry === industryFilter);
-    }
-
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-
-      const strA = String(aVal).toLowerCase();
-      const strB = String(bVal).toLowerCase();
-
-      if (strA < strB) return sortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return result;
-  }, [searchQuery, statusFilter, industryFilter, sortField, sortOrder]);
-
-  const paginatedData = useMemo(() => {
-    const startIdx = (currentPage - 1) * rowsPerPage;
-    return processedData.slice(startIdx, startIdx + rowsPerPage);
-  }, [processedData, currentPage, rowsPerPage]);
-
-  const totalItems = processedData.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
 
   const getStatusColor = (status: string) => {
@@ -233,7 +280,7 @@ export default function ClientReport() {
                   setIsIndustryOpen(!isIndustryOpen);
                   setIsStatusOpen(false);
                 }}
-                className="flex items-center justify-between h-11 w-44 rounded-lg border border-gray-202 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
+                className="flex items-center justify-between h-11 w-48 rounded-lg border border-gray-202 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
               >
                 <span className="truncate">
                   {industryOptions.find((o) => o.value === industryFilter)?.label}
@@ -243,9 +290,9 @@ export default function ClientReport() {
               <Dropdown
                 isOpen={isIndustryOpen}
                 onClose={() => setIsIndustryOpen(false)}
-                className="left-0 right-auto w-48 p-1 mt-2"
+                className="left-0 right-auto w-52 p-1 mt-2"
               >
-                <ul className="flex flex-col gap-0.5">
+                <ul className="flex flex-col gap-0.5 max-h-60 overflow-y-auto custom-scrollbar">
                   {industryOptions.map((opt) => (
                     <li key={opt.value}>
                       <DropdownItem
@@ -277,13 +324,53 @@ export default function ClientReport() {
             variant="outline"
             startIcon={<FiDownload className="size-4" />}
             className="w-full sm:w-auto h-11 px-4 py-2.5"
-            onClick={() => {
-              exportToCSV(
-                processedData,
-                ["S.No", "Company Name", "Contact Person", "Email", "Phone", "Industry", "Status", "Client Since", "Projects", "Handover Status", "Payment Terms", "Credit Limit"],
-                "Client_Report"
-              );
-              showToast("Client report exported successfully.", "success");
+            onClick={async () => {
+              // Fetch every page matching the current filters so the exported
+              // file always contains the complete, filtered dataset.
+              const allRows: ClientReportData[] = [];
+              let page = 1;
+              let total = Infinity;
+              try {
+                while (allRows.length < total) {
+                  const res = await reportService.getClientReport({
+                    page,
+                    limit: PAGE_SIZE,
+                    search: debouncedSearch.trim() || undefined,
+                    status: statusFilter === "all" ? undefined : statusFilter,
+                    industry: industryFilter === "all" ? undefined : industryFilter,
+                    sortBy: sortField,
+                    sortOrder,
+                  });
+                  const rows = (res?.data || []).map(toReportRow);
+                  allRows.push(...rows);
+                  total = res?.meta?.total ?? allRows.length;
+                  if (rows.length === 0) break;
+                  page += 1;
+                }
+                const exportRows = allRows.map((r, idx) => ({
+                  sno: idx + 1,
+                  companyName: r.companyName,
+                  contactName: r.contactName,
+                  email: r.email,
+                  phone: r.phone,
+                  industry: r.industry,
+                  status: r.status,
+                  clientSince: r.clientSince,
+                  projectsCount: r.projectsCount,
+                  handoverStatus: r.handoverStatus,
+                  paymentTerms: r.paymentTerms,
+                  creditLimit: r.creditLimit,
+                }));
+                exportToCSV(
+                  exportRows,
+                  ["S.No", "Company Name", "Contact Person", "Email", "Phone", "Industry", "Status", "Client Since", "Projects", "Handover Status", "Payment Terms", "Credit Limit"],
+                  "Client_Report"
+                );
+                showToast("Client report exported successfully.", "success");
+              } catch (err) {
+                console.error(err);
+                showToast("Failed to export client report.", "error");
+              }
             }}
           >
             Export
@@ -336,14 +423,34 @@ export default function ClientReport() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {paginatedData.length > 0 ? (
-                paginatedData.map((row) => (
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={12}
+                    className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <FiLoader className="size-4 animate-spin" /> Loading client report data...
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={12}
+                    className="px-5 py-8 text-center text-sm text-error-500"
+                  >
+                    {error}
+                  </TableCell>
+                </TableRow>
+              ) : clients.length > 0 ? (
+                clients.map((row, index) => (
                   <TableRow
                     key={row.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                   >
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90">
-                      {row.id}
+                      {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
                       {row.companyName}
@@ -358,7 +465,7 @@ export default function ClientReport() {
                       {row.phone}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                      {row.industry}
+                      {row.industry || "—"}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm whitespace-nowrap">
                       <Badge size="sm" color={getStatusColor(row.status)}>
@@ -377,10 +484,12 @@ export default function ClientReport() {
                       </Badge>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                      {row.paymentTerms}
+                      {row.paymentTerms || "—"}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 whitespace-nowrap">
-                      {row.creditLimit === "0" ? "-" : `₹${Number(row.creditLimit).toLocaleString()}`}
+                      {row.creditLimit && Number(row.creditLimit) > 0
+                        ? `₹${Number(row.creditLimit).toLocaleString()}`
+                        : "-"}
                     </TableCell>
                   </TableRow>
                 ))

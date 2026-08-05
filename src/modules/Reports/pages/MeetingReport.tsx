@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { formatDate, formatTime } from "../../../utils/dateFormatter";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
@@ -19,13 +19,90 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from "../../../icons";
-import { FiDownload, FiVideo, FiMapPin } from "react-icons/fi";
+import { FiDownload, FiLoader, FiVideo, FiMapPin } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
-import { MEETING_REPORT_DATA, MeetingReportData } from "../data/reportsData";
+import { useDebounce } from "../../../hooks/useDebounce";
+import { MeetingReportData } from "../data/reportsData";
 import { exportToCSV } from "../../../utils/export";
+import { reportService } from "../../../services/reportService";
+
+const PAGE_SIZE = 100;
+
+interface BackendMeeting {
+  id: number;
+  title: string | null;
+  scheduledAt: string;
+  meetingLink?: string | null;
+  status: string;
+  lead?: { id: number; title: string; contactPerson: string } | null;
+  createdBy?: { id: number; name: string } | null;
+}
+
+const getLocalDateString = (isoString: string) => {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getLocalTimeString = (isoString: string) => {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+};
+
+const getMeetingType = (link: string | null | undefined) => {
+  if (!link) return "Offline";
+  const trimmed = link.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    if (/meet\.google\.com/i.test(trimmed)) return "Google Meet";
+    if (/zoom\.us/i.test(trimmed)) return "Zoom";
+    if (/teams\.(microsoft|live)\.com/i.test(trimmed)) return "Microsoft Teams";
+    return "Online";
+  }
+  return "Offline";
+};
+
+const getMeetingStatusLabel = (status: string) => {
+  switch (status) {
+    case "SCHEDULED":
+      return "Scheduled";
+    case "RESCHEDULED":
+      return "Rescheduled";
+    case "COMPLETED":
+      return "Completed";
+    case "CANCELLED":
+      return "Cancelled";
+    default:
+      return status;
+  }
+};
+
+const toReportRow = (bm: BackendMeeting): MeetingReportData => ({
+  id: bm.id,
+  subject: bm.title || "—",
+  company: bm.lead?.title || "—",
+  contactPerson: bm.lead?.contactPerson || "—",
+  date: bm.scheduledAt ? getLocalDateString(bm.scheduledAt) : "",
+  time: bm.scheduledAt ? getLocalTimeString(bm.scheduledAt) : "",
+  type: getMeetingType(bm.meetingLink),
+  status: getMeetingStatusLabel(bm.status),
+  createdBy: bm.createdBy?.name || "",
+});
 
 export default function MeetingReport() {
   const { showToast } = useToast();
+  const [meetings, setMeetings] = useState<MeetingReportData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -33,24 +110,77 @@ export default function MeetingReport() {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [sortField, setSortField] = useState<keyof MeetingReportData>("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [totalItems, setTotalItems] = useState(0);
+  const [filterOptions, setFilterOptions] = useState<{ statuses: string[]; types: string[] }>({
+    statuses: [],
+    types: [],
+  });
+
+  const debouncedSearch = useDebounce(searchQuery, 400);
 
   // Dropdown states
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isTypeOpen, setIsTypeOpen] = useState(false);
 
-  const statusOptions = [
-    { value: "all", label: "All Statuses" },
-    { value: "Scheduled", label: "Scheduled" },
-    { value: "Completed", label: "Completed" },
-    { value: "Cancelled", label: "Cancelled" },
-    { value: "Rescheduled", label: "Rescheduled" },
-  ];
+  const fetchMeetings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await reportService.getMeetingReport({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: debouncedSearch.trim() || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        type: typeFilter === "all" ? undefined : typeFilter,
+        sortBy: sortField,
+        sortOrder,
+      });
+      setMeetings(Array.isArray(res?.data) ? res.data.map(toReportRow) : []);
+      setTotalItems(res?.meta?.total ?? 0);
+      setFilterOptions((prev) => ({
+        statuses: res?.meta?.filters?.statuses ?? prev.statuses,
+        types: res?.meta?.filters?.types ?? prev.types,
+      }));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load meeting report data.");
+      showToast("Failed to load meeting report data.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    currentPage,
+    rowsPerPage,
+    debouncedSearch,
+    statusFilter,
+    typeFilter,
+    sortField,
+    sortOrder,
+    showToast,
+  ]);
 
-  const typeOptions = [
-    { value: "all", label: "All Types" },
-    { value: "Google Meet", label: "Google Meet" },
-    { value: "Offline", label: "Offline" },
-  ];
+  useEffect(() => {
+    fetchMeetings();
+  }, [fetchMeetings]);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "all", label: "All Statuses" },
+      ...(filterOptions.statuses || []).map((value) => ({
+        value,
+        label: getMeetingStatusLabel(value),
+      })),
+    ],
+    [filterOptions.statuses]
+  );
+
+  const typeOptions = useMemo(
+    () => [
+      { value: "all", label: "All Types" },
+      ...(filterOptions.types || []).map((value) => ({ value, label: value })),
+    ],
+    [filterOptions.types]
+  );
 
   const handleSort = (field: keyof MeetingReportData) => {
     if (sortField === field) {
@@ -62,52 +192,6 @@ export default function MeetingReport() {
     setCurrentPage(1);
   };
 
-  const processedData = useMemo(() => {
-    let result = [...MEETING_REPORT_DATA];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (m) =>
-          m.subject.toLowerCase().includes(q) ||
-          m.company.toLowerCase().includes(q) ||
-          m.contactPerson.toLowerCase().includes(q)
-      );
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter((m) => m.status === statusFilter);
-    }
-
-    if (typeFilter !== "all") {
-      result = result.filter((m) => m.type === typeFilter);
-    }
-
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-
-      const strA = String(aVal).toLowerCase();
-      const strB = String(bVal).toLowerCase();
-
-      if (strA < strB) return sortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return result;
-  }, [searchQuery, statusFilter, typeFilter, sortField, sortOrder]);
-
-  const paginatedData = useMemo(() => {
-    const startIdx = (currentPage - 1) * rowsPerPage;
-    return processedData.slice(startIdx, startIdx + rowsPerPage);
-  }, [processedData, currentPage, rowsPerPage]);
-
-  const totalItems = processedData.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
 
   const getMeetingStatusColor = (status: string) => {
@@ -124,7 +208,6 @@ export default function MeetingReport() {
         return "light";
     }
   };
-
 
   const renderSortHeader = (label: string, field: keyof MeetingReportData) => {
     const isActive = sortField === field;
@@ -233,7 +316,7 @@ export default function MeetingReport() {
               <Dropdown
                 isOpen={isTypeOpen}
                 onClose={() => setIsTypeOpen(false)}
-                className="left-0 right-auto w-40 p-1 mt-2"
+                className="left-0 right-auto w-44 p-1 mt-2"
               >
                 <ul className="flex flex-col gap-0.5">
                   {typeOptions.map((opt) => (
@@ -267,13 +350,50 @@ export default function MeetingReport() {
             variant="outline"
             startIcon={<FiDownload className="size-4" />}
             className="w-full sm:w-auto h-11 px-4 py-2.5"
-            onClick={() => {
-              exportToCSV(
-                processedData,
-                ["S.No", "Subject", "Company", "Contact Person", "Meeting Date", "Meeting Time", "Meeting Type", "Meeting Status", "Created By"],
-                "Meeting_Report"
-              );
-              showToast("Meeting report exported successfully.", "success");
+            onClick={async () => {
+              // Fetch every page matching the current filters so the exported
+              // file always contains the complete, filtered dataset.
+              const allRows: MeetingReportData[] = [];
+              let page = 1;
+              let total = Infinity;
+              try {
+                while (allRows.length < total) {
+                  const res = await reportService.getMeetingReport({
+                    page,
+                    limit: PAGE_SIZE,
+                    search: debouncedSearch.trim() || undefined,
+                    status: statusFilter === "all" ? undefined : statusFilter,
+                    type: typeFilter === "all" ? undefined : typeFilter,
+                    sortBy: sortField,
+                    sortOrder,
+                  });
+                  const rows = (res?.data || []).map(toReportRow);
+                  allRows.push(...rows);
+                  total = res?.meta?.total ?? allRows.length;
+                  if (rows.length === 0) break;
+                  page += 1;
+                }
+                const exportRows = allRows.map((r, idx) => ({
+                  sno: idx + 1,
+                  subject: r.subject,
+                  company: r.company,
+                  contactPerson: r.contactPerson,
+                  date: r.date,
+                  time: r.time,
+                  type: r.type,
+                  status: r.status,
+                  createdBy: r.createdBy || "",
+                }));
+                exportToCSV(
+                  exportRows,
+                  ["S.No", "Subject", "Company", "Contact Person", "Meeting Date", "Meeting Time", "Meeting Type", "Meeting Status", "Created By"],
+                  "Meeting_Report"
+                );
+                showToast("Meeting report exported successfully.", "success");
+              } catch (err) {
+                console.error(err);
+                showToast("Failed to export meeting report.", "error");
+              }
             }}
           >
             Export
@@ -311,17 +431,40 @@ export default function MeetingReport() {
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {renderSortHeader("Status", "status")}
                 </TableCell>
+                <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                  {renderSortHeader("Created By", "createdBy")}
+                </TableCell>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {paginatedData.length > 0 ? (
-                paginatedData.map((row) => (
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <FiLoader className="size-4 animate-spin" /> Loading meeting report data...
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="px-5 py-8 text-center text-sm text-error-500"
+                  >
+                    {error}
+                  </TableCell>
+                </TableRow>
+              ) : meetings.length > 0 ? (
+                meetings.map((row, index) => (
                   <TableRow
                     key={row.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                   >
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90">
-                      {row.id}
+                      {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
                       {row.subject}
@@ -340,10 +483,10 @@ export default function MeetingReport() {
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
-                        {row.type === "Google Meet" ? (
+                        {row.type !== "Offline" ? (
                           <>
                             <FiVideo className="size-4 text-brand-500" />
-                            <span>Google Meet</span>
+                            <span>{row.type}</span>
                           </>
                         ) : (
                           <>
@@ -358,12 +501,15 @@ export default function MeetingReport() {
                         {row.status}
                       </Badge>
                     </TableCell>
+                    <TableCell className="px-5 py-4 text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                      {row.createdBy || "—"}
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     No meeting records found.

@@ -8,6 +8,7 @@ export interface LeadReportData {
   industry: string;
   status: string;
   assignedTo: string;
+  createdAt?: string;
 }
 
 export interface MeetingReportData {
@@ -19,6 +20,7 @@ export interface MeetingReportData {
   time: string;
   type: string;
   status: string;
+  createdBy?: string;
 }
 
 export interface EmployeeReportData {
@@ -42,6 +44,7 @@ export interface FollowUpReportData {
   reason: string;
   status: string;
   outcome: string;
+  assignedTo?: string;
 }
 
 export interface ClientReportData {

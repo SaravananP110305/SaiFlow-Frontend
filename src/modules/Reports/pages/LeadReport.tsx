@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
@@ -18,13 +18,47 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from "../../../icons";
-import { FiDownload } from "react-icons/fi";
-import { LEAD_REPORT_DATA, LeadReportData } from "../data/reportsData";
+import { FiDownload, FiLoader } from "react-icons/fi";
+import { LeadReportData } from "../data/reportsData";
+import { getStatusLabel, getStatusBadgeColor } from "../../LeadManagement/utils/leadStatus";
 import { useToast } from "../../../hooks/useToast";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { exportToCSV } from "../../../utils/export";
+import { reportService } from "../../../services/reportService";
+
+const PAGE_SIZE = 100;
+
+interface BackendLead {
+  id: number;
+  title: string;
+  contactPerson: string;
+  email: string;
+  phone?: string | null;
+  source?: { name: string } | null;
+  industry?: { name: string } | null;
+  status: string;
+  assignedTo?: { name: string } | null;
+  createdAt?: string;
+}
+
+const toReportRow = (l: BackendLead): LeadReportData => ({
+  id: l.id,
+  company: l.title || "—",
+  contactPerson: l.contactPerson || "—",
+  email: l.email || "—",
+  phone: l.phone || "—",
+  source: l.source?.name || "",
+  industry: l.industry?.name || "",
+  status: l.status || "NEW",
+  assignedTo: l.assignedTo?.name || "Unassigned",
+  createdAt: l.createdAt || "",
+});
 
 export default function LeadReport() {
   const { showToast } = useToast();
+  const [leads, setLeads] = useState<LeadReportData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
@@ -32,30 +66,74 @@ export default function LeadReport() {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [sortField, setSortField] = useState<keyof LeadReportData>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [totalItems, setTotalItems] = useState(0);
+  const [filterOptions, setFilterOptions] = useState<{ statuses: string[]; sources: string[] }>({
+    statuses: [],
+    sources: [],
+  });
+
+  const debouncedSearch = useDebounce(searchQuery, 400);
 
   // Dropdown states
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isSourceOpen, setIsSourceOpen] = useState(false);
 
-  const statusOptions = [
-    { value: "all", label: "All Statuses" },
-    { value: "New", label: "New" },
-    { value: "Contacted", label: "Contacted" },
-    { value: "Qualified", label: "Qualified" },
-    { value: "Proposal sent", label: "Proposal Sent" },
-    { value: "Won", label: "Won" },
-    { value: "Lost", label: "Lost" },
-  ];
+  const fetchLeads = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await reportService.getLeadReport({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: debouncedSearch.trim() || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        source: sourceFilter === "all" ? undefined : sourceFilter,
+        sortBy: sortField,
+        sortOrder,
+      });
+      setLeads(Array.isArray(res?.data) ? res.data.map(toReportRow) : []);
+      setTotalItems(res?.meta?.total ?? 0);
+      setFilterOptions((prev) => ({
+        statuses: res?.meta?.filters?.statuses ?? prev.statuses,
+        sources: res?.meta?.filters?.sources ?? prev.sources,
+      }));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load lead report data.");
+      showToast("Failed to load lead report data.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    currentPage,
+    rowsPerPage,
+    debouncedSearch,
+    statusFilter,
+    sourceFilter,
+    sortField,
+    sortOrder,
+    showToast,
+  ]);
 
-  const sourceOptions = [
-    { value: "all", label: "All Sources" },
-    { value: "Website", label: "Website" },
-    { value: "Referral", label: "Referral" },
-    { value: "LinkedIn", label: "LinkedIn" },
-    { value: "Cold Call", label: "Cold Call" },
-    { value: "Trade Show", label: "Trade Show" },
-    { value: "Email Campaign", label: "Email Campaign" },
-  ];
+  useEffect(() => {
+    fetchLeads();
+  }, [fetchLeads]);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "all", label: "All Statuses" },
+      ...(filterOptions.statuses || []).map((value) => ({ value, label: getStatusLabel(value) })),
+    ],
+    [filterOptions.statuses]
+  );
+
+  const sourceOptions = useMemo(
+    () => [
+      { value: "all", label: "All Sources" },
+      ...(filterOptions.sources || []).map((value) => ({ value, label: value })),
+    ],
+    [filterOptions.sources]
+  );
 
   const handleSort = (field: keyof LeadReportData) => {
     if (sortField === field) {
@@ -67,71 +145,7 @@ export default function LeadReport() {
     setCurrentPage(1);
   };
 
-  const processedData = useMemo(() => {
-    let result = [...LEAD_REPORT_DATA];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (l) =>
-          l.company.toLowerCase().includes(q) ||
-          l.contactPerson.toLowerCase().includes(q) ||
-          l.email.toLowerCase().includes(q)
-      );
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter((l) => l.status === statusFilter);
-    }
-
-    if (sourceFilter !== "all") {
-      result = result.filter((l) => l.source === sourceFilter);
-    }
-
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-
-      const strA = String(aVal).toLowerCase();
-      const strB = String(bVal).toLowerCase();
-
-      if (strA < strB) return sortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return result;
-  }, [searchQuery, statusFilter, sourceFilter, sortField, sortOrder]);
-
-  const paginatedData = useMemo(() => {
-    const startIdx = (currentPage - 1) * rowsPerPage;
-    return processedData.slice(startIdx, startIdx + rowsPerPage);
-  }, [processedData, currentPage, rowsPerPage]);
-
-  const totalItems = processedData.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
-
-  const getLeadStatusColor = (status: string) => {
-    switch (status) {
-      case "New":
-        return "primary";
-      case "Contacted":
-        return "info";
-      case "Qualified":
-      case "Proposal sent":
-        return "warning";
-      case "Won":
-        return "success";
-      case "Lost":
-        return "error";
-      default:
-        return "light";
-    }
-  };
 
   const renderSortHeader = (label: string, field: keyof LeadReportData) => {
     const isActive = sortField === field;
@@ -276,13 +290,51 @@ export default function LeadReport() {
             variant="outline"
             startIcon={<FiDownload className="size-4" />}
             className="w-full sm:w-auto h-11 px-4 py-2.5"
-            onClick={() => {
-              exportToCSV(
-                processedData,
-                ["S.No", "Company", "Contact Person", "Email", "Phone", "Status", "Source", "Industry", "Created At"],
-                "Lead_Report"
-              );
-              showToast("Lead report exported successfully.", "success");
+            onClick={async () => {
+              // Fetch every page matching the current filters so the exported
+              // file always contains the complete, filtered dataset.
+              const allRows: LeadReportData[] = [];
+              let page = 1;
+              let total = Infinity;
+              try {
+                while (allRows.length < total) {
+                  const res = await reportService.getLeadReport({
+                    page,
+                    limit: PAGE_SIZE,
+                    search: debouncedSearch.trim() || undefined,
+                    status: statusFilter === "all" ? undefined : statusFilter,
+                    source: sourceFilter === "all" ? undefined : sourceFilter,
+                    sortBy: sortField,
+                    sortOrder,
+                  });
+                  const rows = (res?.data || []).map(toReportRow);
+                  allRows.push(...rows);
+                  total = res?.meta?.total ?? allRows.length;
+                  if (rows.length === 0) break;
+                  page += 1;
+                }
+                const exportRows = allRows.map((r, idx) => ({
+                  sno: idx + 1,
+                  company: r.company,
+                  contactPerson: r.contactPerson,
+                  email: r.email,
+                  phone: r.phone,
+                  source: r.source,
+                  industry: r.industry,
+                  status: getStatusLabel(r.status),
+                  assignedTo: r.assignedTo,
+                  createdAt: r.createdAt ? r.createdAt.split("T")[0] : "",
+                }));
+                exportToCSV(
+                  exportRows,
+                  ["S.No", "Company", "Contact Person", "Email", "Phone", "Lead Source", "Industry", "Status", "Assigned To", "Created At"],
+                  "Lead_Report"
+                );
+                showToast("Lead report exported successfully.", "success");
+              } catch (err) {
+                console.error(err);
+                showToast("Failed to export lead report.", "error");
+              }
             }}
           >
             Export
@@ -326,14 +378,34 @@ export default function LeadReport() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {paginatedData.length > 0 ? (
-                paginatedData.map((row) => (
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <FiLoader className="size-4 animate-spin" /> Loading lead report data...
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="px-5 py-8 text-center text-sm text-error-500"
+                  >
+                    {error}
+                  </TableCell>
+                </TableRow>
+              ) : leads.length > 0 ? (
+                leads.map((row, rowIndex) => (
                   <TableRow
                     key={row.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                   >
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90">
-                      {row.id}
+                      {(currentPage - 1) * rowsPerPage + rowIndex + 1}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
                       {row.company}
@@ -354,8 +426,8 @@ export default function LeadReport() {
                       {row.industry}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm whitespace-nowrap">
-                      <Badge size="sm" color={getLeadStatusColor(row.status)}>
-                        {row.status}
+                      <Badge size="sm" color={getStatusBadgeColor(row.status)}>
+                        {getStatusLabel(row.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { formatDate } from "../../../utils/dateFormatter";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
@@ -19,33 +19,106 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from "../../../icons";
-import { FiDownload } from "react-icons/fi";
-import { PROPOSAL_REPORT_DATA, ProposalReportData } from "../data/reportsData";
+import { FiDownload, FiLoader } from "react-icons/fi";
+import { ProposalReportData } from "../data/reportsData";
 import { useToast } from "../../../hooks/useToast";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { exportToCSV } from "../../../utils/export";
+import { reportService } from "../../../services/reportService";
+
+const PAGE_SIZE = 100;
+
+interface BackendProposal {
+  id: number;
+  proposalNumber: string;
+  amount: number | string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  lead?: {
+    id: number;
+    title: string;
+    contactPerson: string;
+    email: string;
+    phone?: string | null;
+  } | null;
+  quotation?: {
+    paymentTerms?: string;
+    deliveryTimeline?: string;
+  } | null;
+}
+
+const toReportRow = (p: BackendProposal): ProposalReportData => ({
+  id: p.id,
+  proposalNo: p.proposalNumber || "—",
+  leadName: p.lead?.contactPerson || "—",
+  companyName: p.lead?.title || "—",
+  leadEmail: p.lead?.email || "—",
+  leadPhone: p.lead?.phone || "—",
+  status: p.status || "Draft",
+  createdAt: p.createdAt || "",
+  updatedAt: p.updatedAt || "",
+  totalAmount: Number(p.amount) || 0,
+  paymentTerms: p.quotation?.paymentTerms || "—",
+  deliveryTimeline: p.quotation?.deliveryTimeline || "—",
+});
 
 export default function ProposalReport() {
   const { showToast } = useToast();
+  const [proposals, setProposals] = useState<ProposalReportData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [sortField, setSortField] = useState<keyof ProposalReportData>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [totalItems, setTotalItems] = useState(0);
+  const [filterOptions, setFilterOptions] = useState<{ statuses: string[] }>({ statuses: [] });
+
+  const debouncedSearch = useDebounce(searchQuery, 400);
 
   // Dropdown states
   const [isStatusOpen, setIsStatusOpen] = useState(false);
 
-  const statusOptions = [
-    { value: "all", label: "All Statuses" },
-    { value: "Draft", label: "Draft" },
-    { value: "Sent", label: "Sent" },
-    { value: "Under Review", label: "Under Review" },
-    { value: "Negotiation", label: "Negotiation" },
-    { value: "Approved", label: "Approved" },
-    { value: "Rejected", label: "Rejected" },
-    { value: "Converted", label: "Converted" },
-  ];
+  const fetchProposals = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await reportService.getProposalReport({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: debouncedSearch.trim() || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        sortBy: sortField,
+        sortOrder,
+      });
+      setProposals(Array.isArray(res?.data) ? res.data.map(toReportRow) : []);
+      setTotalItems(res?.meta?.total ?? 0);
+      setFilterOptions((prev) => ({
+        statuses: res?.meta?.filters?.statuses ?? prev.statuses,
+      }));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load proposal report data.");
+      showToast("Failed to load proposal report data.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, rowsPerPage, debouncedSearch, statusFilter, sortField, sortOrder, showToast]);
+
+  useEffect(() => {
+    fetchProposals();
+  }, [fetchProposals]);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "all", label: "All Statuses" },
+      ...(filterOptions.statuses || []).map((value) => ({ value, label: value })),
+    ],
+    [filterOptions.statuses]
+  );
 
   const handleSort = (field: keyof ProposalReportData) => {
     if (sortField === field) {
@@ -57,49 +130,6 @@ export default function ProposalReport() {
     setCurrentPage(1);
   };
 
-  const processedData = useMemo(() => {
-    let result = [...PROPOSAL_REPORT_DATA];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.proposalNo.toLowerCase().includes(q) ||
-          p.companyName.toLowerCase().includes(q) ||
-          p.leadName.toLowerCase().includes(q) ||
-          p.leadEmail.toLowerCase().includes(q)
-      );
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter((p) => p.status === statusFilter);
-    }
-
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-
-      const strA = String(aVal).toLowerCase();
-      const strB = String(bVal).toLowerCase();
-
-      if (strA < strB) return sortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return result;
-  }, [searchQuery, statusFilter, sortField, sortOrder]);
-
-  const paginatedData = useMemo(() => {
-    const startIdx = (currentPage - 1) * rowsPerPage;
-    return processedData.slice(startIdx, startIdx + rowsPerPage);
-  }, [processedData, currentPage, rowsPerPage]);
-
-  const totalItems = processedData.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
 
   const getProposalStatusColor = (status: string) => {
@@ -122,7 +152,6 @@ export default function ProposalReport() {
         return "light";
     }
   };
-
 
   const renderSortHeader = (label: string, field: keyof ProposalReportData) => {
     const isActive = sortField === field;
@@ -178,7 +207,7 @@ export default function ProposalReport() {
                 onClick={() => {
                   setIsStatusOpen(!isStatusOpen);
                 }}
-                className="flex items-center justify-between h-11 w-40 rounded-lg border border-gray-202 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
+                className="flex items-center justify-between h-11 w-44 rounded-lg border border-gray-202 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer dropdown-toggle hover:bg-gray-50 dark:hover:bg-white/5"
               >
                 <span className="truncate">
                   {statusOptions.find((o) => o.value === statusFilter)?.label}
@@ -188,9 +217,9 @@ export default function ProposalReport() {
               <Dropdown
                 isOpen={isStatusOpen}
                 onClose={() => setIsStatusOpen(false)}
-                className="left-0 right-auto w-44 p-1 mt-2"
+                className="left-0 right-auto w-48 p-1 mt-2"
               >
-                <ul className="flex flex-col gap-0.5">
+                <ul className="flex flex-col gap-0.5 max-h-60 overflow-y-auto custom-scrollbar">
                   {statusOptions.map((opt) => (
                     <li key={opt.value}>
                       <DropdownItem
@@ -222,13 +251,52 @@ export default function ProposalReport() {
             variant="outline"
             startIcon={<FiDownload className="size-4" />}
             className="w-full sm:w-auto h-11 px-4 py-2.5"
-            onClick={() => {
-              exportToCSV(
-                processedData,
-                ["S.No", "Proposal No", "Lead Name", "Company", "Email", "Phone", "Status", "Created At", "Updated At", "Total Amount", "Payment Terms", "Delivery Timeline"],
-                "Proposal_Report"
-              );
-              showToast("Proposal report exported successfully.", "success");
+            onClick={async () => {
+              // Fetch every page matching the current filters so the exported
+              // file always contains the complete, filtered dataset.
+              const allRows: ProposalReportData[] = [];
+              let page = 1;
+              let total = Infinity;
+              try {
+                while (allRows.length < total) {
+                  const res = await reportService.getProposalReport({
+                    page,
+                    limit: PAGE_SIZE,
+                    search: debouncedSearch.trim() || undefined,
+                    status: statusFilter === "all" ? undefined : statusFilter,
+                    sortBy: sortField,
+                    sortOrder,
+                  });
+                  const rows = (res?.data || []).map(toReportRow);
+                  allRows.push(...rows);
+                  total = res?.meta?.total ?? allRows.length;
+                  if (rows.length === 0) break;
+                  page += 1;
+                }
+                const exportRows = allRows.map((r, idx) => ({
+                  sno: idx + 1,
+                  proposalNo: r.proposalNo,
+                  leadName: r.leadName,
+                  companyName: r.companyName,
+                  leadEmail: r.leadEmail,
+                  leadPhone: r.leadPhone,
+                  status: r.status,
+                  createdAt: r.createdAt ? r.createdAt.split("T")[0] : "",
+                  updatedAt: r.updatedAt ? r.updatedAt.split("T")[0] : "",
+                  totalAmount: r.totalAmount,
+                  paymentTerms: r.paymentTerms,
+                  deliveryTimeline: r.deliveryTimeline,
+                }));
+                exportToCSV(
+                  exportRows,
+                  ["S.No", "Proposal No", "Lead Name", "Company", "Email", "Phone", "Status", "Created At", "Updated At", "Total Amount", "Payment Terms", "Delivery Timeline"],
+                  "Proposal_Report"
+                );
+                showToast("Proposal report exported successfully.", "success");
+              } catch (err) {
+                console.error(err);
+                showToast("Failed to export proposal report.", "error");
+              }
             }}
           >
             Export
@@ -281,14 +349,34 @@ export default function ProposalReport() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {paginatedData.length > 0 ? (
-                paginatedData.map((row) => (
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={12}
+                    className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <FiLoader className="size-4 animate-spin" /> Loading proposal report data...
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={12}
+                    className="px-5 py-8 text-center text-sm text-error-500"
+                  >
+                    {error}
+                  </TableCell>
+                </TableRow>
+              ) : proposals.length > 0 ? (
+                proposals.map((row, index) => (
                   <TableRow
                     key={row.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                   >
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90">
-                      {row.id}
+                      {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
                       {row.proposalNo}
