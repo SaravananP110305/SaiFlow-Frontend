@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router";
 
 interface BreadcrumbProps {
   pageTitle: string;
+  customName?: string;
 }
 
 // Helper functions to get entity names matching route IDs
@@ -68,7 +69,7 @@ const REPORT_LABELS: Record<string, string> = {
   "follow-ups": "Follow-Up Report",
 };
 
-const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
+const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle, customName }) => {
   const location = useLocation();
   const pathname = location.pathname;
 
@@ -243,11 +244,11 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
       const parts = pathname.split("/");
       const id = parts[2];
       const isEdit = parts[3] === "edit";
-      const proposalNo = getProposalNo(id);
+      const proposalNo = customName || getProposalNo(id);
 
       breadcrumbs.push({ label: "Proposals", to: "/proposals" });
       if (isEdit) {
-        breadcrumbs.push({ label: proposalNo, to: `/proposals` });
+        breadcrumbs.push({ label: proposalNo, to: `/proposals/${id}` });
         breadcrumbs.push({ label: "Edit Proposal" });
       } else {
         breadcrumbs.push({ label: proposalNo });

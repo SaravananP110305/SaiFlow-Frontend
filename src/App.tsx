@@ -39,6 +39,7 @@ import AddClient from "./modules/ClientManagement/pages/AddClient";
 import ClientDetails from "./modules/ClientManagement/pages/ClientDetails";
 import QuotationList from "./modules/Quotation/pages/QuotationList";
 import AddProposal from "./modules/Quotation/pages/AddProposal";
+import ProposalDetails from "./modules/Quotation/pages/ProposalDetails";
 import SettingsPage from "./modules/Settings/pages/SettingsPage";
 
 
@@ -564,6 +565,14 @@ export default function App() {
               element={
                 <ProtectedRoute requiredPermission={{ module: 'proposals', action: 'edit' }}>
                   <AddProposal />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/proposals/:id"
+              element={
+                <ProtectedRoute requiredPermission={{ module: 'proposals', action: 'view' }}>
+                  <ProposalDetails />
                 </ProtectedRoute>
               }
             />

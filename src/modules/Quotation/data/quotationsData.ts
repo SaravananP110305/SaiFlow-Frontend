@@ -83,6 +83,7 @@ export interface Proposal {
   estimation: EstimationSection;
   quotation: QuotationSection;
   workflowLogs: WorkflowLog[];
+  value?: number;
 }
 
 // ─── Initial Sample Data Helper ──────────────────────────────────────────────

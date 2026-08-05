@@ -1,13 +1,13 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
-import { formatDate as centFormatDate, formatTime as centFormatTime } from "../../../utils/dateFormatter";
+import { formatDate as centFormatDate } from "../../../utils/dateFormatter";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import { proposalService } from "../../../services/proposalService";
 import { clientService } from "../../../services/clientService";
 import { leadService } from "../../../services/leadService";
 import api from "../../../services/api";
-import Badge from "../../../components/ui/badge/Badge";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import { Modal } from "../../../components/ui/modal";
@@ -20,10 +20,9 @@ import {
   TableRow,
   TableCell,
 } from "../../../components/ui/table";
-import { ChevronDownIcon, ChevronUpIcon } from "../../../icons";
+import { ChevronDownIcon } from "../../../icons";
 import {
   FiPlus,
-  FiMail,
   FiDownload,
   FiEye,
   FiEdit,
@@ -33,14 +32,6 @@ import {
   FiSend,
   FiRefreshCw,
   FiFileText,
-  FiCreditCard,
-  FiList,
-  FiActivity,
-  FiArrowLeft,
-  FiArrowRight,
-  FiInfo,
-  FiUser,
-  FiCalendar,
   FiTrendingUp,
 } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
@@ -66,14 +57,7 @@ const STATUS_CONFIG: Record<
   Converted: { label: "Converted", color: "primary", icon: <FiTrendingUp className="size-3.5" /> },
 };
 
-const WORKFLOW_STEPS: ProposalStatus[] = [
-  "Draft",
-  "Sent",
-  "Under Review",
-  "Negotiation",
-  "Approved",
-  "Converted",
-];
+
 
 // ─── Status Transitions (for list-view quick actions) ───────────────────────
 
@@ -119,17 +103,15 @@ function formatCurrency(amount: number): string {
   return "₹" + amount.toLocaleString("en-IN");
 }
 
+function formatCurrencyForPDF(amount: number): string {
+  return "Rs. " + amount.toLocaleString("en-IN");
+}
+
 function formatDate(dateStr: string): string {
   return centFormatDate(dateStr);
 }
 
-function formatDateTime(dateStr: string): string {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "—";
-  const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  return `${centFormatDate(d)} at ${centFormatTime(timeStr)}`;
-}
+
 
 function getTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -167,17 +149,35 @@ export default function QuotationList() {
           leadPhone: bp.lead?.phone || "",
           value: Number(bp.amount),
           status: bp.status,
-          requirement: bp.lead?.requirements || "",
-          estimation: {
-            scopeOfWork: bp.lead?.requirements || "",
-            technologies: [],
-            estimatedHours: 0,
-            hourlyRate: 0,
-            totalCost: Number(bp.amount),
-            modules: []
+          requirement: bp.requirements || {
+            overview: bp.lead?.requirements || "",
+            objectives: [],
+            technicalRequirements: [],
+            deliverables: [],
+            assumptions: [],
+            constraints: []
+          },
+          estimation: bp.estimation || {
+            items: [],
+            subtotal: Number(bp.amount),
+            discountPercent: 0,
+            discountAmount: 0,
+            taxPercent: 18,
+            taxAmount: 0,
+            total: Number(bp.amount)
+          },
+          quotation: bp.quotation || {
+            paymentTerms: "",
+            validityDays: bp.validUntil ? Math.ceil((new Date(bp.validUntil).getTime() - new Date(bp.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 30,
+            deliveryTimeline: "",
+            warrantyPeriod: "",
+            paymentMilestones: [],
+            notes: bp.title || "",
+            termsAndConditions: ""
           },
           validUntil: bp.validUntil ? bp.validUntil.split("T")[0] : "",
-          updatedAt: bp.updatedAt ? bp.updatedAt.split("T")[0] : "",
+          createdAt: bp.createdAt || "",
+          updatedAt: bp.updatedAt || "",
           workflowLogs: []
         }));
         setProposals(mapped);
@@ -194,57 +194,46 @@ export default function QuotationList() {
     fetchProposals();
   }, []);
 
-  const [view, setView] = useState<"list" | "detail">("list");
-  const [selectedProposalId, setSelectedProposalId] = useState<number | null>(null);
-  const [activeDetailTab, setActiveDetailTab] = useState<"requirement" | "estimation" | "quotation" | "workflow">("requirement");
-
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState("");
   // setStatusFilter removed while the Status filter dropdown is commented out
   const [statusFilter] = useState<string>("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<keyof Proposal>("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  // const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false); // Status filter commented out
 
   // Status dropdown (per row in list view)
   const [activeStatusDropdown, setActiveStatusDropdown] = useState<number | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
   const statusDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  // Close status dropdown on outside click
+  // Close status dropdown on outside click or scroll
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target as Node)) {
         setActiveStatusDropdown(null);
+        setDropdownPosition(null);
       }
     };
+    const handleScroll = () => {
+      setActiveStatusDropdown(null);
+      setDropdownPosition(null);
+    };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, []);
 
   // Modals
-  const deleteModal = useModal();
   const confirmActionModal = useModal();
 
   // Action confirmation (only for destructive actions)
   const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
-  // ── Derived - Selected Proposal ────────────────────────────────────────────
-
-  const selectedProposal = useMemo(
-    () => proposals.find((p) => p.id === selectedProposalId) || null,
-    [proposals, selectedProposalId]
-  );
-
   const handleExportPDF = (proposal: Proposal) => {
     exportProposalToPDF(proposal, showToast);
-  };
-
-  const handleSort = (field: keyof Proposal) => {
-    const isAsc = sortField === field && sortOrder === "asc";
-    setSortOrder(isAsc ? "desc" : "asc");
-    setSortField(field);
   };
 
 
@@ -263,7 +252,6 @@ export default function QuotationList() {
   };
 
   const handleStatusAction = (action: string, proposal: Proposal) => {
-    setSelectedProposalId(proposal.id);
     switch (action) {
       case "send":
         updateStatus(proposal.id, "Sent", "Proposal sent to client.");
@@ -333,27 +321,9 @@ export default function QuotationList() {
     }
   };
 
-  // ── Revise (Navigate to edit page in negotiation mode) ──────────────────────
 
-  const handleRevise = (proposal: Proposal) => {
-    updateStatus(proposal.id, "Negotiation", "Moved to negotiation.");
-    navigate(`/proposals/${proposal.id}/edit`);
-  };
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
 
-  const handleDeleteConfirm = async () => {
-    if (!selectedProposal) return;
-    try {
-      await proposalService.deleteProposal(selectedProposal.id);
-      showToast(`Proposal ${selectedProposal.proposalNo} deleted.`, "success");
-      deleteModal.closeModal();
-      if (view === "detail") setView("list");
-      fetchProposals();
-    } catch (err) {
-      showToast("Failed to delete proposal.", "error");
-    }
-  };
 
   // ── List View Processing ───────────────────────────────────────────────────
 
@@ -374,63 +344,15 @@ export default function QuotationList() {
     if (statusFilter !== "all") {
       result = result.filter((p) => p.status === statusFilter);
     }
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-      return sortOrder === "asc"
-        ? String(aVal).localeCompare(String(bVal))
-        : String(bVal).localeCompare(String(aVal));
-    });
+    // Static sort: newest first
+    result.sort((a, b) => b.id - a.id);
     return result;
-  }, [proposals, searchQuery, statusFilter, sortField, sortOrder]);
+  }, [proposals, searchQuery, statusFilter]);
 
   const paginatedProposals = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
     return processedProposals.slice(start, start + rowsPerPage);
   }, [processedProposals, currentPage, rowsPerPage]);
-
-  // Bulk actions
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const selectAll = useMemo(() => paginatedProposals.length > 0 && selectedIds.length === paginatedProposals.length, [paginatedProposals, selectedIds]);
-  const isIndeterminate = useMemo(() => selectedIds.length > 0 && selectedIds.length < paginatedProposals.length, [paginatedProposals, selectedIds]);
-
-  const toggleSelect = (id: number) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const toggleSelectAll = () => {
-    if (selectAll) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(paginatedProposals.map(p => p.id));
-    }
-  };
-
-  const handleBulkSend = async () => {
-    try {
-      const drafts = selectedIds.filter(id => proposals.find(p => p.id === id)?.status === "Draft");
-      await Promise.all(drafts.map(id => proposalService.updateProposal(id, { status: "Sent" })));
-      showToast(`${drafts.length} proposal(s) sent.`, "success");
-      setSelectedIds([]);
-      fetchProposals();
-    } catch (err) {
-      showToast("Failed to bulk send proposals.", "error");
-    }
-  };
-
-  const handleBulkApprove = async () => {
-    try {
-      await Promise.all(selectedIds.map(id => proposalService.updateProposal(id, { status: "Approved" })));
-      showToast(`${selectedIds.length} proposal(s) approved.`, "success");
-      setSelectedIds([]);
-      fetchProposals();
-    } catch (err) {
-      showToast("Failed to bulk approve proposals.", "error");
-    }
-  };
 
   const totalPages = Math.ceil(processedProposals.length / rowsPerPage);
 
@@ -492,67 +414,25 @@ export default function QuotationList() {
         )}
       </div>
 
-      {/* Bulk Actions Toolbar */}
-      {selectedIds.length > 0 && (
-        <div className="flex items-center justify-between gap-3 mb-3 px-4 py-3 rounded-xl border border-brand-200 bg-brand-50 dark:border-brand-500/20 dark:bg-brand-500/10">
-          <span className="text-sm font-medium text-brand-700 dark:text-brand-400">
-            {selectedIds.length} selected
-          </span>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={handleBulkSend}>
-              Send
-            </Button>
-            <Button size="sm" variant="primary" onClick={handleBulkApprove}>
-              Approve
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setSelectedIds([])}>
-              Clear
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="max-w-full overflow-x-auto">
           <Table className="min-w-full">
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] sticky top-0 bg-white dark:bg-gray-900 z-10">
               <TableRow>
-                <TableCell isHeader className="px-4 py-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selectAll}
-                    ref={(el) => { if (el) el.indeterminate = isIndeterminate; }}
-                    onChange={toggleSelectAll}
-                    className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 cursor-pointer"
-                  />
-                </TableCell>
                 {[
-                  { key: "id", label: "S.No" },
-                  { key: "proposalNo", label: "Proposal No" },
-                  { key: "companyName", label: "Company" },
-                  { key: "leadName", label: "Lead Contact" },
-                  { key: null, label: "Amount" },
-                  { key: "status", label: "Status" },
-                  { key: "createdAt", label: "Created Date" },
-                  { key: "updatedAt", label: "Last Updated" },
-                  { key: null, label: "Actions" },
+                  { label: "S.No" },
+                  { label: "Proposal No" },
+                  { label: "Company" },
+                  { label: "Lead Contact" },
+                  { label: "Amount" },
+                  { label: "Status" },
+                  { label: "Created Date" },
+                  { label: "Last Updated" },
+                  { label: "Actions" },
                 ].map((col) => (
-                  <TableCell key={col.label || "actions"} isHeader className={`px-5 py-3 text-${col.label === "Amount" ? "end" : col.label === "Actions" ? "center" : "start"} text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap`}>
-                    {col.key ? (
-                      <button onClick={() => { if (col.key) handleSort(col.key as keyof Proposal); }}
-                        className="flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer">
-                        {col.label}
-                        <span className="flex flex-col">
-                          <ChevronUpIcon className={`w-3 h-3 -mb-1 transition-colors ${sortField === col.key && sortOrder === "asc" ? "text-brand-500" : "text-gray-300 dark:text-gray-600"}`} />
-                          <ChevronDownIcon className={`w-3 h-3 transition-colors ${sortField === col.key && sortOrder === "desc" ? "text-brand-500" : "text-gray-300 dark:text-gray-600"}`} />
-                        </span>
-                      </button>
-                    ) : col.label === "Amount" ? (
-                      <span className="flex items-center justify-end">Amount</span>
-                    ) : (
-                      <span>{col.label}</span>
-                    )}
+                  <TableCell key={col.label} isHeader className={`px-5 py-3 text-${col.label === "Amount" ? "end" : col.label === "Actions" ? "center" : "start"} text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap`}>
+                    <span className={col.label === "Amount" ? "flex items-center justify-end" : ""}>{col.label}</span>
                   </TableCell>
                 ))}
               </TableRow>
@@ -560,20 +440,12 @@ export default function QuotationList() {
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {paginatedProposals.length > 0 ? (
                 paginatedProposals.map((proposal, index) => {
-                  const totalAmount = proposal.estimation.total || 0;
+                  const totalAmount = proposal.estimation?.total || proposal.value || 0;
                   return (
                     <TableRow key={proposal.id}
                       className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
-                      onClick={() => { setSelectedProposalId(proposal.id); setView("detail"); setActiveDetailTab("requirement"); }}
+                      onClick={() => navigate(`/proposals/${proposal.id}`)}
                     >
-                      <TableCell className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(proposal.id)}
-                          onChange={() => toggleSelect(proposal.id)}
-                          className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 cursor-pointer"
-                        />
-                      </TableCell>
                       <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 font-mono text-xs">
                         {(currentPage - 1) * rowsPerPage + index + 1}
                       </TableCell>
@@ -590,12 +462,22 @@ export default function QuotationList() {
                       <TableCell className="px-5 py-4 text-theme-sm text-end font-semibold text-gray-800 dark:text-white/90">
                         {formatCurrency(totalAmount)}
                       </TableCell>
-                      <TableCell className="px-5 py-4 whitespace-nowrap relative" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="px-5 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <div className="relative">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setActiveStatusDropdown(activeStatusDropdown === proposal.id ? null : proposal.id);
+                              if (activeStatusDropdown === proposal.id) {
+                                setActiveStatusDropdown(null);
+                                setDropdownPosition(null);
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setDropdownPosition({
+                                  top: rect.bottom + window.scrollY,
+                                  left: rect.left + window.scrollX,
+                                });
+                                setActiveStatusDropdown(proposal.id);
+                              }
                             }}
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all cursor-pointer
                               ${STATUS_CONFIG[proposal.status].color === "light" ? "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" : ""}
@@ -620,56 +502,6 @@ export default function QuotationList() {
                             {STATUS_CONFIG[proposal.status].label}
                             <ChevronDownIcon className={`w-3 h-3 transition-transform ${activeStatusDropdown === proposal.id ? "rotate-180" : ""}`} />
                           </button>
-
-                          {/* Status Dropdown Menu */}
-                          {activeStatusDropdown === proposal.id && STATUS_TRANSITIONS[proposal.status].length > 0 && (
-                            <div
-                              ref={statusDropdownRef}
-                              className={`absolute left-0 z-[100] w-52 p-1.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl ${index >= paginatedProposals.length - 2 && paginatedProposals.length > 2
-                                ? "bottom-full mb-1"
-                                : "top-full mt-1"
-                                }`}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="px-2 py-1.5 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase border-b border-gray-100 dark:border-gray-700 mb-1">
-                                Change Status
-                              </div>
-                              {STATUS_TRANSITIONS[proposal.status].map((action) => (
-                                <button
-                                  key={action.key}
-                                  onClick={() => {
-                                    setActiveStatusDropdown(null);
-                                    handleStatusAction(action.key, proposal);
-                                  }}
-                                  className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer ${action.key === "reject"
-                                    ? "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 font-medium"
-                                    : action.key === "approved" || action.key === "convert"
-                                      ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 font-medium"
-                                      : action.key === "negotiate"
-                                        ? "text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 font-medium"
-                                        : action.key === "review"
-                                          ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 font-medium"
-                                          : "text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-medium"
-                                    }`}
-                                >
-                                  <span className="shrink-0">{action.icon}</span>
-                                  <span className="flex-1 text-left">{action.label}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* No transitions available badge */}
-                          {activeStatusDropdown === proposal.id && STATUS_TRANSITIONS[proposal.status].length === 0 && (
-                            <div
-                              className={`absolute left-0 z-[100] w-48 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl text-center ${index >= paginatedProposals.length - 2 && paginatedProposals.length > 2
-                                ? "bottom-full mb-1"
-                                : "top-full mt-1"
-                                }`}
-                            >
-                              <p className="text-xs text-gray-400 dark:text-gray-500">No More Transitions</p>
-                            </div>
-                          )}
                         </div>
                       </TableCell>
                       <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
@@ -681,7 +513,7 @@ export default function QuotationList() {
                       <TableCell className="px-5 py-4 text-theme-sm text-center">
                         <div className="flex items-center justify-center gap-1.5"
                           onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => { setSelectedProposalId(proposal.id); setView("detail"); setActiveDetailTab("requirement"); }}
+                          <button onClick={() => navigate(`/proposals/${proposal.id}`)}
                             className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10 rounded-lg transition cursor-pointer" title="View">
                             <FiEye className="size-4" />
                           </button>
@@ -702,7 +534,7 @@ export default function QuotationList() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={10} className="px-5 py-12 text-center">
+                  <TableCell colSpan={9} className="px-5 py-12 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <FiFileText className="size-10 text-gray-300 dark:text-gray-600" />
                       <p className="text-sm text-gray-500 dark:text-gray-400">No proposals found.</p>
@@ -732,347 +564,6 @@ export default function QuotationList() {
     </>
   );
 
-  const renderDetailView = () => {
-    if (!selectedProposal) return null;
-
-    const status = STATUS_CONFIG[selectedProposal.status];
-
-    const tabs = [
-      { key: "requirement" as const, label: "Requirement", icon: <FiList className="size-4" /> },
-      { key: "estimation" as const, label: "Estimation", icon: <FiCreditCard className="size-4" /> },
-      { key: "quotation" as const, label: "Quotation", icon: <FiFileText className="size-4" /> },
-      { key: "workflow" as const, label: "Workflow", icon: <FiActivity className="size-4" /> },
-    ];
-
-    return (
-      <div className="space-y-5">
-        {/* Back & Actions Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <button onClick={() => setView("list")}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition cursor-pointer">
-            <FiArrowLeft className="size-4" />
-            Back to Proposals
-          </button>
-          <div className="flex flex-wrap gap-2">
-            {selectedProposal.status === "Draft" && (
-              <Button onClick={() => handleStatusAction("send", selectedProposal)} size="sm" variant="primary" startIcon={<FiSend />}>
-                Send Proposal
-              </Button>
-            )}
-            {selectedProposal.status === "Sent" && (
-              <>
-                <Button onClick={() => handleStatusAction("review", selectedProposal)} size="sm" variant="outline" startIcon={<FiClock />}>
-                  Mark as Reviewed
-                </Button>
-                <Button onClick={() => handleStatusAction("reject", selectedProposal)} size="sm" variant="outline" startIcon={<FiXCircle />}>
-                  Reject
-                </Button>
-              </>
-            )}
-            {selectedProposal.status === "Under Review" && (
-              <>
-                <Button onClick={() => handleStatusAction("negotiate", selectedProposal)} size="sm" variant="outline" startIcon={<FiRefreshCw />}>
-                  Negotiate
-                </Button>
-                <Button onClick={() => handleStatusAction("approved", selectedProposal)} size="sm" variant="primary" startIcon={<FiCheckCircle />}>
-                  Approve
-                </Button>
-                <Button onClick={() => handleStatusAction("reject", selectedProposal)} size="sm" variant="outline" startIcon={<FiXCircle />}>
-                  Reject
-                </Button>
-              </>
-            )}
-            {selectedProposal.status === "Negotiation" && (
-              <Button onClick={() => handleRevise(selectedProposal)} size="sm" variant="primary" startIcon={<FiRefreshCw />}>
-                Revise Proposal
-              </Button>
-            )}
-            {selectedProposal.status === "Approved" && (
-              <Button onClick={() => handleStatusAction("convert", selectedProposal)} size="sm" variant="primary" startIcon={<FiTrendingUp />}>
-                Convert to Client
-              </Button>
-            )}
-            <Button onClick={() => navigate(`/proposals/${selectedProposal.id}/edit`)} size="sm" variant="outline" startIcon={<FiEdit />}>
-              Edit
-            </Button>
-            <Button onClick={() => handleExportPDF(selectedProposal)} size="sm" variant="outline" startIcon={<FiDownload />}>
-              PDF
-            </Button>
-            <a href={`mailto:${selectedProposal.leadEmail}?subject=Business Proposal ${selectedProposal.proposalNo} - ${selectedProposal.companyName}`}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-white/5 transition"
-            >
-              <FiMail className="size-4" />
-              Email
-            </a>
-          </div>
-        </div>
-
-        {/* Proposal Header Card */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/[0.05] dark:bg-white/[0.03]">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white">{selectedProposal.proposalNo}</h2>
-                <Badge size="sm" color={status.color}>
-                  <span className="flex items-center gap-1">{status.icon}{status.label}</span>
-                </Badge>
-              </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {selectedProposal.companyName} &middot; {selectedProposal.leadName} &middot; {selectedProposal.leadEmail}
-              </p>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-              <span className="flex items-center gap-1"><FiCalendar className="size-3.5" /> Created {formatDate(selectedProposal.createdAt)}</span>
-              <span className="flex items-center gap-1"><FiRefreshCw className="size-3.5" /> Updated {getTimeAgo(selectedProposal.updatedAt)}</span>
-            </div>
-          </div>
-
-          {/* Workflow Steps */}
-          <div className="mt-5 pt-4 border-t border-gray-100 dark:border-white/[0.05]">
-            <div className="flex items-center gap-0 overflow-x-auto pb-1">
-              {WORKFLOW_STEPS.map((step, idx) => {
-                const stepIdx = WORKFLOW_STEPS.indexOf(selectedProposal.status);
-                const rejected = selectedProposal.status === "Rejected";
-                const converted = selectedProposal.status === "Converted";
-                const isCompleted = idx < stepIdx;
-                const isCurrent = idx === stepIdx;
-
-                let stepStatus: "completed" | "current" | "incomplete" | "rejected" = "incomplete";
-                if (rejected && idx === stepIdx) stepStatus = "rejected";
-                else if (converted && isCompleted) stepStatus = "completed";
-                else if (isCompleted) stepStatus = "completed";
-                else if (isCurrent) stepStatus = rejected ? "rejected" : "current";
-                else stepStatus = "incomplete";
-
-                const stepColors = {
-                  completed: "bg-emerald-500 text-white border-emerald-500",
-                  current: "bg-brand-500 text-white border-brand-500 ring-2 ring-brand-200 dark:ring-brand-700",
-                  incomplete: "bg-gray-100 text-gray-400 border-gray-200 dark:bg-gray-800 dark:border-gray-700",
-                  rejected: "bg-red-500 text-white border-red-500",
-                };
-
-                return (
-                  <div key={step} className="flex items-center gap-0">
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 text-xs font-bold shrink-0 transition-all ${stepColors[stepStatus]}`}>
-                      {stepStatus === "completed" || (converted && idx < stepIdx) ? (
-                        <FiCheckCircle className="size-4" />
-                      ) : stepStatus === "rejected" ? (
-                        <FiXCircle className="size-4" />
-                      ) : (
-                        idx + 1
-                      )}
-                    </div>
-                    <div className={`text-xs font-medium px-2 whitespace-nowrap ${stepStatus === "incomplete" ? "text-gray-400" : "text-gray-700 dark:text-gray-300"}`}>
-                      {STATUS_CONFIG[step]?.label || step}
-                    </div>
-                    {idx < WORKFLOW_STEPS.length - 1 && (
-                      <div className={`w-6 sm:w-10 h-0.5 mx-0.5 ${idx < stepIdx || (converted && idx < stepIdx) ? "bg-emerald-400" : idx === stepIdx && !rejected ? "bg-brand-300" : "bg-gray-200 dark:bg-gray-700"}`} />
-                    )}
-                  </div>
-                );
-              })}
-              {selectedProposal.status === "Converted" && (
-                <div className="flex items-center gap-0 ml-2">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full border-2 text-xs font-bold bg-purple-500 text-white border-purple-500">
-                    <FiTrendingUp className="size-4" />
-                  </div>
-                  <span className="text-xs font-medium px-2 text-purple-600 dark:text-purple-400">Client</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs Navigation */}
-        <div className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-white/[0.05]">
-          {tabs.map((tab) => (
-            <button key={tab.key} onClick={() => setActiveDetailTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition cursor-pointer ${activeDetailTab === tab.key
-                ? "text-brand-600 border-brand-500 dark:text-brand-400 dark:border-brand-400"
-                : "text-gray-500 border-transparent hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                }`}>
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-          {activeDetailTab === "requirement" && renderRequirementTab(selectedProposal)}
-          {activeDetailTab === "estimation" && renderEstimationTab(selectedProposal)}
-          {activeDetailTab === "quotation" && renderQuotationTab(selectedProposal)}
-          {activeDetailTab === "workflow" && renderWorkflowTab()}
-        </div>
-      </div>
-    );
-  };
-
-  // ── Render: Requirement Tab ────────────────────────────────────────────────
-
-  // ── Render: Requirement Tab ────────────────────────────────────────────────
-
-  const renderRequirementTab = (proposal: Proposal) => (
-    <div className="p-5 space-y-6">
-      <div>
-        <h3 className="text-base font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-          <FiInfo className="size-4 text-brand-500" /> Overview
-        </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{proposal.requirement.overview || "No overview provided."}</p>
-      </div>
-
-      <SectionBlock title="Objectives" items={proposal.requirement.objectives} emptyText="No objectives defined." />
-      <SectionBlock title="Technical Requirements" items={proposal.requirement.technicalRequirements} emptyText="No technical requirements defined." />
-      <SectionBlock title="Deliverables" items={proposal.requirement.deliverables} emptyText="No deliverables defined." />
-      <SectionBlock title="Assumptions" items={proposal.requirement.assumptions} emptyText="No assumptions defined." />
-      <SectionBlock title="Constraints" items={proposal.requirement.constraints} emptyText="No constraints defined." />
-    </div>
-  );
-
-  // ── Render: Estimation Tab ─────────────────────────────────────────────────
-
-  const renderEstimationTab = (proposal: Proposal) => {
-    const est = proposal.estimation;
-    return (
-      <div className="p-5">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 dark:border-white/[0.05]">
-                <th className="text-left py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Category</th>
-                <th className="text-left py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Description</th>
-                <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Unit</th>
-                <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Unit Price</th>
-                <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50 dark:divide-white/[0.03]">
-              {est.items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
-                  <td className="py-3 px-3">
-                    <Badge size="sm" color="primary">{item.category}</Badge>
-                  </td>
-                  <td className="py-3 px-3 text-gray-700 dark:text-gray-300">{item.description}</td>
-                  <td className="py-3 px-3 text-right text-gray-500 dark:text-gray-400 text-xs">{item.unit}</td>
-                  <td className="py-3 px-3 text-right text-gray-700 dark:text-gray-300">{formatCurrency(item.unitPrice)}</td>
-                  <td className="py-3 px-3 text-right font-medium text-gray-800 dark:text-white">{formatCurrency(item.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-gray-100 dark:border-white/[0.05]">
-                <td colSpan={4} className="py-3 px-3 text-right text-sm text-gray-500 dark:text-gray-400">Subtotal</td>
-                <td className="py-3 px-3 text-right text-sm text-gray-800 dark:text-white">{formatCurrency(est.subtotal)}</td>
-              </tr>
-              {est.discountPercent > 0 && (
-                <tr>
-                  <td colSpan={4} className="py-1 px-3 text-right text-sm text-gray-500 dark:text-gray-400">Discount ({est.discountPercent}%)</td>
-                  <td className="py-1 px-3 text-right text-sm text-red-500">-{formatCurrency(est.discountAmount)}</td>
-                </tr>
-              )}
-              <tr>
-                <td colSpan={4} className="py-1 px-3 text-right text-sm text-gray-500 dark:text-gray-400">Tax ({est.taxPercent}%)</td>
-                <td className="py-1 px-3 text-right text-sm text-gray-800 dark:text-white">{formatCurrency(est.taxAmount)}</td>
-              </tr>
-              <tr className="border-t-2 border-gray-200 dark:border-white/[0.1]">
-                <td colSpan={4} className="py-3 px-3 text-right text-base font-bold text-gray-800 dark:text-white">Total</td>
-                <td className="py-3 px-3 text-right text-base font-bold text-brand-600 dark:text-brand-400">{formatCurrency(est.total)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-    );
-  };
-
-  // ── Render: Quotation Tab ──────────────────────────────────────────────────
-
-  const renderQuotationTab = (proposal: Proposal) => {
-    const quote = proposal.quotation;
-    return (
-      <div className="p-5 space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <InfoCard label="Payment Terms" value={quote.paymentTerms} />
-          <InfoCard label="Validity" value={`${quote.validityDays} days`} />
-          <InfoCard label="Delivery Timeline" value={quote.deliveryTimeline} />
-          <InfoCard label="Warranty Period" value={quote.warrantyPeriod} />
-        </div>
-
-        {quote.paymentMilestones.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-3">Payment Milestones</h3>
-            <div className="space-y-2">
-              {quote.paymentMilestones.map((m, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/[0.03] rounded-lg">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{m.milestone}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-medium text-brand-600 dark:text-brand-400">{m.percentage}%</span>
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white">{formatCurrency(m.amount)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div>
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">Notes</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{quote.notes || "No additional notes."}</p>
-        </div>
-
-        {quote.termsAndConditions && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">Terms &amp; Conditions</h3>
-            <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-line leading-relaxed">{quote.termsAndConditions}</div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // ── Render: Workflow Tab ───────────────────────────────────────────────────
-
-  const renderWorkflowTab = () => {
-    if (!selectedProposal) return null;
-    return (
-      <div className="p-5">
-        <div className="relative pl-8 space-y-4">
-          {[...selectedProposal.workflowLogs].reverse().map((log) => (
-            <div key={log.id} className="relative">
-              <div className="absolute left-[-20px] top-4 bottom-0 w-0.5 bg-gray-100 dark:bg-gray-800" />
-              <div className="absolute left-[-25px] top-1 w-2.5 h-2.5 rounded-full bg-brand-400 dark:bg-brand-600" />
-              <div className="p-3 rounded-lg border border-gray-100 dark:border-white/[0.05] hover:bg-gray-50 dark:hover:bg-white/[0.02] transition">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-800 dark:text-white">{log.action}</span>
-                    {log.fromStatus !== log.toStatus && (
-                      <div className="flex items-center gap-1.5">
-                        <Badge size="sm" color={STATUS_CONFIG[log.fromStatus]?.color || "light"}>{log.fromStatus}</Badge>
-                        <FiArrowRight className="size-3 text-gray-400" />
-                        <Badge size="sm" color={STATUS_CONFIG[log.toStatus]?.color || "primary"}>{log.toStatus}</Badge>
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-400">{formatDateTime(log.timestamp)}</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                  <FiUser className="size-3" />
-                  {log.performedBy}
-                </div>
-                {log.notes && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">"{log.notes}"</p>
-                )}
-              </div>
-            </div>
-          ))}
-          {selectedProposal.workflowLogs.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-8">No workflow activity recorded.</p>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   if (loading) {
     return <div className="py-10 text-center text-gray-500">Loading proposals...</div>;
   }
@@ -1082,17 +573,7 @@ export default function QuotationList() {
       <PageMeta title="Business Proposal | SaiFlow" description="Create, manage, and track business proposals with full version history and workflow." />
       <PageBreadcrumb pageTitle="Business Proposals" />
 
-      {view === "list" ? renderListView() : renderDetailView()}
-      <Modal isOpen={deleteModal.isOpen} onClose={deleteModal.closeModal} className="max-w-md p-6">
-        <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">Delete Proposal</h4>
-        <p className="text-sm text-gray-500 mb-6">
-          Are you sure you want to delete proposal "{selectedProposal?.proposalNo}"? This action cannot be undone.
-        </p>
-        <div className="flex justify-end gap-3">
-          <Button onClick={deleteModal.closeModal} variant="outline" size="sm">Cancel</Button>
-          <Button onClick={handleDeleteConfirm} variant="primary" className="bg-error-600 hover:bg-error-700 border-error-600 text-white" size="sm">Delete</Button>
-        </div>
-      </Modal>
+      {renderListView()}
 
       {/* Action Confirmation Modal */}
       <Modal isOpen={confirmActionModal.isOpen} onClose={confirmActionModal.closeModal} className="max-w-md p-6">
@@ -1106,44 +587,71 @@ export default function QuotationList() {
         </div>
       </Modal>
 
+      {/* Portaled Status Dropdown Menu */}
+      {activeStatusDropdown !== null && dropdownPosition && (
+        (() => {
+          const proposal = proposals.find(p => p.id === activeStatusDropdown);
+          if (!proposal) return null;
 
+          if (STATUS_TRANSITIONS[proposal.status].length === 0) {
+            return createPortal(
+              <div
+                ref={statusDropdownRef}
+                className="absolute z-[9999] w-44 p-2.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl text-center"
+                style={{
+                  top: `${dropdownPosition.top}px`,
+                  left: `${dropdownPosition.left}px`,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="text-xs text-gray-450 dark:text-gray-500">No More Transitions</p>
+              </div>,
+              document.body
+            );
+          }
+
+          return createPortal(
+            <div
+              ref={statusDropdownRef}
+              className="absolute z-[9999] w-44 p-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl"
+              style={{
+                top: `${dropdownPosition.top}px`,
+                left: `${dropdownPosition.left}px`,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-2 py-0.5 text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase border-b border-gray-100 dark:border-gray-700 mb-0.5">
+                Change Status
+              </div>
+              {STATUS_TRANSITIONS[proposal.status].map((action) => (
+                <button
+                  key={action.key}
+                  onClick={() => {
+                    setActiveStatusDropdown(null);
+                    setDropdownPosition(null);
+                    handleStatusAction(action.key, proposal);
+                  }}
+                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${action.key === "reject"
+                    ? "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 font-medium"
+                    : action.key === "approved" || action.key === "convert"
+                      ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 font-medium"
+                      : action.key === "negotiate"
+                        ? "text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 font-medium"
+                        : action.key === "review"
+                          ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 font-medium"
+                          : "text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-medium"
+                    }`}
+                >
+                  <span className="shrink-0">{action.icon}</span>
+                  <span className="flex-1 text-left">{action.label}</span>
+                </button>
+              ))}
+            </div>,
+            document.body
+          );
+        })()
+      )}
     </>
-  );
-}
-
-// ─── Sub-components ─────────────────────────────────────────────────────────
-
-function SectionBlock({ title, items, emptyText }: { title: string; items: string[]; emptyText: string }) {
-  const filtered = items.filter((i) => i.trim());
-  if (filtered.length === 0) {
-    return (
-      <div>
-        <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">{title}</h3>
-        <p className="text-xs text-gray-400 italic">{emptyText}</p>
-      </div>
-    );
-  }
-  return (
-    <div>
-      <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">{title}</h3>
-      <ul className="space-y-1.5">
-        {filtered.map((item, idx) => (
-          <li key={idx} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0" />
-            {item}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function InfoCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="p-4 rounded-lg border border-gray-100 dark:border-white/[0.05] bg-gray-50 dark:bg-white/[0.02]">
-      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</p>
-      <p className="text-sm font-medium text-gray-800 dark:text-white">{value || "—"}</p>
-    </div>
   );
 }
 
@@ -1159,26 +667,29 @@ export function exportProposalToPDF(proposal: Proposal, showToast: (msg: string,
 
     // ── Helper: Page Header (brand bar) ─────────────────────────────────────
     const addPageHeader = () => {
-      // Brand color bar
-      pdf.setFillColor(255, 57, 81);
-      pdf.rect(0, 0, pageWidth, 12, "F");
-      pdf.setTextColor(255, 255, 255);
+      // Thin brand color bar
+      pdf.setFillColor(79, 70, 229); // Indigo-600
+      pdf.rect(0, 0, pageWidth, 2.5, "F");
+      
+      pdf.setTextColor(148, 163, 184); // Slate-400
       pdf.setFontSize(7);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("SAIFLOW CRM", margin, 8);
-      pdf.text("Business Proposal", pageWidth / 2, 8, { align: "center" });
-      pdf.text(proposal.proposalNo, pageWidth - 14, 8, { align: "right" });
+      pdf.setFont("helvetica", "normal");
+      pdf.text("SAIFLOW CRM", margin, 9);
+      pdf.text("Business Proposal", pageWidth / 2, 9, { align: "center" });
+      pdf.text(proposal.proposalNo, pageWidth - margin, 9, { align: "right" });
     };
 
     // ── Helper: Page Footer ─────────────────────────────────────────────────
     const addPageFooter = () => {
-      pdf.setDrawColor(200, 200, 200);
-      pdf.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
-      pdf.setTextColor(150, 150, 150);
-      pdf.setFontSize(6.5);
+      pdf.setDrawColor(226, 232, 240); // Slate-200
+      pdf.setLineWidth(0.2);
+      pdf.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+      
+      pdf.setTextColor(148, 163, 184); // Slate-400
+      pdf.setFontSize(7);
       pdf.setFont("helvetica", "normal");
-      pdf.text(`Generated on ${centFormatDate(new Date())} | Page ${pageNum}`, margin, pageHeight - 5);
-      pdf.text("SaiFlow CRM — Confidential", pageWidth - margin, pageHeight - 5, { align: "right" });
+      pdf.text(`Generated on ${centFormatDate(new Date())} | Page ${pageNum}`, margin, pageHeight - 6);
+      pdf.text("SaiFlow CRM — Confidential", pageWidth - margin, pageHeight - 6, { align: "right" });
     };
 
     // ── Helper: Check page break ────────────────────────────────────────────
@@ -1187,56 +698,38 @@ export function exportProposalToPDF(proposal: Proposal, showToast: (msg: string,
         addPageFooter();
         pdf.addPage();
         pageNum++;
-        y = margin + 14;
+        y = margin + 12;
         addPageHeader();
         y += 4;
       }
     };
 
-    // ── First Page: Header ──────────────────────────────────────────────────
-    addPageHeader();
-    y += 18;
-
-    // Title section with background
-    pdf.setFillColor(249, 250, 251);
-    pdf.rect(margin, y - 3, pageWidth - margin * 2, 30, "F");
-    pdf.setDrawColor(255, 57, 81);
-    pdf.setLineWidth(0.3);
-    pdf.rect(margin, y - 3, pageWidth - margin * 2, 30, "S");
-
-    pdf.setFontSize(16);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(30, 30, 30);
-    pdf.text(`BUSINESS PROPOSAL`, pageWidth / 2, y + 6, { align: "center" });
-
-    pdf.setFontSize(9);
-    pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(100, 100, 100);
-    pdf.text(`${proposal.proposalNo}`, pageWidth / 2, y + 14, { align: "center" });
-    pdf.text(`Status: ${proposal.status}  |  Date: ${proposal.createdAt ? formatDate(proposal.createdAt) : ""}`, pageWidth / 2, y + 21, { align: "center" });
-    y += 32;
-
-    const req = proposal.requirement;
-    const est = proposal.estimation;
-    const quot = proposal.quotation;
-
     // ── Helper: Styled section title ────────────────────────────────────────
     const sectionTitle = (title: string) => {
-      checkPageBreak(14);
-      pdf.setFillColor(255, 57, 81);
-      pdf.rect(margin, y - 2, pageWidth - margin * 2, 8, "F");
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(9);
+      checkPageBreak(18);
+      y += 4;
+      
+      // Left accent box
+      pdf.setFillColor(79, 70, 229); // Indigo-600
+      pdf.rect(margin, y - 4.5, 2.5, 6, "F");
+      
+      pdf.setTextColor(15, 23, 42); // Slate-900
+      pdf.setFontSize(9.5);
       pdf.setFont("helvetica", "bold");
-      pdf.text(title, margin + 3, y + 4);
-      y += 12;
+      pdf.text(title, margin + 4.5, y);
+      
+      y += 2.5;
+      pdf.setDrawColor(226, 232, 240); // Slate-200
+      pdf.setLineWidth(0.2);
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 6.5;
     };
 
     // ── Helper: Body text ────────────────────────────────────────────────────
     const bodyText = (text: string) => {
       pdf.setFontSize(8.5);
       pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(60, 60, 60);
+      pdf.setTextColor(51, 65, 85); // Slate-700
       const lines = pdf.splitTextToSize(text || "", pageWidth - margin * 2 - 4);
       lines.forEach((l: string) => {
         checkPageBreak(5);
@@ -1249,245 +742,399 @@ export function exportProposalToPDF(proposal: Proposal, showToast: (msg: string,
     const bulletItem = (text: string) => {
       pdf.setFontSize(8.5);
       pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(60, 60, 60);
-      const lines = pdf.splitTextToSize(`• ${text}`, pageWidth - margin * 2 - 10);
-      lines.forEach((l: string) => {
-        checkPageBreak(4.5);
+      pdf.setTextColor(51, 65, 85); // Slate-700
+      const lines = pdf.splitTextToSize(text, pageWidth - margin * 2 - 8);
+      lines.forEach((l: string, idx: number) => {
+        checkPageBreak(5);
+        if (idx === 0) {
+          // Rounded square bullet
+          pdf.setFillColor(79, 70, 229); // Indigo-600
+          pdf.roundedRect(margin + 2.5, y - 2, 1, 1, 0.2, 0.2, "F");
+        }
         pdf.text(l, margin + 6, y);
-        y += 4;
+        y += 4.5;
       });
     };
 
-    // ── Helper: Separator line ───────────────────────────────────────────────
-    const separator = () => {
-      checkPageBreak(8);
-      y += 2;
-      pdf.setDrawColor(220, 220, 220);
-      pdf.line(margin, y, pageWidth - margin, y);
-      y += 5;
-    };
+
+
+    // ── First Page: Header ──────────────────────────────────────────────────
+    addPageHeader();
+    y += 16;
+
+    // Cover Page Title Block
+    pdf.setFillColor(79, 70, 229); // Indigo Accent vertical strip
+    pdf.rect(margin, y - 4, 3.5, 18, "F");
+
+    pdf.setFontSize(18);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(15, 23, 42); // Slate-900
+    pdf.text("BUSINESS PROPOSAL", margin + 6, y + 2);
+    
+    pdf.setFontSize(8.5);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(100, 116, 139); // Slate-500
+    pdf.text(`No: ${proposal.proposalNo}  |  Status: ${proposal.status}  |  Date: ${proposal.createdAt ? formatDate(proposal.createdAt) : ""}`, margin + 6, y + 10);
+    y += 22;
+
+    const req = proposal.requirement;
+    const est = proposal.estimation;
+    const quot = proposal.quotation;
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // 1. CLIENT INFORMATION
+    // 1. CLIENT & PROPOSAL INFORMATION
     // ═══════════════════════════════════════════════════════════════════════════
-    sectionTitle("1. CLIENT INFORMATION");
-    bodyText(`Company: ${proposal.companyName}`);
-    bodyText(`Contact: ${proposal.leadName}`);
-    bodyText(`Email: ${proposal.leadEmail}`);
-    bodyText(`Phone: ${proposal.leadPhone}`);
-    separator();
+    sectionTitle("1. PARTICIPANTS INFORMATION");
+    
+    // Draw a neat side-by-side details card
+    checkPageBreak(35);
+    pdf.setFillColor(248, 250, 252); // Slate-50 background
+    pdf.setDrawColor(226, 232, 240); // Slate-200 border
+    pdf.setLineWidth(0.25);
+    pdf.roundedRect(margin, y - 2, pageWidth - margin * 2, 32, 2, 2, "FD");
+
+    const leftCol = margin + 6;
+    const rightCol = pageWidth / 2 + 6;
+    let cardY = y + 4;
+
+    // Left Column: Prepared For
+    pdf.setTextColor(100, 116, 139); // Slate-500
+    pdf.setFontSize(6.5);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("PREPARED FOR CLIENT", leftCol, cardY);
+    
+    pdf.setTextColor(15, 23, 42); // Slate-900
+    pdf.setFontSize(8.5);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(proposal.companyName, leftCol, cardY + 5.5);
+
+    pdf.setFontSize(7.5);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(71, 85, 105); // Slate-600
+    pdf.text(`Contact: ${proposal.leadName}`, leftCol, cardY + 11.5);
+    pdf.text(`Email: ${proposal.leadEmail}`, leftCol, cardY + 16.5);
+    pdf.text(`Phone: ${proposal.leadPhone}`, leftCol, cardY + 21.5);
+
+    // Right Column: Prepared By
+    pdf.setTextColor(100, 116, 139); // Slate-500
+    pdf.setFontSize(6.5);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("PREPARED BY PROVIDER", rightCol, cardY);
+
+    pdf.setTextColor(15, 23, 42); // Slate-900
+    pdf.setFontSize(8.5);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("SaiFlow CRM Team", rightCol, cardY + 5.5);
+
+    pdf.setFontSize(7.5);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(71, 85, 105); // Slate-600
+    pdf.text("Business Development Unit", rightCol, cardY + 11.5);
+    pdf.text(`Document Reference: ${proposal.proposalNo}`, rightCol, cardY + 16.5);
+    const validityDate = (() => {
+      if (!proposal.createdAt || !quot.validityDays) return "N/A";
+      try {
+        const d = new Date(proposal.createdAt);
+        d.setDate(d.getDate() + quot.validityDays);
+        return formatDate(d.toISOString());
+      } catch {
+        return "N/A";
+      }
+    })();
+    pdf.text(`Valid Until: ${validityDate}`, rightCol, cardY + 21.5);
+
+    y += 38;
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // 2. REQUIREMENT
+    // 2. REQUIREMENT & SCOPE
     // ═══════════════════════════════════════════════════════════════════════════
-    sectionTitle("2. REQUIREMENT");
+    sectionTitle("2. PROJECT REQUIREMENT & SCOPE");
 
     // Overview
-    pdf.setFontSize(9);
+    pdf.setFontSize(8.5);
     pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(80, 80, 80);
+    pdf.setTextColor(30, 41, 59); // Slate-800
     checkPageBreak(7);
-    pdf.text("Overview", margin + 2, y);
-    y += 6;
-    bodyText(req.overview || "—");
-    y += 2;
+    pdf.text("Overview & Context", margin + 2, y);
+    y += 5.5;
+    bodyText(req.overview || "No overview provided.");
+    y += 3;
 
     if (req.objectives && req.objectives.length > 0) {
-      pdf.setFontSize(9);
+      checkPageBreak(8);
+      pdf.setFontSize(8.5);
       pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(80, 80, 80);
-      checkPageBreak(7);
+      pdf.setTextColor(30, 41, 59);
       pdf.text("Objectives", margin + 2, y);
-      y += 6;
+      y += 5.5;
       req.objectives.forEach((o) => bulletItem(o));
-      y += 1;
+      y += 3;
     }
+    
     if (req.technicalRequirements && req.technicalRequirements.length > 0) {
-      pdf.setFontSize(9);
+      checkPageBreak(8);
+      pdf.setFontSize(8.5);
       pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(80, 80, 80);
-      checkPageBreak(7);
+      pdf.setTextColor(30, 41, 59);
       pdf.text("Technical Requirements", margin + 2, y);
-      y += 6;
+      y += 5.5;
       req.technicalRequirements.forEach((t) => bulletItem(t));
-      y += 1;
+      y += 3;
     }
+
     if (req.deliverables && req.deliverables.length > 0) {
-      pdf.setFontSize(9);
+      checkPageBreak(8);
+      pdf.setFontSize(8.5);
       pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(80, 80, 80);
-      checkPageBreak(7);
-      pdf.text("Deliverables", margin + 2, y);
-      y += 6;
+      pdf.setTextColor(30, 41, 59);
+      pdf.text("Project Deliverables", margin + 2, y);
+      y += 5.5;
       req.deliverables.forEach((d) => bulletItem(d));
-      y += 1;
+      y += 3;
     }
-    separator();
+
+    if (req.assumptions && req.assumptions.length > 0) {
+      checkPageBreak(8);
+      pdf.setFontSize(8.5);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(30, 41, 59);
+      pdf.text("Assumptions", margin + 2, y);
+      y += 5.5;
+      req.assumptions.forEach((a) => bulletItem(a));
+      y += 3;
+    }
+
+    if (req.constraints && req.constraints.length > 0) {
+      checkPageBreak(8);
+      pdf.setFontSize(8.5);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(30, 41, 59);
+      pdf.text("Constraints", margin + 2, y);
+      y += 5.5;
+      req.constraints.forEach((c) => bulletItem(c));
+      y += 3;
+    }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // 3. ESTIMATION
+    // 3. ESTIMATION DETAILS
     // ═══════════════════════════════════════════════════════════════════════════
-    sectionTitle("3. ESTIMATION");
+    sectionTitle("3. FINANCIAL ESTIMATION");
 
     if (est.items && est.items.length > 0) {
       // Table header row
-      const cols = [margin, 60, 140, 165, pageWidth - margin];
       const colWidth = pageWidth - margin * 2;
+      const cols = [
+        margin,
+        margin + 42,
+        margin + 122,
+        pageWidth - margin
+      ];
 
-      checkPageBreak(24);
-      pdf.setFillColor(255, 57, 81);
-      pdf.rect(margin, y - 3, colWidth, 6, "F");
+      checkPageBreak(12);
+      pdf.setFillColor(79, 70, 229); // Indigo-600 header background
+      pdf.roundedRect(margin, y - 3.5, colWidth, 7, 1, 1, "F");
       pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(7);
+      pdf.setFontSize(7.5);
       pdf.setFont("helvetica", "bold");
-      pdf.text("CATEGORY", cols[0] + 2, y + 1);
-      pdf.text("DESCRIPTION", cols[1] + 2, y + 1);
-      pdf.text("RATE", cols[2] + 2, y + 1);
-      pdf.text("AMOUNT", cols[3] + 2, y + 1);
-      y += 5;
+      pdf.text("CATEGORY", cols[0] + 3, y + 1);
+      pdf.text("DESCRIPTION", cols[1] + 3, y + 1);
+      pdf.text("RATE", cols[2] - 3, y + 1, { align: "right" });
+      pdf.text("TOTAL AMOUNT", cols[3] - 3, y + 1, { align: "right" });
+      y += 6.5;
 
       // Table rows
       pdf.setFont("helvetica", "normal");
       est.items.forEach((item, idx) => {
-        checkPageBreak(6);
+        checkPageBreak(7.5);
+        
         // Alternating row background
         if (idx % 2 === 0) {
-          pdf.setFillColor(248, 250, 252);
-          pdf.rect(margin, y - 2.5, colWidth, 5, "F");
+          pdf.setFillColor(248, 250, 252); // Slate-50
+          pdf.rect(margin, y - 2.5, colWidth, 5.5, "F");
         }
-        pdf.setTextColor(60, 60, 60);
+        
+        pdf.setTextColor(51, 65, 85); // Slate-700
         pdf.setFontSize(7);
-        const desc = pdf.splitTextToSize(item.description, 75)[0] || "";
-        pdf.text(item.category.substring(0, 14), cols[0] + 2, y + 1);
-        pdf.setFontSize(6.5);
-        pdf.text(String(desc).substring(0, 50), cols[1] + 2, y + 1);
-        pdf.setFontSize(7);
-        pdf.text(formatCurrency(item.unitPrice), cols[2] + 2, y + 1);
         pdf.setFont("helvetica", "bold");
-        pdf.text(formatCurrency(item.amount), cols[3] + 2, y + 1);
+        pdf.text(item.category.substring(0, 18), cols[0] + 3, y + 1.2);
+        
         pdf.setFont("helvetica", "normal");
-        y += 5;
+        pdf.setTextColor(71, 85, 105); // Slate-600
+        const descLines = pdf.splitTextToSize(item.description, 74);
+        pdf.text(descLines[0] || "", cols[1] + 3, y + 1.2);
+        
+        pdf.setFontSize(7);
+        pdf.setTextColor(51, 65, 85);
+        pdf.text(formatCurrencyForPDF(item.unitPrice), cols[2] - 3, y + 1.2, { align: "right" });
+        
+        pdf.setFont("helvetica", "bold");
+        pdf.text(formatCurrencyForPDF(item.amount), cols[3] - 3, y + 1.2, { align: "right" });
+        pdf.setFont("helvetica", "normal");
+        
+        y += 5.5;
       });
 
       // Totals section
-      y += 1;
-      checkPageBreak(20);
-      const totalX = pageWidth - margin - 40;
+      y += 2.5;
+      checkPageBreak(25);
+      const totalX = pageWidth - margin - 45;
       pdf.setFontSize(8);
 
       // Subtotal
-      pdf.setTextColor(80, 80, 80);
+      pdf.setTextColor(100, 116, 139); // Slate-500
+      pdf.setFont("helvetica", "normal");
       pdf.text("Subtotal:", totalX, y);
-      pdf.text(formatCurrency(est.subtotal), pageWidth - margin, y, { align: "right" });
+      pdf.setTextColor(51, 65, 85);
+      pdf.text(formatCurrencyForPDF(est.subtotal), pageWidth - margin - 3, y, { align: "right" });
       y += 5;
 
       // Discount
       if (est.discountPercent > 0) {
-        pdf.setTextColor(220, 60, 60);
+        pdf.setTextColor(220, 38, 38); // Red-600
+        pdf.setFont("helvetica", "normal");
         pdf.text(`Discount (${est.discountPercent}%):`, totalX, y);
-        pdf.text(`-${formatCurrency(est.discountAmount)}`, pageWidth - margin, y, { align: "right" });
+        pdf.text(`-${formatCurrencyForPDF(est.discountAmount)}`, pageWidth - margin - 3, y, { align: "right" });
         y += 5;
       }
 
       // Tax
-      pdf.setTextColor(80, 80, 80);
+      pdf.setTextColor(100, 116, 139); // Slate-500
+      pdf.setFont("helvetica", "normal");
       pdf.text(`Tax (${est.taxPercent}%):`, totalX, y);
-      pdf.text(formatCurrency(est.taxAmount), pageWidth - margin, y, { align: "right" });
+      pdf.setTextColor(51, 65, 85);
+      pdf.text(formatCurrencyForPDF(est.taxAmount), pageWidth - margin - 3, y, { align: "right" });
       y += 5;
 
-      // Total (highlighted)
-      pdf.setFillColor(254, 242, 242);
-      pdf.rect(totalX - 3, y - 2.5, pageWidth - margin - totalX + 6, 8, "F");
-      pdf.setTextColor(255, 57, 81);
-      pdf.setFontSize(10);
+      // Total (prominently highlighted)
+      pdf.setFillColor(245, 243, 255); // Indigo-50 background
+      pdf.roundedRect(totalX - 3, y - 3, pageWidth - margin - totalX + 6, 9, 1, 1, "F");
+      pdf.setDrawColor(79, 70, 229); // Indigo border
+      pdf.setLineWidth(0.2);
+      pdf.roundedRect(totalX - 3, y - 3, pageWidth - margin - totalX + 6, 9, 1, 1, "S");
+      
+      pdf.setTextColor(79, 70, 229); // Indigo-600
+      pdf.setFontSize(9);
       pdf.setFont("helvetica", "bold");
-      pdf.text("TOTAL:", totalX, y + 2);
-      pdf.text(formatCurrency(est.total), pageWidth - margin, y + 2, { align: "right" });
-      y += 10;
+      pdf.text("TOTAL DUE:", totalX, y + 3);
+      pdf.text(formatCurrencyForPDF(est.total), pageWidth - margin - 4, y + 3, { align: "right" });
+      y += 12;
+    } else {
+      bodyText("No estimation line items defined.");
+      y += 5;
     }
-    separator();
 
     // ═══════════════════════════════════════════════════════════════════════════
     // 4. QUOTATION / PRICING TERMS
     // ═══════════════════════════════════════════════════════════════════════════
-    sectionTitle("4. QUOTATION / PRICING TERMS");
+    sectionTitle("4. QUOTATION & COMMITTED TERMS");
 
     // Info cards in a grid-like layout
-    checkPageBreak(30);
+    checkPageBreak(32);
     const cardW = (pageWidth - margin * 2 - 4) / 2;
-    const cardH = 14;
+    const cardH = 12;
 
     const drawInfoCard = (x: number, label: string, value: string) => {
-      pdf.setDrawColor(220, 220, 220);
-      pdf.setFillColor(249, 250, 251);
-      pdf.roundedRect(x, y, cardW, cardH, 1.5, 1.5, "FD");
-      pdf.setTextColor(100, 100, 100);
-      pdf.setFontSize(6);
-      pdf.setFont("helvetica", "normal");
-      pdf.text(label.toUpperCase(), x + 3, y + 4);
-      pdf.setTextColor(30, 30, 30);
-      pdf.setFontSize(8);
+      pdf.setDrawColor(226, 232, 240); // Slate-200
+      pdf.setFillColor(248, 250, 252); // Slate-50
+      pdf.setLineWidth(0.25);
+      pdf.roundedRect(x, y, cardW, cardH, 1, 1, "FD");
+      
+      pdf.setTextColor(148, 163, 184); // Slate-400 label
+      pdf.setFontSize(5.5);
       pdf.setFont("helvetica", "bold");
-      const val = pdf.splitTextToSize(value || "—", cardW - 6);
-      pdf.text(val[0], x + 3, y + 10);
+      pdf.text(label.toUpperCase(), x + 3.5, y + 3.5);
+      
+      pdf.setTextColor(51, 65, 85); // Slate-700 value
+      pdf.setFontSize(7.5);
+      pdf.setFont("helvetica", "bold");
+      const val = pdf.splitTextToSize(value || "—", cardW - 7);
+      pdf.text(val[0], x + 3.5, y + 8.5);
     };
 
     drawInfoCard(margin, "Payment Terms", quot.paymentTerms);
-    drawInfoCard(margin + cardW + 4, "Validity", `${quot.validityDays} days`);
-    y += cardH + 3;
-    drawInfoCard(margin, "Delivery Timeline", quot.deliveryTimeline);
-    drawInfoCard(margin + cardW + 4, "Warranty", quot.warrantyPeriod);
-    y += cardH + 6;
+    drawInfoCard(margin + cardW + 4, "Validity Period", `${quot.validityDays} days`);
+    y += cardH + 3.5;
+    drawInfoCard(margin, "Project Delivery Timeline", quot.deliveryTimeline);
+    drawInfoCard(margin + cardW + 4, "Warranty Period", quot.warrantyPeriod);
+    y += cardH + 6.5;
 
     // Payment Milestones
     if (quot.paymentMilestones && quot.paymentMilestones.length > 0) {
-      sectionTitle("Payment Milestones");
+      checkPageBreak(25);
+      pdf.setFontSize(8.5);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(30, 41, 59); // Slate-800
+      pdf.text("Committed Payment Milestones", margin + 2, y);
+      y += 5.5;
+      
       quot.paymentMilestones.forEach((m) => {
-        bulletItem(`${m.milestone} — ${m.percentage}% (${formatCurrency(m.amount)})`);
+        bulletItem(`${m.milestone} — ${m.percentage}% (${formatCurrencyForPDF(m.amount)})`);
       });
-      y += 2;
+      y += 2.5;
     }
 
     // Notes
-    pdf.setFontSize(9);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(80, 80, 80);
-    checkPageBreak(10);
-    pdf.text("Notes", margin + 2, y);
-    y += 6;
-    bodyText(quot.notes || "No additional notes.");
-    y += 2;
+    if (quot.notes) {
+      checkPageBreak(16);
+      pdf.setFontSize(8.5);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(30, 41, 59);
+      pdf.text("Special Notes / Instructions", margin + 2, y);
+      y += 5.5;
+      bodyText(quot.notes);
+      y += 2.5;
+    }
 
     // Terms & Conditions
     const tnc = quot.termsAndConditions?.split("\n") || [];
-    if (tnc.length > 0) {
-      sectionTitle("Terms & Conditions");
+    const hasTnc = tnc.some((t) => t.trim());
+    if (hasTnc) {
+      checkPageBreak(20);
+      pdf.setFontSize(8.5);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(30, 41, 59);
+      pdf.text("Terms & Conditions", margin + 2, y);
+      y += 5.5;
+      
       tnc.forEach((t) => {
         if (t.trim()) bulletItem(t.trim());
       });
-      separator();
+      y += 2.5;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // 5. AUTHORIZATION
+    // 5. AUTHORIZATION & SIGN-OFF
     // ═══════════════════════════════════════════════════════════════════════════
-    checkPageBreak(30);
-    sectionTitle("5. AUTHORIZATION");
-    bodyText("This proposal has been prepared for the above-mentioned client. By signing below, you agree to the terms and conditions outlined in this proposal.");
-    y += 4;
+    checkPageBreak(38);
+    sectionTitle("5. ACCEPTANCE & SIGN-OFF");
+    bodyText("By signing below, the client agrees to the scope of work, technical requirements, delivery timeline, payment terms, and conditions described in this proposal.");
+    y += 8.5;
 
     // Signature lines
-    pdf.setDrawColor(180, 180, 180);
-    const sigY = y + 6;
-    pdf.line(margin, sigY, margin + 60, sigY);
-    pdf.setFontSize(7);
+    const sigY = y + 12;
+    pdf.setDrawColor(148, 163, 184); // Slate-400 signature line
+    pdf.setLineWidth(0.3);
+    
+    // Left Sig: Provider
+    pdf.line(margin, sigY, margin + 65, sigY);
+    pdf.setFontSize(7.5);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(51, 65, 85);
+    pdf.text("Authorized Representative (SaiFlow)", margin, sigY + 4.5);
     pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(120, 120, 120);
-    pdf.text("Authorized Signature", margin, sigY + 4);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text("Signature & Seal", margin, sigY + 8.5);
 
-    pdf.line(pageWidth - margin - 60, sigY, pageWidth - margin, sigY);
-    pdf.text("Date", pageWidth - margin - 60, sigY + 4);
-    y = sigY + 10;
+    // Right Sig: Client
+    pdf.line(pageWidth - margin - 65, sigY, pageWidth - margin, sigY);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(51, 65, 85);
+    pdf.text(`Accepted By (For ${proposal.companyName.substring(0, 30)})`, pageWidth - margin - 65, sigY + 4.5);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(148, 163, 184);
+    pdf.text("Signature, Date & Name", pageWidth - margin - 65, sigY + 8.5);
+    
+    y = sigY + 12;
 
     // ── Final Footer ─────────────────────────────────────────────────────────
     addPageFooter();

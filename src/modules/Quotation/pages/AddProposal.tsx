@@ -17,6 +17,7 @@ import { Lead } from "../../LeadManagement/data/leadsData";
 import { proposalService } from "../../../services/proposalService";
 import { leadService } from "../../../services/leadService";
 import { masterService } from "../../../services/masterService";
+import { meetingService } from "../../../services/meetingService";
 import { FiPlus, FiTrash2, FiXCircle, FiUser, FiList, FiCreditCard, FiFileText, FiCpu } from "react-icons/fi";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -25,7 +26,20 @@ import { FiPlus, FiTrash2, FiXCircle, FiUser, FiList, FiCreditCard, FiFileText, 
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+const validateEmail = (email: string) => {
+  if (!email.trim()) return "Email is required.";
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) return "Please enter a valid email address.";
+  return "";
+};
 
+const validatePhone = (phone: string) => {
+  if (!phone.trim()) return "Phone number is required.";
+  const phoneRegex = /^(?:\+91|91)?[6-9]\d{9}$/;
+  const cleanPhone = phone.replace(/[\s\-()]/g, "");
+  if (!phoneRegex.test(cleanPhone)) return "Please enter a valid 10-digit Indian phone number.";
+  return "";
+};
 
 function formatCurrency(amount: number): string {
   return "₹" + amount.toLocaleString("en-IN");
@@ -70,24 +84,32 @@ export default function AddProposal() {
         // Values are stored as names (not IDs) and edit-mode defaults are
         // hardcoded, so fetching only ACTIVE records here is safe and keeps
         // the dropdowns consistent with the rest of the application.
-        const [servicesData, paymentTypesData, techStackData, leadsData] = await Promise.all([
+        const [servicesData, paymentTypesData, techStackData, leadsData, meetingsData] = await Promise.all([
           masterService.getMasterItems("SERVICE", undefined, { status: "Active" }),
           masterService.getMasterItems("PAYMENT_TYPE", undefined, { status: "Active" }),
           masterService.getMasterItems("TECH_STACK", undefined, { status: "Active" }),
-          leadService.getLeads({ limit: 100 })
+          leadService.getLeads({ limit: 1000 }),
+          meetingService.getMeetings({ status: "COMPLETED", limit: 1000 })
         ]);
         
         setServiceOptions(servicesData.map((x: any) => ({ value: x.name, label: x.name })));
         setPaymentTypeOptions(paymentTypesData.map((x: any) => ({ value: x.name, label: x.name })));
         setTechStackOptions(techStackData.map((x: any) => ({ value: x.name, label: x.name })));
         if (leadsData && Array.isArray(leadsData.data)) {
-          const mappedLeads = leadsData.data.map((l: any) => ({
+          const allMappedLeads = leadsData.data.map((l: any) => ({
             ...l,
             company: l.title || l.company || "",
             contactPerson: l.contactPerson || ""
           }));
-          setRawLeads(mappedLeads);
-          setLeadsList(mappedLeads.map((l: any) => ({ value: l.id.toString(), label: `${l.company} (${l.contactPerson})` })));
+          setRawLeads(allMappedLeads);
+
+          const completedLeadIds = new Set(
+            meetingsData && Array.isArray(meetingsData.data)
+              ? meetingsData.data.map((m: any) => m.leadId)
+              : []
+          );
+          const filtered = allMappedLeads.filter((l: any) => completedLeadIds.has(l.id));
+          setLeadsList(filtered.map((l: any) => ({ value: l.id.toString(), label: `${l.contactPerson} (${l.company})` })));
         }
       } catch (err) {
         console.error("Failed to load drop-down lists", err);
@@ -118,6 +140,8 @@ export default function AddProposal() {
   // Inline validation errors for required fields
   const [formLeadNameError, setFormLeadNameError] = useState("");
   const [formCompanyNameError, setFormCompanyNameError] = useState("");
+  const [formLeadEmailError, setFormLeadEmailError] = useState("");
+  const [formLeadPhoneError, setFormLeadPhoneError] = useState("");
 
   const handleLeadSelect = (val: string) => {
     const leadId = Number(val);
@@ -130,6 +154,8 @@ export default function AddProposal() {
       setFormLeadPhone(lead.phone);
       setFormLeadNameError("");
       setFormCompanyNameError("");
+      setFormLeadEmailError("");
+      setFormLeadPhoneError("");
       showToast(`Auto-filled from lead "${lead.company}"`, "info");
     }
   };
@@ -158,31 +184,62 @@ export default function AddProposal() {
             setFormLeadEmail(proposal.lead?.email || "");
             setFormLeadPhone(proposal.lead?.phone || "");
             setFormStatus(proposal.status);
-            setFormRequirement({
-              overview: proposal.lead?.requirements || "",
-              objectives: [""],
-              technicalRequirements: [""],
-              deliverables: [""],
-              assumptions: [""],
-              constraints: [""],
-              techStack: []
-            });
-            setFormEstimationItems([{
-              id: "1",
-              category: "Development",
-              description: "Core module development",
-              unit: "Project",
-              unitPrice: Number(proposal.amount),
-              amount: Number(proposal.amount)
-            }]);
-            setFormDiscountPct(0);
-            setFormTaxPct(18);
-            setFormPaymentTerms("Immediate");
-            setFormValidityDays(proposal.validUntil ? Math.ceil((new Date(proposal.validUntil).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 30);
-            setFormDeliveryTimeline("60 Days");
-            setFormWarranty("12 Months");
-            setFormNotes(proposal.title || "");
-            setFormTnC("");
+            
+            if (proposal.requirements) {
+              setFormRequirement({
+                overview: proposal.requirements.overview || "",
+                objectives: proposal.requirements.objectives?.length ? proposal.requirements.objectives : [""],
+                technicalRequirements: proposal.requirements.technicalRequirements?.length ? proposal.requirements.technicalRequirements : [""],
+                deliverables: proposal.requirements.deliverables?.length ? proposal.requirements.deliverables : [""],
+                assumptions: proposal.requirements.assumptions?.length ? proposal.requirements.assumptions : [""],
+                constraints: proposal.requirements.constraints?.length ? proposal.requirements.constraints : [""],
+                techStack: proposal.requirements.techStack || []
+              });
+              setFormTechStack(proposal.requirements.techStack || []);
+            } else {
+              setFormRequirement({
+                overview: proposal.lead?.requirements || "",
+                objectives: [""],
+                technicalRequirements: [""],
+                deliverables: [""],
+                assumptions: [""],
+                constraints: [""],
+                techStack: []
+              });
+            }
+
+            if (proposal.estimation) {
+              setFormEstimationItems(proposal.estimation.items || []);
+              setFormDiscountPct(proposal.estimation.discountPercent || 0);
+              setFormTaxPct(proposal.estimation.taxPercent !== undefined ? proposal.estimation.taxPercent : 18);
+            } else {
+              setFormEstimationItems([{
+                id: "1",
+                category: "Development",
+                description: "Core module development",
+                unit: "Project",
+                unitPrice: Number(proposal.amount),
+                amount: Number(proposal.amount)
+              }]);
+              setFormDiscountPct(0);
+              setFormTaxPct(18);
+            }
+
+            if (proposal.quotation) {
+              setFormPaymentTerms(proposal.quotation.paymentTerms || "");
+              setFormValidityDays(proposal.quotation.validityDays !== undefined ? proposal.quotation.validityDays : 30);
+              setFormDeliveryTimeline(proposal.quotation.deliveryTimeline || "");
+              setFormWarranty(proposal.quotation.warrantyPeriod || "");
+              setFormNotes(proposal.quotation.notes || proposal.title || "");
+              setFormTnC(proposal.quotation.termsAndConditions || "");
+            } else {
+              setFormPaymentTerms("Immediate");
+              setFormValidityDays(proposal.validUntil ? Math.ceil((new Date(proposal.validUntil).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 30);
+              setFormDeliveryTimeline("60 Days");
+              setFormWarranty("12 Months");
+              setFormNotes(proposal.title || "");
+              setFormTnC("");
+            }
           }
         } catch (err) {
           console.error(err);
@@ -242,14 +299,42 @@ export default function AddProposal() {
   // ── Save ───────────────────────────────────────────────────────────────────
 
   const validateBasicFields = (): boolean => {
-    const errors: string[] = [];
-    if (!formLeadName.trim()) errors.push("Lead name is required.");
-    if (!formCompanyName.trim()) errors.push("Company name is required.");
-    if (errors.length > 0) {
-      showToast(errors.join(" "), "error");
-      return false;
+    let isValid = true;
+    
+    if (!formLeadName.trim()) {
+      setFormLeadNameError("Lead name is required.");
+      isValid = false;
+    } else {
+      setFormLeadNameError("");
     }
-    return true;
+    
+    if (!formCompanyName.trim()) {
+      setFormCompanyNameError("Company name is required.");
+      isValid = false;
+    } else {
+      setFormCompanyNameError("");
+    }
+    
+    const emailErr = validateEmail(formLeadEmail);
+    if (emailErr) {
+      setFormLeadEmailError(emailErr);
+      isValid = false;
+    } else {
+      setFormLeadEmailError("");
+    }
+    
+    const phoneErr = validatePhone(formLeadPhone);
+    if (phoneErr) {
+      setFormLeadPhoneError(phoneErr);
+      isValid = false;
+    } else {
+      setFormLeadPhoneError("");
+    }
+    
+    if (!isValid) {
+      showToast("Please fix the validation errors in the form.", "error");
+    }
+    return isValid;
   };
 
   const handleSave = async () => {
@@ -301,7 +386,10 @@ export default function AddProposal() {
         title: formNotes.trim() || `Proposal for ${formCompanyName.trim()}`,
         amount: total,
         status: formStatus,
-        validUntil: validUntilDate
+        validUntil: validUntilDate,
+        requirements,
+        estimation,
+        quotation
       };
 
       if (isEditMode) {
@@ -350,34 +438,30 @@ export default function AddProposal() {
           <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05] flex items-center gap-2">
             <FiUser className="size-4 text-brand-500" /> Lead Information
           </h3>
-          {/* Lead Quick Select */}
-          {!isEditMode && (
-            <div className="mb-4 p-3 rounded-lg bg-brand-50/50 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/20">
-              <label className="mb-1.5 block text-xs font-semibold text-brand-700 dark:text-brand-400">
-                🔍 Quick Select from Existing Lead <span className="text-xs font-normal text-gray-500">(auto-fills all fields below)</span>
-              </label>
-              <Select
-                options={leadsList}
-                placeholder="Select a lead to auto-fill..."
-                defaultValue=""
-                onChange={handleLeadSelect}
-              />
-            </div>
-          )}
+          {/* Lead Quick Select removed */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
                 Lead Name <span className="text-error-500">*</span>
               </label>
-              <Input
-                type="text"
-                placeholder="e.g. John Doe"
-                value={formLeadName}
-                onChange={(e) => { setFormLeadName(e.target.value); if (e.target.value.trim() && formLeadNameError) setFormLeadNameError(""); }}
-                onBlur={() => { if (!formLeadName.trim()) setFormLeadNameError("Lead name is required."); else setFormLeadNameError(""); }}
-                error={!!formLeadNameError}
-                hint={formLeadNameError || undefined}
-              />
+              {isEditMode ? (
+                <Input
+                  type="text"
+                  disabled
+                  value={formLeadName}
+                  onChange={(e) => setFormLeadName(e.target.value)}
+                />
+              ) : (
+                <Select
+                  options={leadsList}
+                  placeholder="Select a lead..."
+                  defaultValue={selectedLeadId ? selectedLeadId.toString() : ""}
+                  onChange={handleLeadSelect}
+                />
+              )}
+              {formLeadNameError && (
+                <span className="mt-1.5 text-xs text-error-600 block">{formLeadNameError}</span>
+              )}
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
@@ -394,12 +478,38 @@ export default function AddProposal() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Email</label>
-              <Input type="text" placeholder="john@acme.com" value={formLeadEmail} onChange={(e) => setFormLeadEmail(e.target.value)} />
+              <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                Email <span className="text-error-500">*</span>
+              </label>
+              <Input
+                type="text"
+                placeholder="e.g. john@acme.com"
+                value={formLeadEmail}
+                onChange={(e) => {
+                  setFormLeadEmail(e.target.value);
+                  if (formLeadEmailError) setFormLeadEmailError("");
+                }}
+                onBlur={() => setFormLeadEmailError(validateEmail(formLeadEmail))}
+                error={!!formLeadEmailError}
+                hint={formLeadEmailError || undefined}
+              />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Phone</label>
-              <Input type="text" placeholder="+1 555-0000" value={formLeadPhone} onChange={(e) => setFormLeadPhone(e.target.value)} />
+              <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                Phone <span className="text-error-500">*</span>
+              </label>
+              <Input
+                type="text"
+                placeholder="e.g. +91 98765 43210"
+                value={formLeadPhone}
+                onChange={(e) => {
+                  setFormLeadPhone(e.target.value);
+                  if (formLeadPhoneError) setFormLeadPhoneError("");
+                }}
+                onBlur={() => setFormLeadPhoneError(validatePhone(formLeadPhone))}
+                error={!!formLeadPhoneError}
+                hint={formLeadPhoneError || undefined}
+              />
             </div>
           </div>
         </div>
