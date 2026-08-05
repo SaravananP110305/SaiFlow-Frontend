@@ -1,13 +1,13 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
+import Input from "../../../components/form/input/InputField";
+import { useDebounce } from "../../../hooks/useDebounce";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
-import Input from "../../../components/form/input/InputField";
 import Badge from "../../../components/ui/badge/Badge";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
-import { useDebounce } from "../../../hooks/useDebounce";
 import { Pagination } from "../../../components/ui/pagination/Pagination";
 import {
   Table,
@@ -22,8 +22,6 @@ import {
   FiTrash2,
   FiPlus,
   FiUpload,
-  FiDownload,
-  FiRefreshCw,
   FiAlertCircle,
 } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
@@ -37,7 +35,6 @@ import {
 import { userService } from "../../../services/userService";
 import { masterService } from "../../../services/masterService";
 import {
-  LEAD_STATUSES,
   getStatusLabel,
   getStatusBadgeColor,
   getPriorityBadgeColor,
@@ -71,17 +68,12 @@ const toLeadRow = (l: any): LeadRow => ({
   createdAt: l.createdAt || "",
 });
 
-const selectClass =
-  "h-11 w-full sm:w-40 appearance-none rounded-lg border border-gray-200 bg-transparent px-3.5 py-2.5 pr-9 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer";
-
 const selectChevron = {
   backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
   backgroundPosition: "right 0.65rem center",
   backgroundSize: "1.1rem",
   backgroundRepeat: "no-repeat",
 };
-
-const STATUS_SUMMARY_ORDER = ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"];
 
 export default function LeadList() {
   const navigate = useNavigate();
@@ -97,18 +89,12 @@ export default function LeadList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Server-side filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebounce(searchQuery, 400);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [priorityFilter, setPriorityFilter] = useState("all");
-  const [assigneeFilter, setAssigneeFilter] = useState("all");
-
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<string>("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Search
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   // Master data
   const [users, setUsers] = useState<any[]>([]);
@@ -116,12 +102,6 @@ export default function LeadList() {
   const [priorities, setPriorities] = useState<any[]>([]);
   const [industries, setIndustries] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
-
-  // Selection / bulk actions
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [bulkAssignee, setBulkAssignee] = useState("");
-  const [showBulkAssign, setShowBulkAssign] = useState(false);
 
   // Upload modal
   const [dragOver, setDragOver] = useState(false);
@@ -134,13 +114,7 @@ export default function LeadList() {
   const buildParams = (): LeadQuery => ({
     page: currentPage,
     limit: rowsPerPage,
-    ...(debouncedSearch.trim() && { search: debouncedSearch.trim() }),
-    ...(statusFilter !== "all" && { status: statusFilter }),
-    ...(sourceFilter !== "all" && { sourceId: Number(sourceFilter) }),
-    ...(priorityFilter !== "all" && { priorityId: Number(priorityFilter) }),
-    ...(assigneeFilter !== "all" && { assignedToId: Number(assigneeFilter) }),
-    sortBy: sortField,
-    sortOrder,
+    search: debouncedSearchQuery.trim() || undefined,
   });
 
   const fetchLeads = useCallback(async () => {
@@ -156,35 +130,30 @@ export default function LeadList() {
     } finally {
       setLoading(false);
     }
-  }, [
-    currentPage,
-    rowsPerPage,
-    debouncedSearch,
-    statusFilter,
-    sourceFilter,
-    priorityFilter,
-    assigneeFilter,
-    sortField,
-    sortOrder,
-  ]);
+  }, [currentPage, rowsPerPage, debouncedSearchQuery]);
 
   const loadFiltersAndStats = useCallback(async () => {
     try {
-      const [usersRes, sourcesRes, prioritiesRes, industriesRes, countriesRes, statsRes] =
+      const [usersRes, sourcesRes, prioritiesRes, industriesRes, countriesRes] =
         await Promise.all([
           userService.getAssignees(),
           masterService.getMasterItems("LEAD_SOURCE", undefined, { status: "Active" }),
           masterService.getMasterItems("PRIORITY", undefined, { status: "Active" }),
           masterService.getMasterItems("INDUSTRY", undefined, { status: "Active" }),
           masterService.getMasterItems("COUNTRY", undefined, { status: "Active" }),
-          leadService.getStatusCounts(),
         ]);
-      setUsers(usersRes.data || []);
+      // Exclude the System Administrator account from the "Assigned To" dropdown.
+      setUsers(
+        (usersRes.data || []).filter(
+          (x: any) =>
+            x.name !== "System Administrator" &&
+            x.role?.name !== "System Administrator"
+        )
+      );
       setSources(sourcesRes || []);
       setPriorities(prioritiesRes || []);
       setIndustries(industriesRes || []);
       setCountries(countriesRes || []);
-      setStats(statsRes || null);
     } catch (err) {
       console.error("Failed to load filter/master data", err);
     }
@@ -197,48 +166,6 @@ export default function LeadList() {
   useEffect(() => {
     loadFiltersAndStats();
   }, [loadFiltersAndStats]);
-
-  const resetFilters = () => {
-    setSearchQuery("");
-    setStatusFilter("all");
-    setSourceFilter("all");
-    setPriorityFilter("all");
-    setAssigneeFilter("all");
-    setCurrentPage(1);
-  };
-
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortOrder("asc");
-    }
-    setCurrentPage(1);
-  };
-
-  const selectAll = useMemo(
-    () => leads.length > 0 && selectedIds.length === leads.length,
-    [leads, selectedIds]
-  );
-  const isIndeterminate = useMemo(
-    () => selectedIds.length > 0 && selectedIds.length < leads.length,
-    [leads, selectedIds]
-  );
-
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectAll) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(leads.map((l) => l.id));
-    }
-  };
 
   const handleDirectAssign = async (leadId: number, userIdStr: string) => {
     if (!userIdStr) return;
@@ -262,63 +189,10 @@ export default function LeadList() {
       await leadService.deleteLead(selectedLead.id);
       showToast(`Lead "${selectedLead.companyName}" deleted successfully.`, "success");
       fetchLeads();
-      setSelectedIds((prev) => prev.filter((id) => id !== selectedLead.id));
     } catch (err: any) {
       showToast(err.response?.data?.message || "Failed to delete lead.", "error");
     }
     deleteModal.closeModal();
-  };
-
-  const handleBulkReassign = async () => {
-    if (selectedIds.length === 0 || !bulkAssignee) return;
-    try {
-      const result = await leadService.bulkAssign(selectedIds, Number(bulkAssignee));
-      showToast(`${result?.processed || selectedIds.length} lead(s) reassigned successfully.`, "success");
-      setSelectedIds([]);
-      setBulkAssignee("");
-      setShowBulkAssign(false);
-      fetchLeads();
-    } catch (err: any) {
-      showToast(err.response?.data?.message || "Failed to bulk reassign leads.", "error");
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    try {
-      const result = await leadService.bulkDelete(selectedIds);
-      showToast(`${result?.processed || selectedIds.length} lead(s) deleted successfully.`, "success");
-      setSelectedIds([]);
-      fetchLeads();
-    } catch (err: any) {
-      showToast(err.response?.data?.message || "Failed to bulk delete leads.", "error");
-    }
-  };
-
-  const handleExport = async () => {
-    try {
-      const params: LeadQuery = {
-        ...(debouncedSearch.trim() && { search: debouncedSearch.trim() }),
-        ...(statusFilter !== "all" && { status: statusFilter }),
-        ...(sourceFilter !== "all" && { sourceId: Number(sourceFilter) }),
-        ...(priorityFilter !== "all" && { priorityId: Number(priorityFilter) }),
-        ...(assigneeFilter !== "all" && { assignedToId: Number(assigneeFilter) }),
-        sortBy: sortField,
-        sortOrder,
-      };
-      const blob = await leadService.exportLeads(params);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `saiflow_leads_${new Date().toISOString().split("T")[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      showToast("Leads exported to CSV.", "success");
-    } catch (err: any) {
-      showToast(err.response?.data?.message || "Failed to export leads.", "error");
-    }
   };
 
   const downloadSampleTemplate = () => {
@@ -418,153 +292,25 @@ export default function LeadList() {
     }
   };
 
-  const renderSortHeader = (label: string, field: string) => {
-    return (
-      <button
-        onClick={() => handleSort(field)}
-        className="flex items-center gap-1 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer"
-      >
-        {label}
-        <span className="text-[9px] text-gray-400">{sortOrder === "asc" ? "▲" : "▼"}</span>
-      </button>
-    );
-  };
-
   return (
     <>
       <PageMeta title="Leads | SaiFlow" description="View and manage leads in SaiFlow CRM." />
       <PageBreadcrumb pageTitle="Leads" />
 
-      {/* Status summary strip */}
-      {stats && (
-        <div className="grid grid-cols-2 gap-3 mb-5 sm:grid-cols-3 lg:grid-cols-6">
-          {STATUS_SUMMARY_ORDER.map((s) => (
-            <button
-              key={s}
-              onClick={() => {
-                setStatusFilter(statusFilter === s ? "all" : s);
-                setCurrentPage(1);
-              }}
-              className={`rounded-xl border px-4 py-3 text-left transition cursor-pointer ${
-                statusFilter === s
-                  ? "border-brand-500 bg-brand-50 dark:bg-brand-500/10"
-                  : "border-gray-200 bg-white hover:border-brand-300 dark:border-white/[0.05] dark:bg-white/[0.03]"
-              }`}
-            >
-              <span className="block text-lg font-bold text-gray-800 dark:text-white/95">
-                {stats.counts?.[s] || 0}
-              </span>
-              <span className="block text-xs text-gray-500 dark:text-gray-400">
-                {getStatusLabel(s)}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Control Panel */}
-      <div className="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center w-full lg:w-auto flex-wrap">
-          <div className="w-full sm:w-56">
-            <Input
-              type="text"
-              placeholder="Search company, contact, email..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
-          </div>
-          <select
-            className={selectClass}
-            style={selectChevron}
-            value={statusFilter}
+      <div className="flex flex-col gap-3 mb-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="w-full sm:w-72">
+          <Input
+            type="text"
+            placeholder="Search by company, contact, email, phone..."
+            value={searchQuery}
             onChange={(e) => {
-              setStatusFilter(e.target.value);
+              setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-          >
-            <option value="all">All Statuses</option>
-            {LEAD_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {getStatusLabel(s)}
-              </option>
-            ))}
-          </select>
-          <select
-            className={selectClass}
-            style={selectChevron}
-            value={sourceFilter}
-            onChange={(e) => {
-              setSourceFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-          >
-            <option value="all">All Sources</option>
-            {sources.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={selectClass}
-            style={selectChevron}
-            value={priorityFilter}
-            onChange={(e) => {
-              setPriorityFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-          >
-            <option value="all">All Priorities</option>
-            {priorities.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={selectClass}
-            style={selectChevron}
-            value={assigneeFilter}
-            onChange={(e) => {
-              setAssigneeFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-          >
-            <option value="all">All Assignees</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-          {(searchQuery ||
-            statusFilter !== "all" ||
-            sourceFilter !== "all" ||
-            priorityFilter !== "all" ||
-            assigneeFilter !== "all") && (
-            <button
-              onClick={resetFilters}
-              className="inline-flex items-center gap-1.5 h-11 px-3.5 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-white/5 transition cursor-pointer"
-            >
-              <FiRefreshCw className="size-4" />
-              Reset
-            </button>
-          )}
+          />
         </div>
-
         <div className="flex items-center gap-3 flex-wrap">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExport}
-            startIcon={<FiDownload className="size-4" />}
-            className="h-11 px-4 py-2.5"
-          >
-            Export
-          </Button>
           {hasPermission("leads", "create") && (
             <>
               <Button
@@ -589,62 +335,6 @@ export default function LeadList() {
         </div>
       </div>
 
-      {/* Bulk Actions Toolbar */}
-      {selectedIds.length > 0 && (
-        <div className="flex items-center justify-between gap-3 mb-3 px-4 py-3 rounded-xl border border-brand-200 bg-brand-50 dark:border-brand-500/20 dark:bg-brand-500/10">
-          <span className="text-sm font-medium text-brand-700 dark:text-brand-400">
-            {selectedIds.length} Selected
-          </span>
-          <div className="flex items-center gap-2">
-            {showBulkAssign && hasPermission("leads", "assign") ? (
-              <div className="flex items-center gap-2">
-                <select
-                  value={bulkAssignee}
-                  onChange={(e) => setBulkAssignee(e.target.value)}
-                  className="h-9 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs shadow-theme-xs focus:border-brand-300 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                >
-                  <option value="">Select Assignee...</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={String(u.id)}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
-                <Button size="sm" onClick={handleBulkReassign} disabled={!bulkAssignee}>
-                  Confirm
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setShowBulkAssign(false);
-                    setBulkAssignee("");
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <>
-                {hasPermission("leads", "assign") && (
-                  <Button size="sm" variant="outline" onClick={() => setShowBulkAssign(true)}>
-                    Reassign
-                  </Button>
-                )}
-                {hasPermission("leads", "delete") && (
-                  <Button size="sm" className="bg-error-600 hover:bg-error-700" onClick={handleBulkDelete}>
-                    Delete ({selectedIds.length})
-                  </Button>
-                )}
-                <Button size="sm" variant="outline" onClick={() => setSelectedIds([])}>
-                  Clear
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Table Container */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="max-w-full overflow-x-auto custom-scrollbar">
@@ -654,17 +344,6 @@ export default function LeadList() {
               <Table>
                 <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] sticky top-0 bg-white dark:bg-gray-900 z-10">
                   <TableRow>
-                    <TableCell isHeader className="px-4 py-3 text-start w-10">
-                      <input
-                        type="checkbox"
-                        checked={selectAll}
-                        ref={(el) => {
-                          if (el) el.indeterminate = isIndeterminate;
-                        }}
-                        onChange={toggleSelectAll}
-                        className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 cursor-pointer"
-                      />
-                    </TableCell>
                     <TableCell isHeader className="px-4 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       S.No
                     </TableCell>
@@ -672,10 +351,10 @@ export default function LeadList() {
                       Lead ID
                     </TableCell>
                     <TableCell isHeader className="px-4 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {renderSortHeader("Company", "title")}
+                      Company
                     </TableCell>
                     <TableCell isHeader className="px-4 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {renderSortHeader("Contact", "contactPerson")}
+                      Contact
                     </TableCell>
                     <TableCell isHeader className="px-4 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       Email
@@ -684,7 +363,7 @@ export default function LeadList() {
                       Phone
                     </TableCell>
                     <TableCell isHeader className="px-4 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {renderSortHeader("Status", "status")}
+                      Status
                     </TableCell>
                     <TableCell isHeader className="px-4 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       Priority
@@ -700,7 +379,7 @@ export default function LeadList() {
                 <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={11} className="px-5 py-8 text-center text-sm text-gray-500">
+                      <TableCell colSpan={10} className="px-5 py-8 text-center text-sm text-gray-500">
                         <div className="flex items-center justify-center gap-2">
                           <div className="h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
                           <span>Loading Leads...</span>
@@ -709,7 +388,7 @@ export default function LeadList() {
                     </TableRow>
                   ) : error ? (
                     <TableRow>
-                      <TableCell colSpan={11} className="px-5 py-10 text-center">
+                      <TableCell colSpan={10} className="px-5 py-10 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <FiAlertCircle className="size-8 text-error-500" />
                           <p className="text-sm text-gray-600 dark:text-gray-400">{error}</p>
@@ -725,14 +404,6 @@ export default function LeadList() {
                         key={lead.id}
                         className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                       >
-                        <TableCell className="px-4 py-4">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(lead.id)}
-                            onChange={() => toggleSelect(lead.id)}
-                            className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 cursor-pointer"
-                          />
-                        </TableCell>
                         <TableCell className="px-4 py-4 text-theme-sm text-gray-500 dark:text-gray-400 font-mono text-xs">
                           {(currentPage - 1) * rowsPerPage + index + 1}
                         </TableCell>
@@ -826,8 +497,8 @@ export default function LeadList() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={11} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                        No leads found matching your criteria.
+                      <TableCell colSpan={10} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                        {searchQuery.trim() ? "No leads match your search criteria." : "No leads found."}
                       </TableCell>
                     </TableRow>
                   )}
@@ -857,12 +528,6 @@ export default function LeadList() {
                   <div key={lead.id} className="p-4 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(lead.id)}
-                          onChange={() => toggleSelect(lead.id)}
-                          className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 cursor-pointer shrink-0"
-                        />
                         <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-50 dark:bg-brand-500/10 text-theme-xs font-semibold text-brand-600 dark:text-brand-400">
                           {(currentPage - 1) * rowsPerPage + index + 1}
                         </span>
@@ -936,7 +601,7 @@ export default function LeadList() {
                 ))
               ) : (
                 <div className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                  No leads found matching your criteria.
+                  {searchQuery.trim() ? "No leads match your search criteria." : "No leads found."}
                 </div>
               )}
             </div>
@@ -1076,4 +741,3 @@ export default function LeadList() {
     </>
   );
 }
-
