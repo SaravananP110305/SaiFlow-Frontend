@@ -70,6 +70,13 @@ function InfoCard({ icon, label, value }: InfoCardProps) {
   );
 }
 
+const describeChanges = (changes: any): string => {
+  if (!changes) return "";
+  if (Array.isArray(changes)) return changes.join("; ");
+  if (typeof changes === "object") return JSON.stringify(changes);
+  return String(changes);
+};
+
 export default function LeadDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -151,88 +158,7 @@ export default function LeadDetails() {
   const [nextStatus, setNextStatus] = useState("");
   const [lostReason, setLostReason] = useState("");
 
-  useEffect(() => {
-    userService
-      .getUsers()
-      .then((res) => setUsers(res.data || []))
-      .catch(() => {
-        setUsers([]);
-      });
-  }, []);
-
-  const handleStatusChange = async (newStatus: string, reason?: string) => {
-    if (!lead) return;
-    try {
-      await leadService.updateLead(lead.id, {
-        status: newStatus,
-        ...(reason ? { lostReason: reason } : {}),
-      });
-      showToast(`Lead moved to ${getStatusLabel(newStatus)}.`, "success");
-      setStatusModalOpen(false);
-      setLostReason("");
-      loadLeadDetails();
-    } catch (err: any) {
-      showToast(err.response?.data?.message || "Failed to update lead status.", "error");
-    }
-  };
-
-  const openStatusModal = (status: string) => {
-    setNextStatus(status);
-    setLostReason("");
-    setStatusModalOpen(true);
-  };
-
-  const handleConvertLeadConfirm = async () => {
-    if (!lead) return;
-
-    try {
-      await leadService.convertLead(lead.id, {
-        gstPan: lead.gstNumber || "",
-        paymentTerms,
-        creditLimit: creditLimit !== "" ? Number(creditLimit) : null,
-        relationshipManagerId: relManagerId,
-        accountManagerId: accManagerId,
-        wonAmount: wonAmount !== "" ? Number(wonAmount) : null,
-      });
-
-      showToast(`Lead converted to Client successfully!`, "success");
-      setShowConvertModal(false);
-      navigate(`/clients`);
-    } catch (err: any) {
-      showToast(err.response?.data?.message || "Failed to convert lead to client.", "error");
-    }
-  };
-
-  if (loading) {
-    return <div className="py-10 text-center text-gray-500">Loading details...</div>;
-  }
-
-  if (!lead) {
-    return (
-      <>
-        <PageBreadcrumb pageTitle="Lead Details" />
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-base font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Lead Not Found
-          </p>
-          <p className="text-sm text-gray-400 mb-6">
-            The lead you're looking for does not exist or has been deleted.
-          </p>
-          <Button size="sm" onClick={() => navigate("/leads")}>
-            Back to Lead List
-          </Button>
-        </div>
-      </>
-    );
-  }
-
-  const describeChanges = (changes: any): string => {
-    if (!changes) return "";
-    if (Array.isArray(changes)) return changes.join("; ");
-    if (typeof changes === "object") return JSON.stringify(changes);
-    return String(changes);
-  };
-
+  // Activity Timeline events (computed with useMemo; must stay before early returns)
   const timelineEvents = useMemo(() => {
     if (!lead) return [];
     const events: {
@@ -312,6 +238,81 @@ export default function LeadDetails() {
 
     return events.sort((a, b) => b.timestamp - a.timestamp);
   }, [lead]);
+
+  useEffect(() => {
+    userService
+      .getUsers()
+      .then((res) => setUsers(res.data || []))
+      .catch(() => {
+        setUsers([]);
+      });
+  }, []);
+
+  const handleStatusChange = async (newStatus: string, reason?: string) => {
+    if (!lead) return;
+    try {
+      await leadService.updateLead(lead.id, {
+        status: newStatus,
+        ...(reason ? { lostReason: reason } : {}),
+      });
+      showToast(`Lead moved to ${getStatusLabel(newStatus)}.`, "success");
+      setStatusModalOpen(false);
+      setLostReason("");
+      loadLeadDetails();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to update lead status.", "error");
+    }
+  };
+
+  const openStatusModal = (status: string) => {
+    setNextStatus(status);
+    setLostReason("");
+    setStatusModalOpen(true);
+  };
+
+  const handleConvertLeadConfirm = async () => {
+    if (!lead) return;
+
+    try {
+      await leadService.convertLead(lead.id, {
+        gstPan: lead.gstNumber || "",
+        paymentTerms,
+        creditLimit: creditLimit !== "" ? Number(creditLimit) : null,
+        relationshipManagerId: relManagerId,
+        accountManagerId: accManagerId,
+        wonAmount: wonAmount !== "" ? Number(wonAmount) : null,
+      });
+
+      showToast(`Lead converted to Client successfully!`, "success");
+      setShowConvertModal(false);
+      navigate(`/clients`);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to convert lead to client.", "error");
+    }
+  };
+
+  if (loading) {
+    return <div className="py-10 text-center text-gray-500">Loading details...</div>;
+  }
+
+  if (!lead) {
+    return (
+      <>
+        <PageBreadcrumb pageTitle="Lead Details" />
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <p className="text-base font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Lead Not Found
+          </p>
+          <p className="text-sm text-gray-400 mb-6">
+            The lead you're looking for does not exist or has been deleted.
+          </p>
+          <Button size="sm" onClick={() => navigate("/leads")}>
+            Back to Lead List
+          </Button>
+        </div>
+      </>
+    );
+  }
 
   const paginatedTimeline = timelineEvents.slice(
     0,
