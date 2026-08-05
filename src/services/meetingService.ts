@@ -21,8 +21,8 @@ export const meetingService = {
     return response.data?.data;
   },
 
-  updateMeetingStatus: async (id: number, status: string, scopeNotes?: string) => {
-    const response = await api.patch(`/meetings/${id}`, { status, scopeNotes });
+  updateMeetingStatus: async (id: number, status: string, scopeNotes?: string, actionSummary?: string) => {
+    const response = await api.patch(`/meetings/${id}`, { status, scopeNotes, actionSummary });
     return response.data?.data;
   },
 

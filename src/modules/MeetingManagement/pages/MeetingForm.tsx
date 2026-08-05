@@ -33,13 +33,7 @@ interface MeetingFormValues {
 
 const EMPLOYEES = ["John Doe", "Jane Smith", "Alice Johnson", "Robert Lee"];
 
-const MEETING_PLATFORMS = [
-  "Google Meet",
-  "Zoom",
-  "Microsoft Teams",
-  "Office",
-  "Client Office"
-];
+const MEETING_MODES = ["Offline", "Online"];
 
 function parseTimeToMinutes(timeStr: string): number | null {
   if (!timeStr || typeof timeStr !== "string") return null;
@@ -75,6 +69,46 @@ function calculateDurationMinutes(start: string, end: string): number {
   const diff = endMin - startMin;
   return diff > 0 ? diff : 0;
 }
+
+// Normalize the picker's 12-hour "h:mm AM/PM" (or 24-hour "HH:MM") value
+// into canonical 24-hour "HH:MM" so `new Date()` parses it correctly.
+function to24HourTime(timeStr: string): string {
+  if (!timeStr) return "";
+  const mins = parseTimeToMinutes(timeStr);
+  if (mins === null) return timeStr.trim();
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+const getLocalDateString = (isoString: string) => {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getMeetingType = (link: string | null | undefined) => {
+  if (!link) return "Offline";
+  const trimmed = link.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    if (/meet\.google\.com/i.test(trimmed)) return "Google Meet";
+    if (/zoom\.us/i.test(trimmed)) return "Zoom";
+    if (/teams\.(microsoft|live)\.com/i.test(trimmed)) return "Microsoft Teams";
+    return "Online";
+  }
+  return "Offline";
+};
+
+const getEndTime = (scheduledAt: string, durationMinutes: number) => {
+  if (!scheduledAt) return "";
+  const start = new Date(scheduledAt);
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  return end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+};
 
 export default function MeetingForm() {
   const navigate = useNavigate();
@@ -138,12 +172,12 @@ export default function MeetingForm() {
       company: "",
       contactPerson: "",
       date: "",
-      type: "Google Meet",
+      type: "Online",
       linkOrLocation: "",
       notes: "",
       relatedToType: "Lead",
       relatedToId: 0,
-      meetingPlatform: "Google Meet",
+      meetingPlatform: "Online",
       startTime: "",
       endTime: "",
       meetingOwner: [],
@@ -188,15 +222,16 @@ export default function MeetingForm() {
             reset({
               company: meeting.lead?.company?.name || meeting.lead?.title || "",
               contactPerson: meeting.lead?.contactPerson || "",
-              date: meeting.scheduledAt ? meeting.scheduledAt.split("T")[0] : "",
-              type: meeting.status || "Google Meet",
+              date: meeting.scheduledAt ? getLocalDateString(meeting.scheduledAt) : "",
+              type: getMeetingType(meeting.meetingLink),
               linkOrLocation: meeting.meetingLink || "",
               notes: meeting.agenda || "",
               relatedToType: "Lead",
               relatedToId: meeting.leadId,
-              meetingPlatform: "Google Meet",
+              // Backend doesn't persist the mode; infer it from the saved link.
+              meetingPlatform: meeting.meetingLink && /^https?:\/\//i.test(meeting.meetingLink) ? "Online" : "Offline",
               startTime: meeting.scheduledAt ? new Date(meeting.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
-              endTime: "",
+              endTime: meeting.scheduledAt ? getEndTime(meeting.scheduledAt, meeting.durationMinutes || 30) : "",
               meetingOwner: meeting.createdBy ? [meeting.createdBy.name] : [],
               clientContactPerson: meeting.lead?.contactPerson || "",
             });
@@ -283,7 +318,8 @@ export default function MeetingForm() {
         }
       }
 
-      const scheduledAt = new Date(`${data.date}T${data.startTime || "09:00"}`);
+      const start24 = to24HourTime(data.startTime) || "09:00";
+      const scheduledAt = new Date(`${data.date}T${start24}`);
 
       const payload = {
         leadId,
@@ -305,6 +341,7 @@ export default function MeetingForm() {
       }
       navigate("/meetings");
     } catch (err) {
+      console.error("Failed to save meeting:", err);
       showToast("Failed to save meeting.", "error");
     }
   };
@@ -552,23 +589,23 @@ export default function MeetingForm() {
           </div>
         </div>
 
-        {/* Section 4: Meeting Platform */}
+        {/* Section 4: Meeting Mode */}
         <div>
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
-            Meeting Platform
+            Meeting Mode
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
-                Platform <span className="text-error-500">*</span>
+                Meeting Mode <span className="text-error-500">*</span>
               </label>
               <Controller
                 name="meetingPlatform"
                 control={control}
                 render={({ field: { onChange, value } }) => (
                   <Select
-                    options={MEETING_PLATFORMS.map((p) => ({ value: p, label: p }))}
-                    placeholder="Select Platform"
+                    options={MEETING_MODES.map((p) => ({ value: p, label: p }))}
+                    placeholder="Select Mode"
                     defaultValue={value}
                     onChange={(val) => {
                       onChange(val);
@@ -581,9 +618,7 @@ export default function MeetingForm() {
 
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
-                {meetingPlatform === "Google Meet" || meetingPlatform === "Zoom" || meetingPlatform === "Microsoft Teams"
-                  ? "Meeting Link"
-                  : "Venue / Location Address"}{" "}
+                {meetingPlatform === "Offline" ? "Venue / Location Address" : "Meeting Link"}{" "}
                 <span className="text-error-500">*</span>
               </label>
               <Controller
@@ -592,7 +627,7 @@ export default function MeetingForm() {
                 rules={{
                   required: "Link / Location is required",
                   validate: (val) => {
-                    const isOnline = ["Google Meet", "Zoom", "Microsoft Teams"].includes(meetingPlatform);
+                    const isOnline = meetingPlatform !== "Offline";
                     if (isOnline) {
                       const urlPattern =
                         /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
@@ -606,9 +641,9 @@ export default function MeetingForm() {
                     {...field}
                     type="text"
                     placeholder={
-                      ["Google Meet", "Zoom", "Microsoft Teams"].includes(meetingPlatform)
-                        ? "Enter Meeting URL"
-                        : "Enter Office Address"
+                      meetingPlatform === "Offline"
+                        ? "Enter Office Address"
+                        : "Enter Meeting URL"
                     }
                     error={!!errors.linkOrLocation}
                   />

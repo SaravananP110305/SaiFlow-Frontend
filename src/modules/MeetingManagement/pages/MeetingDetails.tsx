@@ -21,7 +21,6 @@ import {
   FiClock,
   FiVideo,
   FiMapPin,
-  FiArrowLeft,
   FiEdit,
   FiActivity,
   FiExternalLink,
@@ -57,6 +56,28 @@ function InfoCard({ icon, label, value }: InfoCardProps) {
   );
 }
 
+const getLocalDateString = (isoString: string) => {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getMeetingType = (link: string | null | undefined) => {
+  if (!link) return "Offline";
+  const trimmed = link.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    if (/meet\.google\.com/i.test(trimmed)) return "Google Meet";
+    if (/zoom\.us/i.test(trimmed)) return "Zoom";
+    if (/teams\.(microsoft|live)\.com/i.test(trimmed)) return "Microsoft Teams";
+    return "Online";
+  }
+  return "Offline";
+};
+
 export default function MeetingDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -88,7 +109,7 @@ export default function MeetingDetails() {
       logs.push({
         id: "completed",
         action: "Meeting Completed",
-        description: `Meeting completed. Summary: ${meeting.scopeNotes || "No summary provided."}`,
+        description: `Meeting completed. Summary: ${meeting.actionSummary || "No summary provided."}`,
         timestamp: new Date().toISOString(),
         operator: "System",
       });
@@ -105,10 +126,10 @@ export default function MeetingDetails() {
   }, [meeting]);
 
   const summaryEntries = useMemo(() => {
-    if (!meeting || !meeting.scopeNotes) return [];
+    if (!meeting || !meeting.actionSummary) return [];
     return [{
       action: "Summary Updated",
-      summary: meeting.scopeNotes,
+      summary: meeting.actionSummary,
       date: new Date().toISOString(),
       operator: "System",
     }];
@@ -137,29 +158,37 @@ export default function MeetingDetails() {
       setLoading(true);
       const data = await meetingService.getMeetingById(Number(id));
       if (data) {
+        const type = getMeetingType(data.meetingLink);
         const mappedMeeting: Meeting = {
           id: data.id,
           subject: data.title || "Meeting",
           company: data.lead?.company?.name || data.lead?.title || "Unknown Company",
           contactPerson: data.lead?.contactPerson || "Unknown Contact",
-          date: data.scheduledAt ? data.scheduledAt.split("T")[0] : "",
+          date: data.scheduledAt ? getLocalDateString(data.scheduledAt) : "",
           time: data.scheduledAt ? new Date(data.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
-          type: "Google Meet",
+          type,
           linkOrLocation: data.meetingLink || "",
           status: data.status === "SCHEDULED" ? "Scheduled" :
+                  data.status === "RESCHEDULED" ? "Rescheduled" :
                   data.status === "COMPLETED" ? "Completed" :
                   data.status === "CANCELLED" ? "Cancelled" : data.status,
           notes: data.agenda || "",
           relatedToType: "Lead",
           relatedToId: data.leadId,
-          meetingPlatform: "Google Meet",
+          meetingPlatform: type,
           startTime: data.scheduledAt ? new Date(data.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
           endTime: "",
           duration: data.durationMinutes ? data.durationMinutes.toString() : "30",
           meetingOwner: data.createdBy ? [data.createdBy.name] : [],
           clientContactPerson: data.lead?.contactPerson || "",
           agenda: data.agenda || "",
-          scopeNotes: data.scopeNotes || ""
+          scopeNotes: data.scopeNotes || "",
+          actionSummary: data.actionSummary || "",
+          summary: data.actionSummary || "",
+          rescheduledDate: data.status === "RESCHEDULED" ? (data.scheduledAt ? getLocalDateString(data.scheduledAt) : "") : undefined,
+          rescheduledTime: data.status === "RESCHEDULED" ? (data.scheduledAt ? new Date(data.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "") : undefined,
+          completedDate: data.status === "COMPLETED" ? (data.updatedAt ? getLocalDateString(data.updatedAt) : "") : undefined,
+          cancelledDate: data.status === "CANCELLED" ? (data.updatedAt ? getLocalDateString(data.updatedAt) : "") : undefined
         };
         setMeeting(mappedMeeting);
         
@@ -187,7 +216,7 @@ export default function MeetingDetails() {
   // ─── Edit Summary Handlers ─────────────────────────────────────────────
   const openEditSummary = () => {
     if (!meeting) return;
-    setEditSummaryText(meeting.scopeNotes || "");
+    setEditSummaryText(meeting.actionSummary || "");
     setEditSummaryModal(true);
   };
 
@@ -196,9 +225,9 @@ export default function MeetingDetails() {
 
     try {
       await meetingService.updateMeeting(meeting.id, {
-        scopeNotes: editSummaryText.trim()
+        actionSummary: editSummaryText.trim()
       });
-      setMeeting({ ...meeting, scopeNotes: editSummaryText.trim() });
+      setMeeting({ ...meeting, actionSummary: editSummaryText.trim(), summary: editSummaryText.trim() });
       showToast("Summary updated successfully.", "success");
       setEditSummaryModal(false);
     } catch (err) {
@@ -253,28 +282,10 @@ export default function MeetingDetails() {
   return (
     <>
       <PageMeta
-        title="Meeting Details | SaiFlow"
+        title={`Meeting Details: ${meeting.subject} | SaiFlow`}
         description="View details and manage scheduled meeting outcome."
       />
       <PageBreadcrumb pageTitle="Meeting Details" />
-
-      {/* Top action bar */}
-      <div className="flex items-center justify-between mb-5">
-        <button
-          onClick={() => navigate("/meetings")}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-white transition cursor-pointer"
-        >
-          <FiArrowLeft className="size-4" />
-          Back to List
-        </button>
-        <Button
-          size="sm"
-          onClick={() => navigate(`/meetings/${meeting.id}/edit`)}
-          startIcon={<FiEdit className="size-4" />}
-        >
-          Edit Meeting
-        </Button>
-      </div>
 
       {/* Header Card */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-gray-200 bg-white px-6 py-5 mb-5 dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -382,37 +393,42 @@ export default function MeetingDetails() {
               label="Meeting Platform"
               value={meeting.meetingPlatform || meeting.type}
             />
-            <div className="sm:col-span-2">
-              <InfoCard
-                icon={
-                  ["Google Meet", "Zoom", "Microsoft Teams"].includes(meeting.meetingPlatform || meeting.type) ? (
-                    <FiLink className="size-4 text-brand-500" />
-                  ) : (
-                    <FiMapPin className="size-4" />
-                  )
-                }
-                label={
-                  ["Google Meet", "Zoom", "Microsoft Teams"].includes(meeting.meetingPlatform || meeting.type)
-                    ? "Meeting URL Link"
-                    : "Venue / Physical Address"
-                }
-                value={
-                  ["Google Meet", "Zoom", "Microsoft Teams"].includes(meeting.meetingPlatform || meeting.type) ? (
-                    <a
-                      href={meeting.linkOrLocation}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors break-all flex items-center gap-1 font-medium"
-                    >
-                      {meeting.linkOrLocation}
-                      <FiExternalLink className="size-3 shrink-0" />
-                    </a>
-                  ) : (
-                    meeting.linkOrLocation
-                  )
-                }
-              />
-            </div>
+            {(() => {
+              const isOnline = ["Google Meet", "Zoom", "Microsoft Teams", "Online"].includes(meeting.meetingPlatform || meeting.type || "");
+              return (
+                <div className="sm:col-span-2">
+                  <InfoCard
+                    icon={
+                      isOnline ? (
+                        <FiLink className="size-4 text-brand-500" />
+                      ) : (
+                        <FiMapPin className="size-4" />
+                      )
+                    }
+                    label={
+                      isOnline
+                        ? "Meeting URL Link"
+                        : "Venue / Physical Address"
+                    }
+                    value={
+                      isOnline ? (
+                        <a
+                          href={meeting.linkOrLocation}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors break-all flex items-center gap-1 font-medium"
+                        >
+                          {meeting.linkOrLocation}
+                          <FiExternalLink className="size-3 shrink-0" />
+                        </a>
+                      ) : (
+                        meeting.linkOrLocation
+                      )
+                    }
+                  />
+                </div>
+              );
+            })()}
           </div>
         </div>
 

@@ -30,6 +30,7 @@ export interface Meeting {
   clientContactPerson?: string;
   scopeNotes?: string;
   agenda?: string;
+  actionSummary?: string; // Latest action summary (Reschedule / Complete / Cancel)
 }
 
 export const getMeetingStatusColor = (

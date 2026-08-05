@@ -16,7 +16,6 @@ import {
 } from "../../../components/ui/table";
 import { Modal } from "../../../components/ui/modal";
 import { Pagination } from "../../../components/ui/pagination/Pagination";
-import { ChevronDownIcon, ChevronUpIcon } from "../../../icons";
 import {
   FiEye,
   FiPlus,
@@ -30,12 +29,31 @@ import {
 import { useToast } from "../../../hooks/useToast";
 import { useAuth } from "../../../context/AuthContext";
 import { Meeting, getMeetingStatusColor } from "../data/meetingsData";
-import { LOST_REASONS } from "../../Master/data/masterData";
-import Select from "../../../components/form/Select";
 import { meetingService } from "../../../services/meetingService";
 import { leadService } from "../../../services/leadService";
-import { masterService } from "../../../services/masterService";
 import { useEffect } from "react";
+
+const getLocalDateString = (isoString: string) => {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getMeetingType = (link: string | null | undefined) => {
+  if (!link) return "Offline";
+  const trimmed = link.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    if (/meet\.google\.com/i.test(trimmed)) return "Google Meet";
+    if (/zoom\.us/i.test(trimmed)) return "Zoom";
+    if (/teams\.(microsoft|live)\.com/i.test(trimmed)) return "Microsoft Teams";
+    return "Online";
+  }
+  return "Offline";
+};
 
 type StatusTab = "all" | "Scheduled" | "Rescheduled" | "Completed" | "Cancelled";
 
@@ -46,37 +64,45 @@ export default function MeetingsScopePage() {
 
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lostReasons, setLostReasons] = useState<{ value: string; label: string }[]>([]);
 
   const fetchMeetings = async () => {
     setLoading(true);
     try {
-      const data = await meetingService.getMeetings();
+      const data = await meetingService.getMeetings({ limit: 1000 });
       if (data && Array.isArray(data.data)) {
-        const mapped = data.data.map((bm: any) => ({
-          id: bm.id,
-          subject: bm.title || "Meeting",
-          company: bm.lead?.company?.name || bm.lead?.title || "Unknown Company",
-          contactPerson: bm.lead?.contactPerson || "Unknown Contact",
-          date: bm.scheduledAt ? bm.scheduledAt.split("T")[0] : "",
-          time: bm.scheduledAt ? new Date(bm.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
-          type: "Google Meet",
-          linkOrLocation: bm.meetingLink || "",
-          status: bm.status === "SCHEDULED" ? "Scheduled" :
-                  bm.status === "COMPLETED" ? "Completed" :
-                  bm.status === "CANCELLED" ? "Cancelled" : bm.status,
-          notes: bm.agenda || "",
-          relatedToType: "Lead",
-          relatedToId: bm.leadId,
-          meetingPlatform: "Google Meet",
-          startTime: bm.scheduledAt ? new Date(bm.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
-          endTime: "",
-          duration: bm.durationMinutes ? bm.durationMinutes.toString() : "30",
-          meetingOwner: bm.createdBy ? [bm.createdBy.name] : [],
-          clientContactPerson: bm.lead?.contactPerson || "",
-          agenda: bm.agenda || "",
-          scopeNotes: bm.scopeNotes || ""
-        }));
+        const mapped = data.data.map((bm: any) => {
+          const type = getMeetingType(bm.meetingLink);
+          return {
+            id: bm.id,
+            subject: bm.title || "Meeting",
+            company: bm.lead?.company?.name || bm.lead?.title || "Unknown Company",
+            contactPerson: bm.lead?.contactPerson || "Unknown Contact",
+            date: bm.scheduledAt ? getLocalDateString(bm.scheduledAt) : "",
+            time: bm.scheduledAt ? new Date(bm.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
+            type,
+            linkOrLocation: bm.meetingLink || "",
+            status: bm.status === "SCHEDULED" ? "Scheduled" :
+                    bm.status === "RESCHEDULED" ? "Rescheduled" :
+                    bm.status === "COMPLETED" ? "Completed" :
+                    bm.status === "CANCELLED" ? "Cancelled" : bm.status,
+            notes: bm.agenda || "",
+            relatedToType: "Lead",
+            relatedToId: bm.leadId,
+            meetingPlatform: type,
+            startTime: bm.scheduledAt ? new Date(bm.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
+            endTime: "",
+            duration: bm.durationMinutes ? bm.durationMinutes.toString() : "30",
+            meetingOwner: bm.createdBy ? [bm.createdBy.name] : [],
+            clientContactPerson: bm.lead?.contactPerson || "",
+            agenda: bm.agenda || "",
+            scopeNotes: bm.scopeNotes || "",
+            actionSummary: bm.actionSummary || "",
+            rescheduledDate: bm.status === "RESCHEDULED" ? (bm.scheduledAt ? getLocalDateString(bm.scheduledAt) : "") : undefined,
+            rescheduledTime: bm.status === "RESCHEDULED" ? (bm.scheduledAt ? new Date(bm.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "") : undefined,
+            completedDate: bm.status === "COMPLETED" ? (bm.updatedAt ? getLocalDateString(bm.updatedAt) : "") : undefined,
+            cancelledDate: bm.status === "CANCELLED" ? (bm.updatedAt ? getLocalDateString(bm.updatedAt) : "") : undefined
+          };
+        });
         setMeetings(mapped);
       }
     } catch (err) {
@@ -89,18 +115,6 @@ export default function MeetingsScopePage() {
 
   useEffect(() => {
     fetchMeetings();
-    const loadLostReasons = async () => {
-      try {
-        // The lost-reason dropdown only offers new selections, so fetching
-        // only ACTIVE records here is safe; the mock fallback below already
-        // filters to Active as well.
-        const lostReasonsData = await masterService.getMasterItems("LOST_REASON", undefined, { status: "Active" });
-        setLostReasons(lostReasonsData.map((x: any) => ({ value: x.name, label: x.name })));
-      } catch {
-        setLostReasons(LOST_REASONS.filter((r: any) => r.status === "Active").map((r: any) => ({ value: r.name, label: r.name })));
-      }
-    };
-    loadLostReasons();
   }, []);
 
   // Filters
@@ -108,8 +122,6 @@ export default function MeetingsScopePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [sortField, setSortField] = useState<keyof Meeting>("date");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Action Modals
   const [rescheduleModal, setRescheduleModal] = useState<{ open: boolean; meeting: Meeting | null }>({ open: false, meeting: null });
@@ -127,7 +139,6 @@ export default function MeetingsScopePage() {
 
   // Cancel form
   const [cancelSummary, setCancelSummary] = useState("");
-  const [cancelLostReason, setCancelLostReason] = useState("");
 
   // Stats
   const stats = useMemo(() => ({
@@ -153,128 +164,24 @@ export default function MeetingsScopePage() {
           m.type?.toLowerCase().includes(q)
       );
     }
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-      const strA = String(aVal ?? "").toLowerCase();
-      const strB = String(bVal ?? "").toLowerCase();
-      if (strA < strB) return sortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
+    // Default ordering: newest meeting first (sorting UI removed).
+    result.sort((a, b) => String(b.date).localeCompare(String(a.date)));
     return result;
-  }, [meetings, activeTab, searchQuery, sortField, sortOrder]);
+  }, [meetings, activeTab, searchQuery]);
 
   const paginatedMeetings = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredMeetings.slice(start, start + rowsPerPage);
   }, [filteredMeetings, currentPage, rowsPerPage]);
 
-  // Bulk actions
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-
-  const selectAll = useMemo(() => paginatedMeetings.length > 0 && selectedIds.length === paginatedMeetings.length, [paginatedMeetings, selectedIds]);
-  const isIndeterminate = useMemo(() => selectedIds.length > 0 && selectedIds.length < paginatedMeetings.length, [paginatedMeetings, selectedIds]);
-
-  const toggleSelect = (id: number) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const toggleSelectAll = () => {
-    if (selectAll) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(paginatedMeetings.map(m => m.id));
-    }
-  };
-
-  const handleBulkComplete = async () => {
-    const bulkMeetings = meetings.filter(m => selectedIds.includes(m.id) && (m.status === "Scheduled" || m.status === "Rescheduled"));
-    try {
-      await Promise.all(bulkMeetings.map(async (meeting) => {
-        await meetingService.updateMeeting(meeting.id, {
-          status: "Completed",
-          completedDate: new Date().toISOString().split("T")[0]
-        });
-        if (meeting.relatedToType === "Lead" && meeting.relatedToId) {
-          await leadService.updateLead(meeting.relatedToId, { status: "Won" });
-        }
-      }));
-      showToast(`${bulkMeetings.length} meeting(s) completed. Related leads marked as Won.`, "success");
-      setSelectedIds([]);
-      fetchMeetings();
-    } catch (err) {
-      showToast("Failed to complete meetings.", "error");
-    }
-  };
-
-  const handleBulkCancel = async () => {
-    const bulkMeetings = meetings.filter(m => selectedIds.includes(m.id) && (m.status === "Scheduled" || m.status === "Rescheduled"));
-    try {
-      await Promise.all(bulkMeetings.map(async (meeting) => {
-        await meetingService.updateMeeting(meeting.id, {
-          status: "Cancelled",
-          cancelledDate: new Date().toISOString().split("T")[0]
-        });
-        if (meeting.relatedToType === "Lead" && meeting.relatedToId) {
-          await leadService.updateLead(meeting.relatedToId, { status: "Lost" });
-        }
-      }));
-      showToast(`${bulkMeetings.length} meeting(s) cancelled. Related leads marked as Lost.`, "success");
-      setSelectedIds([]);
-      fetchMeetings();
-    } catch (err) {
-      showToast("Failed to cancel meetings.", "error");
-    }
-  };
-
   const totalItems = filteredMeetings.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
-
-  const handleSort = (field: keyof Meeting) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortOrder("asc");
-    }
-    setCurrentPage(1);
-  };
 
   const openRescheduleModal = (meeting: Meeting) => {
     setRescheduleModal({ open: true, meeting });
     setRescheduleDate(meeting.date || "");
     setRescheduleTime(meeting.time || "");
-    setRescheduleSummary(meeting.agenda || "");
-  };
-
-  const renderSortHeader = (label: string, field: keyof Meeting) => {
-    const isActive = sortField === field;
-    return (
-      <button
-        onClick={() => handleSort(field)}
-        className="flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer"
-      >
-        {label}
-        <span className="flex flex-col">
-          <ChevronUpIcon
-            className={`w-3 h-3 -mb-1 transition-colors ${isActive && sortOrder === "asc"
-              ? "text-brand-500"
-              : "text-gray-300 dark:text-gray-600"
-              }`}
-          />
-          <ChevronDownIcon
-            className={`w-3 h-3 transition-colors ${isActive && sortOrder === "desc"
-              ? "text-brand-500"
-              : "text-gray-300 dark:text-gray-600"
-              }`}
-          />
-        </span>
-      </button>
-    );
+    setRescheduleSummary(meeting.actionSummary || "");
   };
 
   const handleReschedule = async () => {
@@ -282,11 +189,22 @@ export default function MeetingsScopePage() {
     if (!meeting || !rescheduleDate || !rescheduleSummary.trim()) return;
 
     try {
-      const scheduledAt = new Date(`${rescheduleDate}T${rescheduleTime || "09:00"}`);
+      // Normalize the picker's 12-hour "h:mm AM/PM" value to 24-hour "HH:MM"
+      // so `new Date()` parses it correctly.
+      const timeMatch = (rescheduleTime || "09:00").trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      let start24 = "09:00";
+      if (timeMatch) {
+        let hours = parseInt(timeMatch[1], 10);
+        const period = timeMatch[3] ? timeMatch[3].toUpperCase() : null;
+        if (period === "PM" && hours < 12) hours += 12;
+        else if (period === "AM" && hours === 12) hours = 0;
+        start24 = `${String(hours).padStart(2, "0")}:${timeMatch[2]}`;
+      }
+      const scheduledAt = new Date(`${rescheduleDate}T${start24}`);
       await meetingService.updateMeeting(meeting.id, {
         scheduledAt: scheduledAt.toISOString(),
         status: "RESCHEDULED",
-        agenda: rescheduleSummary
+        actionSummary: rescheduleSummary
       });
 
       showToast(`Meeting "${meeting.subject}" rescheduled successfully.`, "success");
@@ -315,10 +233,7 @@ export default function MeetingsScopePage() {
     if (!meeting || !completeSummary.trim()) return;
 
     try {
-      await meetingService.updateMeeting(meeting.id, {
-        status: "COMPLETED",
-        scopeNotes: completeSummary
-      });
+      await meetingService.updateMeetingStatus(meeting.id, "COMPLETED", undefined, completeSummary);
 
       if (meeting.relatedToId) {
         await leadService.updateLead(meeting.relatedToId, {
@@ -344,7 +259,6 @@ export default function MeetingsScopePage() {
   const openCancelModal = (meeting: Meeting) => {
     setCancelModal({ open: true, meeting });
     setCancelSummary("");
-    setCancelLostReason("");
   };
 
   const handleCancel = async () => {
@@ -354,7 +268,7 @@ export default function MeetingsScopePage() {
     try {
       await meetingService.updateMeeting(meeting.id, {
         status: "CANCELLED",
-        scopeNotes: cancelSummary
+        actionSummary: cancelSummary
       });
 
       if (meeting.relatedToId) {
@@ -374,7 +288,6 @@ export default function MeetingsScopePage() {
   const closeCancelModal = () => {
     setCancelModal({ open: false, meeting: null });
     setCancelSummary("");
-    setCancelLostReason("");
   };
 
   // ─── Business Proposal Navigation ───────────────────────────────────
@@ -535,66 +448,32 @@ export default function MeetingsScopePage() {
         ))}
       </div>
 
-      {/* Bulk Actions Toolbar */}
-      {selectedIds.length > 0 && (
-        <div className="flex items-center justify-between gap-3 mb-3 px-4 py-3 rounded-xl border border-brand-200 bg-brand-50 dark:border-brand-500/20 dark:bg-brand-500/10">
-          <span className="text-sm font-medium text-brand-700 dark:text-brand-400">
-            {selectedIds.length} selected
-          </span>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={handleBulkComplete}>
-              Complete ({selectedIds.length})
-            </Button>
-            <Button size="sm" className="bg-error-600 hover:bg-error-700" onClick={handleBulkCancel}>
-              Cancel
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setSelectedIds([])}>
-              Clear
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* ── Meetings Table ── */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="max-w-full overflow-x-auto custom-scrollbar">
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50 dark:bg-gray-900">
               <TableRow>
-                <TableCell isHeader className="px-4 py-3.5 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selectAll}
-                    ref={(el) => { if (el) el.indeterminate = isIndeterminate; }}
-                    onChange={toggleSelectAll}
-                    className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 cursor-pointer"
-                  />
-                </TableCell>
-                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{renderSortHeader("Meeting ID", "id")}</TableCell>
-                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{renderSortHeader("Company", "company")}</TableCell>
-                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{renderSortHeader("Contact", "contactPerson")}</TableCell>
-                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{renderSortHeader("Type", "type")}</TableCell>
-                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{renderSortHeader("Date", "date")}</TableCell>
-                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{renderSortHeader("Time", "time")}</TableCell>
-                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{renderSortHeader("Status", "status")}</TableCell>
+                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">S.No</TableCell>
+                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">Meeting ID</TableCell>
+                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">Company</TableCell>
+                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">Contact</TableCell>
+                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">Type</TableCell>
+                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">Date</TableCell>
+                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">Time</TableCell>
+                <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">Status</TableCell>
                 <TableCell isHeader className="px-4 py-3.5 text-start text-theme-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">Actions</TableCell>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {filteredMeetings.length > 0 ? (
-                paginatedMeetings.map((meeting) => (
+                paginatedMeetings.map((meeting, index) => (
                   <TableRow
                     key={meeting.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors group"
                   >
-                    <TableCell className="px-4 py-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(meeting.id)}
-                        onChange={() => toggleSelect(meeting.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 cursor-pointer"
-                      />
+                    <TableCell className="px-4 py-4 text-theme-sm text-gray-500 dark:text-gray-400 font-mono text-xs">
+                      {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell className="px-4 py-4 text-theme-sm text-gray-500 dark:text-gray-400 font-mono text-xs">
                       {`SF-MTG-${String(meeting.id).padStart(4, "0")}`}
@@ -853,24 +732,10 @@ export default function MeetingsScopePage() {
               )}
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-                Cancel Reason <span className="text-error-500">*</span>
-              </label>
-              <Select
-                options={lostReasons}
-                placeholder="Select Lost Reason"
-                onChange={(val: string) => setCancelLostReason(val)}
-              />
-              {!cancelLostReason && (
-                <p className="text-xs text-error-500 mt-1.5">Cancel reason is required</p>
-              )}
-            </div>
-
             <div className="rounded-lg bg-error-50 dark:bg-error-500/10 p-3.5 border border-error-100 dark:border-error-500/20">
               <p className="text-xs text-error-700 dark:text-error-400 flex items-center gap-1.5">
                 <FiXCircle className="size-3.5 shrink-0" />
-                <span>The related Lead will be automatically marked as <strong>Lost</strong> with the selected reason.</span>
+                <span>The related Lead will be automatically marked as <strong>Lost</strong>.</span>
               </p>
             </div>
           </div>
@@ -882,7 +747,7 @@ export default function MeetingsScopePage() {
               size="sm"
               onClick={handleCancel}
               className="w-1/2 bg-error-600 hover:bg-error-700"
-              disabled={!cancelSummary.trim() || !cancelLostReason}
+              disabled={!cancelSummary.trim()}
             >
               Confirm Cancel
             </Button>
