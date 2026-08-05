@@ -226,7 +226,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle, customName }) =>
       const parts = pathname.split("/");
       const id = parts[2];
       const isEdit = parts[3] === "edit";
-      const clientName = getClientName(id);
+      const clientName = customName || getClientName(id);
 
       breadcrumbs.push({ label: "Clients", to: "/clients" });
       if (isEdit) {

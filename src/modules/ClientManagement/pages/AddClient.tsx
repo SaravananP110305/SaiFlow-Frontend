@@ -7,11 +7,12 @@ import Input from "../../../components/form/input/InputField";
 import Select from "../../../components/form/Select";
 import { useToast } from "../../../hooks/useToast";
 import { clientService } from "../../../services/clientService";
+import { leadService } from "../../../services/leadService";
 import { masterService } from "../../../services/masterService";
+import { userService } from "../../../services/userService";
 import api from "../../../services/api";
 
 const COMMUNICATION_OPTS = ["Email", "Phone", "WhatsApp"];
-const ASSIGNEES = ["John Doe", "Jane Smith", "Alice Johnson", "Robert Lee"];
 
 export default function AddClient() {
   const navigate = useNavigate();
@@ -20,6 +21,10 @@ export default function AddClient() {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [wonLeads, setWonLeads] = useState<any[]>([]);
+  const [wonLeadsOptions, setWonLeadsOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedLeadId, setSelectedLeadId] = useState<string>("");
 
   // ── Form Fields ────────────────────────────
   const [name, setName] = useState("");
@@ -61,15 +66,18 @@ export default function AddClient() {
   const [countryOptions, setCountryOptions] = useState<{ value: string; label: string }[]>([]);
   const [stateOptions, setStateOptions] = useState<{ value: string; label: string }[]>([]);
   const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>([]);
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [activeUsers, setActiveUsers] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
     const loadDropdownData = async () => {
       try {
-        const [countriesData, industriesData, designationsData, paymentTypesData] = await Promise.all([
+        const [countriesData, industriesData, designationsData, paymentTypesData, usersData] = await Promise.all([
           masterService.getMasterItems("COUNTRY"),
           masterService.getMasterItems("INDUSTRY"),
           masterService.getMasterItems("DESIGNATION"),
-          masterService.getMasterItems("PAYMENT_TYPE")
+          masterService.getMasterItems("PAYMENT_TYPE"),
+          userService.getUsers()
         ]);
         
         // Keep the full raw country list so the country → state → city cascade
@@ -81,12 +89,104 @@ export default function AddClient() {
         setIndustryOptions(activeOnly(industriesData).map((x: any) => ({ value: x.name, label: x.name })));
         setDesignationOptions(activeOnly(designationsData).map((x: any) => ({ value: x.name, label: x.name })));
         setPaymentTypeOptions(activeOnly(paymentTypesData).map((x: any) => ({ value: x.name, label: x.name })));
+
+        const usersList = usersData?.data || [];
+        setUsersList(usersList);
+        setActiveUsers(
+          usersList
+            .filter((u: any) => u.status === "ACTIVE" && u.name !== "System Administrator")
+            .map((u: any) => ({ value: u.name, label: u.name }))
+        );
       } catch (err) {
         console.error("Failed to load drop-downs in AddClient", err);
       }
     };
     loadDropdownData();
   }, []);
+
+  useEffect(() => {
+    const fetchWonLeads = async () => {
+      try {
+        const response = await leadService.getLeads({ limit: 1000 });
+        if (response && Array.isArray(response.data)) {
+          const won = response.data.filter((l: any) => l.status === "WON");
+          setWonLeads(won);
+          setWonLeadsOptions(won.map((l: any) => ({
+            value: l.id.toString(),
+            label: `${l.contactPerson} (${l.title || l.company || "No Company"})`
+          })));
+        }
+      } catch (err) {
+        console.error("Failed to load won leads", err);
+      }
+    };
+    if (!isEditMode) {
+      fetchWonLeads();
+    }
+  }, [isEditMode]);
+
+  const handleWonLeadSelect = (leadIdStr: string) => {
+    setSelectedLeadId(leadIdStr);
+    if (!leadIdStr) {
+      setName("");
+      setCompany("");
+      setEmail("");
+      setPhone("");
+      setWebsite("");
+      setCompanyEmail("");
+      setCompanyPhone("");
+      setAddress("");
+      setPincode("");
+      setContactName("");
+      setDesignation("");
+      setMobile("");
+      setCountry("");
+      setState("");
+      setCity("");
+      setIndustry("");
+      return;
+    }
+    const lead = wonLeads.find(l => l.id.toString() === leadIdStr);
+    if (lead) {
+      setName(lead.contactPerson || "");
+      setCompany(lead.title || lead.company || "");
+      setEmail(lead.email || "");
+      setPhone(lead.phone || "");
+      setWebsite(lead.website || "");
+      setCompanyEmail(lead.email || "");
+      setCompanyPhone(lead.phone || "");
+      setAddress(lead.address || "");
+      setPincode(lead.pincode || "");
+      setContactName(lead.contactPerson || "");
+      setDesignation(lead.designation || "");
+      setMobile(lead.phone || "");
+      
+      if (lead.country?.name) {
+        setCountry(lead.country.name);
+      }
+      if (lead.state?.name) {
+        setState(lead.state.name);
+      }
+      if (lead.city?.name) {
+        setCity(lead.city.name);
+      }
+      if (lead.industry?.name) {
+        setIndustry(lead.industry.name);
+      }
+
+      // Clear related validation errors
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.name;
+        delete next.company;
+        delete next.email;
+        delete next.phone;
+        return next;
+      });
+
+      showToast(`Auto-populated details for client "${lead.contactPerson}"`, "success");
+    }
+  };
 
   useEffect(() => {
     const loadStates = async () => {
@@ -133,31 +233,33 @@ export default function AddClient() {
         try {
           const client = await clientService.getClientById(Number(id));
           if (client) {
-            setName(client.contactName || client.name || "");
-            setCompany(client.company?.name || client.company || "");
-            setEmail(client.email || client.company?.email || "");
-            setPhone(client.phone || client.company?.phone || "");
+            const company = client.company || {};
+            const lead = client.lead || {};
+            setName(lead.contactPerson || client.contactName || client.name || "");
+            setCompany(company.name || client.company || "");
+            setEmail(lead.email || client.email || "");
+            setPhone(lead.phone || client.phone || "");
             setStatus(client.status || "Active");
-            setIndustry(client.company?.industry || "");
-            setWebsite(client.company?.website || "");
-            setCompanyEmail(client.company?.email || "");
-            setCompanyPhone(client.company?.phone || "");
+            setIndustry(company.industry?.name || lead.industry?.name || "");
+            setWebsite(company.website || lead.website || "");
+            setCompanyEmail(company.email || "");
+            setCompanyPhone(company.phone || "");
             setGstNumber(client.gstPan || "");
-            setPanNumber("");
-            setAddress(client.company?.address || "");
-            setCity(client.company?.city || "");
-            setState(client.company?.state || "");
-            setCountry(client.company?.country || "");
-            setPincode(client.company?.pincode || "");
-            setContactName(client.contactName || client.name || "");
-            setDesignation("");
-            setMobile(client.phone || "");
-            setRelationshipManager("");
-            setAccountManager("");
+            setPanNumber(client.panNumber || "");
+            setAddress(company.address || lead.address || "");
+            setCity(company.city?.name || lead.city?.name || "");
+            setState(company.state?.name || lead.state?.name || "");
+            setCountry(company.country?.name || lead.country?.name || "");
+            setPincode(company.pincode || lead.pincode || "");
+            setContactName(lead.contactPerson || client.contactName || client.name || "");
+            setDesignation(lead.designation || "");
+            setMobile(lead.phone || client.phone || "");
+            setRelationshipManager(client.relationshipManager?.name || "");
+            setAccountManager(client.accountManager?.name || "");
             setClientSince(client.createdAt ? client.createdAt.split("T")[0] : "");
-            setPaymentTerms("Net 30");
-            setPreferredCommunication("Email");
-            setCreditLimit("");
+            setPaymentTerms(client.paymentTerms || "");
+            setPreferredCommunication(client.preferredCommunication || "");
+            setCreditLimit(client.creditLimit != null ? String(client.creditLimit) : "");
           }
         } catch (err) {
           console.error(err);
@@ -241,17 +343,38 @@ export default function AddClient() {
     }
 
     try {
+      const resolveUserId = (managerName: string): number | null => {
+        if (!managerName) return null;
+        const user = usersList.find((u: any) => u.name === managerName);
+        return user?.id || null;
+      };
+
+      const companyPayload = {
+        name: company.trim(),
+        website: website.trim() || null,
+        email: companyEmail.trim() || null,
+        phone: companyPhone.trim() || null,
+        address: address.trim() || null,
+        pincode: pincode.trim() || null
+      };
+
+      const clientPayload = {
+        gstPan: gstNumber.trim() || null,
+        panNumber: panNumber.trim() || null,
+        paymentTerms: paymentTerms || null,
+        creditLimit: creditLimit !== "" ? Number(creditLimit) : null,
+        preferredCommunication: preferredCommunication || null,
+        relationshipManagerId: resolveUserId(relationshipManager),
+        accountManagerId: resolveUserId(accountManager)
+      };
+
       if (isEditMode && id) {
         const client = await clientService.getClientById(Number(id));
         if (client && client.companyId) {
-          await api.put(`/companies/${client.companyId}`, {
-            name: company.trim(),
-            website: website.trim(),
-            address: address.trim()
-          });
+          await api.put(`/companies/${client.companyId}`, companyPayload);
         }
         await clientService.updateClient(Number(id), {
-          gstPan: gstNumber,
+          ...clientPayload,
           status
         });
         showToast("Client details updated.", "success");
@@ -263,14 +386,16 @@ export default function AddClient() {
         );
         if (existingCompany) {
           companyId = existingCompany.id;
+          await api.put(`/companies/${existingCompany.id}`, companyPayload);
         } else {
-          const newCompany = await api.post('/companies', { name: company.trim() });
+          const newCompany = await api.post('/companies', companyPayload);
           companyId = newCompany.data?.data?.id;
         }
 
         await clientService.createClient({
           companyId,
-          gstPan: gstNumber,
+          leadId: selectedLeadId ? Number(selectedLeadId) : undefined,
+          ...clientPayload,
           status
         });
         showToast("Client added successfully.", "success");
@@ -347,7 +472,24 @@ export default function AddClient() {
                 className="bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
               />
             </div>
-            {renderField("Client Name", name, setName, { required: true, placeholder: "Johnathan Doe", errorKey: "name" })}
+            {isEditMode ? (
+              renderField("Client Name", name, setName, { required: true, placeholder: "Johnathan Doe", errorKey: "name" })
+            ) : (
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Client Name (Select from Won Lead) <span className="text-error-500">*</span>
+                </label>
+                <Select
+                  options={wonLeadsOptions}
+                  placeholder="Select a Won Lead"
+                  defaultValue={selectedLeadId}
+                  onChange={handleWonLeadSelect}
+                />
+                {errors.name && (
+                  <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+                )}
+              </div>
+            )}
             {renderField("Company Name", company, setCompany, { required: true, placeholder: "SpaceX Logistics", errorKey: "company" })}
             {renderField("Email Address", email, setEmail, { required: true, type: "email", placeholder: "john@spacex.com", errorKey: "email" })}
             {renderField("Phone Number", phone, setPhone, { required: true, placeholder: "+1 (555) 019-2831", errorKey: "phone" })}
@@ -445,7 +587,7 @@ export default function AddClient() {
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Relationship Manager</label>
               <Select
-                options={ASSIGNEES.map((a) => ({ value: a, label: a }))}
+                options={activeUsers}
                 placeholder="Select Manager"
                 defaultValue={relationshipManager}
                 onChange={(val) => setRelationshipManager(val)}
@@ -454,7 +596,7 @@ export default function AddClient() {
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Account Manager</label>
               <Select
-                options={ASSIGNEES.map((a) => ({ value: a, label: a }))}
+                options={activeUsers}
                 placeholder="Select Manager"
                 defaultValue={accountManager}
                 onChange={(val) => setAccountManager(val)}
@@ -498,22 +640,8 @@ export default function AddClient() {
           </div>
         </div>
 
-        {/* Status & Actions */}
+        {/* Actions */}
         <div className="pt-4 border-t border-gray-100 dark:border-white/[0.05]">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-6">
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Status</label>
-              <Select
-                options={[
-                  { value: "Active", label: "Active" },
-                  { value: "Inactive", label: "Inactive" },
-                  { value: "Blacklisted", label: "Blacklisted" },
-                ]}
-                defaultValue={status}
-                onChange={(val) => setStatus(val as any)}
-              />
-            </div>
-          </div>
           <div className="flex items-center justify-end gap-3">
             <Button size="sm" type="button" variant="outline" onClick={handleCancel}>
               Cancel

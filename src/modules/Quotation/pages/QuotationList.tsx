@@ -5,9 +5,6 @@ import { formatDate as centFormatDate } from "../../../utils/dateFormatter";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import { proposalService } from "../../../services/proposalService";
-import { clientService } from "../../../services/clientService";
-import { leadService } from "../../../services/leadService";
-import api from "../../../services/api";
 import Button from "../../../components/ui/button/Button";
 import Input from "../../../components/form/input/InputField";
 import { Modal } from "../../../components/ui/modal";
@@ -262,45 +259,8 @@ export default function QuotationList() {
       case "convert":
         setConfirmAction({
           title: "Convert to Client",
-          message: `Mark proposal ${proposal.proposalNo} as "Converted" and create a client record for ${proposal.companyName}? You'll be redirected to the Clients page.`,
-          onConfirm: async () => {
-            try {
-              let companyId;
-              const searchRes = await api.get('/companies', { params: { search: proposal.companyName.trim() } });
-              const existingCompany = searchRes.data?.data?.find(
-                (c: any) => c.name.toLowerCase() === proposal.companyName.trim().toLowerCase()
-              );
-              if (existingCompany) {
-                companyId = existingCompany.id;
-              } else {
-                const newCompany = await api.post('/companies', { name: proposal.companyName.trim() });
-                companyId = newCompany.data?.data?.id;
-              }
-
-              const leadsRes = await leadService.getLeads({ limit: 100 });
-              const matchedLead = leadsRes.data?.find(
-                (l: any) => l.title?.toLowerCase() === proposal.companyName.toLowerCase() ||
-                            l.email?.toLowerCase() === proposal.leadEmail.toLowerCase()
-              );
-
-              await clientService.createClient({
-                companyId,
-                leadId: matchedLead ? matchedLead.id : undefined,
-                status: "Active"
-              });
-
-              await proposalService.updateProposal(proposal.id, { status: "Converted" });
-
-              if (matchedLead) {
-                await leadService.updateLead(matchedLead.id, { status: "Won" });
-              }
-
-              showToast(`Client "${proposal.companyName}" created successfully!`, "success");
-              navigate("/clients");
-            } catch (err) {
-              showToast("Failed to convert proposal to client.", "error");
-            }
-          },
+          message: `Mark proposal ${proposal.proposalNo} as "Converted"?`,
+          onConfirm: () => updateStatus(proposal.id, "Converted", "Proposal converted to client status."),
         });
         confirmActionModal.openModal();
         break;

@@ -13,7 +13,6 @@ import {
   FiPhone,
   FiGlobe,
   FiCalendar,
-  FiArrowLeft,
   FiActivity,
   FiCreditCard,
   FiExternalLink,
@@ -62,33 +61,36 @@ export default function ClientDetails() {
         setLoading(true);
         const data = await clientService.getClientById(Number(id));
         if (data) {
+          const company = data.company || {};
+          const lead = data.lead || {};
           setClient({
             id: data.id,
-            company: data.company?.name || data.company || "",
-            name: data.contactName || data.name || "",
-            email: data.email || data.company?.email || "",
-            phone: data.phone || data.company?.phone || "",
+            company: company.name || "",
+            name: lead.contactPerson || data.name || "",
+            email: lead.email || data.email || "",
+            phone: lead.phone || data.phone || "",
             projectsCount: data.projects ? data.projects.length : 0,
             status: data.status || "Active",
             gstNumber: data.gstPan || "",
-            panNumber: "",
-            website: data.company?.website || "",
-            companyEmail: data.company?.email || "",
-            companyPhone: data.company?.phone || "",
-            address: data.company?.address || "",
-            city: data.company?.city || "",
-            state: data.company?.state || "",
-            country: data.company?.country || "India",
-            pincode: data.company?.pincode || "",
-            contactName: data.contactName || data.name || "",
-            designation: "",
-            mobile: data.phone || "",
-            relationshipManager: "",
-            accountManager: "",
+            panNumber: data.panNumber || "",
+            website: company.website || lead.website || "",
+            companyEmail: company.email || "",
+            companyPhone: company.phone || "",
+            address: company.address || lead.address || "",
+            city: company.city?.name || lead.city?.name || "",
+            state: company.state?.name || lead.state?.name || "",
+            country: company.country?.name || lead.country?.name || "",
+            pincode: company.pincode || lead.pincode || "",
+            contactName: lead.contactPerson || "",
+            designation: lead.designation || "",
+            mobile: lead.phone || "",
+            relationshipManager: data.relationshipManager?.name || "",
+            accountManager: data.accountManager?.name || "",
             clientSince: data.createdAt ? data.createdAt.split("T")[0] : "",
-            paymentTerms: "Net 30",
-            preferredCommunication: "Email",
-            creditLimit: "",
+            paymentTerms: data.paymentTerms || "",
+            preferredCommunication: data.preferredCommunication || "",
+            creditLimit: data.creditLimit != null ? String(data.creditLimit) : "",
+            industry: company.industry?.name || lead.industry?.name || "",
             handoverStatus: data.projects && data.projects.length > 0 ? "Onboarded" : "Pending",
           });
         }
@@ -136,21 +138,10 @@ export default function ClientDetails() {
   return (
     <>
       <PageMeta
-        title={`Client Details: ${client.company} | SaiFlow`}
+        title={`${client.company} | SaiFlow`}
         description="View enterprise profile, meetings, contracts and payment terms."
       />
-      <PageBreadcrumb pageTitle="Client Details" />
-
-      {/* Top Action Bar */}
-      <div className="flex items-center justify-between mb-5">
-        <button
-          onClick={() => navigate("/clients")}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-white transition cursor-pointer"
-        >
-          <FiArrowLeft className="size-4" />
-          Back to List
-        </button>
-      </div>
+      <PageBreadcrumb pageTitle="Client Details" customName={client.company} />
 
       {/* Summary Header Card */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-gray-200 bg-white px-6 py-5 mb-6 dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -164,10 +155,18 @@ export default function ClientDetails() {
             </h2>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex flex-wrap gap-x-3 gap-y-1">
               <span>Client ID: SF-CLI-{String(client.id).padStart(4, "0")}</span>
-              <span>•</span>
-              <span>Contact: {client.name}</span>
-              <span>•</span>
-              <span>Email: {client.email}</span>
+              {client.name && (
+                <>
+                  <span>•</span>
+                  <span>Contact: {client.name}</span>
+                </>
+              )}
+              {client.email && (
+                <>
+                  <span>•</span>
+                  <span>Email: {client.email}</span>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -214,10 +213,10 @@ export default function ClientDetails() {
                 Company Profile
               </h3>
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                <InfoCard icon={<FiBriefcase className="size-4" />} label="Industry" value={client.industry || "Information Technology"} />
+                <InfoCard icon={<FiBriefcase className="size-4" />} label="Industry" value={client.industry} />
                 <InfoCard icon={<FiGlobe className="size-4" />} label="Website" value={client.website ? <a href={client.website} target="_blank" rel="noreferrer" className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors inline-flex items-center gap-1">{client.website}<FiExternalLink className="size-3" /></a> : "—"} />
                 <InfoCard icon={<FiShield className="size-4" />} label="GST Number" value={client.gstNumber} />
-                <InfoCard icon={<FiShield className="size-4" />} label="PAN Number" value={client.panNumber || "AAAAA0000A"} />
+                <InfoCard icon={<FiShield className="size-4" />} label="PAN Number" value={client.panNumber} />
                 <InfoCard icon={<FiMail className="size-4" />} label="Company Email" value={client.companyEmail} />
                 <InfoCard icon={<FiPhone className="size-4" />} label="Company Phone" value={client.companyPhone} />
               </div>
@@ -229,10 +228,10 @@ export default function ClientDetails() {
                 Business Details
               </h3>
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                <InfoCard icon={<FiCalendar className="size-4" />} label="Client Since" value={client.clientSince || "2024-01-10"} />
-                <InfoCard icon={<FiCreditCard className="size-4" />} label="Payment Terms" value={client.paymentTerms || "Net 30"} />
-                <InfoCard icon={<FiCreditCard className="size-4" />} label="Credit Limit (INR)" value={client.creditLimit ? `₹${Number(client.creditLimit).toLocaleString()}` : "₹500,000"} />
-                <InfoCard icon={<FiMail className="size-4" />} label="Preferred Communication" value={client.preferredCommunication || "Email"} />
+                <InfoCard icon={<FiCalendar className="size-4" />} label="Client Since" value={client.clientSince} />
+                <InfoCard icon={<FiCreditCard className="size-4" />} label="Payment Terms" value={client.paymentTerms} />
+                <InfoCard icon={<FiCreditCard className="size-4" />} label="Credit Limit (INR)" value={client.creditLimit !== "" && client.creditLimit != null ? `₹${Number(client.creditLimit).toLocaleString()}` : "—"} />
+                <InfoCard icon={<FiMail className="size-4" />} label="Preferred Communication" value={client.preferredCommunication} />
               </div>
             </div>
 
@@ -243,12 +242,12 @@ export default function ClientDetails() {
               </h3>
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
                 <div className="sm:col-span-3">
-                  <InfoCard icon={<FiHome className="size-4" />} label="Office Address" value={client.address || "45 Tech Corridor, ITPL Road"} />
+                  <InfoCard icon={<FiHome className="size-4" />} label="Office Address" value={client.address} />
                 </div>
-                <InfoCard icon={<FiCompass className="size-4" />} label="City" value={client.city || "Bangalore"} />
-                <InfoCard icon={<FiMap className="size-4" />} label="State" value={client.state || "Karnataka"} />
-                <InfoCard icon={<FiNavigation className="size-4" />} label="Pincode" value={client.pincode || "560066"} />
-                <InfoCard icon={<FiFlag className="size-4" />} label="Country" value={client.country || "India"} />
+                <InfoCard icon={<FiCompass className="size-4" />} label="City" value={client.city} />
+                <InfoCard icon={<FiMap className="size-4" />} label="State" value={client.state} />
+                <InfoCard icon={<FiNavigation className="size-4" />} label="Pincode" value={client.pincode} />
+                <InfoCard icon={<FiFlag className="size-4" />} label="Country" value={client.country} />
               </div>
             </div>
           </div>
@@ -261,7 +260,7 @@ export default function ClientDetails() {
             </h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <InfoCard icon={<FiUser className="size-4" />} label="Contact Name" value={client.contactName || client.name} />
-              <InfoCard icon={<FiBriefcase className="size-4" />} label="Designation" value={client.designation || "BD Director"} />
+              <InfoCard icon={<FiBriefcase className="size-4" />} label="Designation" value={client.designation} />
               <InfoCard icon={<FiPhone className="size-4" />} label="Mobile" value={client.mobile || client.phone} />
               <InfoCard icon={<FiMail className="size-4" />} label="Email" value={client.email ? <a href={`mailto:${client.email}`} className="text-gray-800 dark:text-white/90 hover:text-gray-500 dark:hover:text-gray-400 hover:underline transition-colors">{client.email}</a> : "—"} />
             </div>
@@ -270,8 +269,8 @@ export default function ClientDetails() {
               Relationship Assignment
             </h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <InfoCard icon={<FiUser className="size-4" />} label="Relationship Manager" value={client.relationshipManager || "John Doe"} />
-              <InfoCard icon={<FiUser className="size-4" />} label="Account Manager" value={client.accountManager || "Jane Smith"} />
+              <InfoCard icon={<FiUser className="size-4" />} label="Relationship Manager" value={client.relationshipManager} />
+              <InfoCard icon={<FiUser className="size-4" />} label="Account Manager" value={client.accountManager} />
             </div>
           </div>
         )}
@@ -297,7 +296,7 @@ export default function ClientDetails() {
                       Client Account Created
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Converted from qualified won lead. Relationship manager assigned: {client.relationshipManager || "John Doe"}.
+                      Converted from qualified won lead. Relationship manager assigned: {client.relationshipManager || "Not assigned"}.
                     </p>
                   </div>
                 </div>

@@ -15,6 +15,7 @@ import { Pagination } from "../../../components/ui/pagination/Pagination";
 import Button from "../../../components/ui/button/Button";
 import {
   FiEye,
+  FiEdit2,
   FiDownload,
   FiShield,
   FiCheckCircle,
@@ -22,6 +23,7 @@ import {
   FiUsers,
   FiCalendar,
   FiUser,
+  FiPlus,
 } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
 import { useAuth } from "../../../context/AuthContext";
@@ -67,36 +69,41 @@ export default function ClientList() {
       if (clientsData && Array.isArray(clientsData.data)) {
         const mappedClients = clientsData.data.map((bc: any) => ({
           id: bc.id,
-          company: bc.company?.name || bc.company || "",
-          name: bc.contactName || bc.name || "",
-          email: bc.email || bc.company?.email || "",
-          phone: bc.phone || bc.company?.phone || "",
+          company: bc.company?.name || "",
+          // Contact details come from the linked lead record
+          name: bc.lead?.contactPerson || "",
+          email: bc.lead?.email || "",
+          phone: bc.lead?.phone || "",
           projectsCount: bc.projects ? bc.projects.length : 0,
           status: bc.status || "Active",
           gstNumber: bc.gstPan || "",
           panNumber: "",
-          website: bc.company?.website || "",
+          website: bc.lead?.website || bc.company?.website || "",
           companyEmail: bc.company?.email || "",
           companyPhone: bc.company?.phone || "",
-          address: bc.company?.address || "",
+          address: bc.lead?.address || bc.company?.address || "",
           city: bc.company?.city || "",
           state: bc.company?.state || "",
-          country: bc.company?.country || "India",
-          pincode: bc.company?.pincode || "",
-          contactName: bc.contactName || bc.name || "",
-          designation: "",
-          mobile: bc.phone || "",
-          relationshipManager: "",
-          accountManager: "",
+          country: bc.company?.country || "",
+          pincode: bc.lead?.pincode || bc.company?.pincode || "",
+          contactName: bc.lead?.contactPerson || "",
+          designation: bc.lead?.designation || "",
+          mobile: bc.lead?.phone || "",
+          relationshipManager: bc.relationshipManager?.name || "",
+          accountManager: bc.accountManager?.name || "",
           clientSince: bc.createdAt ? bc.createdAt.split("T")[0] : "",
-          paymentTerms: "Net 30",
+          conversionDate: bc.createdAt ? bc.createdAt.split("T")[0] : "",
+          paymentTerms: bc.paymentTerms || "",
           preferredCommunication: "Email",
-          creditLimit: "",
+          creditLimit: bc.creditLimit ? String(bc.creditLimit) : "",
+          industry: bc.company?.industry || "",
           handoverStatus: bc.projects && bc.projects.length > 0 ? "Onboarded" : "Pending",
           handoverDetails: bc.projects && bc.projects.length > 0 ? {
             projectManager: bc.projects[0].pm?.name || "Unassigned",
             startDate: bc.projects[0].handoverDate ? bc.projects[0].handoverDate.split("T")[0] : "",
-            notes: bc.projects[0].agenda || "",
+            targetDate: bc.projects[0].targetDate ? bc.projects[0].targetDate.split("T")[0] : "",
+            notes: bc.projects[0].notes || "",
+            kickoffDate: bc.projects[0].kickoffDate ? bc.projects[0].kickoffDate.split("T")[0] : "",
           } : undefined
         }));
         setClients(mappedClients);
@@ -174,6 +181,7 @@ export default function ClientList() {
   const [handoverNotes, setHandoverNotes] = useState("");
   const [handoverKickoffDate, setHandoverKickoffDate] = useState("");
   const [handoverError, setHandoverError] = useState("");
+  const [targetDateError, setTargetDateError] = useState("");
 
   const [showHandoverConfirm, setShowHandoverConfirm] = useState(false);
 
@@ -189,6 +197,7 @@ export default function ClientList() {
     setHandoverNotes(client.handoverDetails?.notes || "");
     setHandoverKickoffDate(client.handoverDetails?.kickoffDate || "");
     setHandoverError("");
+    setTargetDateError("");
     setShowHandoverConfirm(false);
   };
 
@@ -200,6 +209,12 @@ export default function ClientList() {
   const handleSaveHandover = () => {
     const { client } = handoverModal;
     if (!client) return;
+
+    if (!handoverTargetDate) {
+      setTargetDateError("Target Delivery Date is required.");
+      return;
+    }
+    setTargetDateError("");
 
     if (!handoverPM.trim() || !handoverNotes.trim() || !handoverStartDate) {
       setHandoverError("Project Manager, Start Date, and Handover Notes are required.");
@@ -223,6 +238,9 @@ export default function ClientList() {
         pmId,
         status: "Kickoff",
         handoverDate: handoverStartDate ? new Date(handoverStartDate).toISOString() : new Date().toISOString(),
+        targetDate: handoverTargetDate ? new Date(handoverTargetDate).toISOString() : null,
+        notes: handoverNotes.trim() || null,
+        kickoffDate: handoverKickoffDate ? new Date(handoverKickoffDate).toISOString() : null,
         srsDocumentUrl: ""
       });
 
@@ -274,37 +292,16 @@ export default function ClientList() {
     return processedClients.slice(start, start + rowsPerPage);
   }, [processedClients, currentPage, rowsPerPage]);
 
-  // Bulk actions
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  const selectAll = useMemo(() => paginatedClients.length > 0 && selectedIds.length === paginatedClients.length, [paginatedClients, selectedIds]);
-  const isIndeterminate = useMemo(() => selectedIds.length > 0 && selectedIds.length < paginatedClients.length, [paginatedClients, selectedIds]);
 
-  const toggleSelect = (id: number) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const toggleSelectAll = () => {
-    if (selectAll) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(paginatedClients.map(c => c.id));
-    }
-  };
-
-  const handleBulkOnboard = async () => {
+  const handleToggleStatus = async (client: Client) => {
+    const newStatus = client.status === "Active" ? "Inactive" : "Active";
     try {
-      await Promise.all(selectedIds.map(id => clientService.createProject({
-        clientId: id,
-        name: "Project Handover",
-        status: "Kickoff",
-        handoverDate: new Date().toISOString()
-      })));
-      showToast(`${selectedIds.length} client(s) marked as Onboarded.`, "success");
-      setSelectedIds([]);
+      await clientService.updateClient(client.id, { status: newStatus });
+      showToast(`Client status updated to ${newStatus}.`, "success");
       fetchClientsAndProposals();
     } catch (err) {
-      showToast("Failed to onboard clients.", "error");
+      showToast("Failed to update client status.", "error");
     }
   };
 
@@ -424,64 +421,25 @@ export default function ClientList() {
           </div>
           */}
         </div>
+        {hasPermission('clients', 'create') && (
+          <Button onClick={() => navigate("/clients/add")} variant="primary" size="sm" startIcon={<FiPlus />}>
+            Add Client
+          </Button>
+        )}
       </div>
 
-      {/* Bulk Actions Toolbar */}
-      {selectedIds.length > 0 && (
-        <div className="flex items-center justify-between gap-3 mb-3 px-4 py-3 rounded-xl border border-brand-200 bg-brand-50 dark:border-brand-500/20 dark:bg-brand-500/10">
-          <span className="text-sm font-medium text-brand-700 dark:text-brand-400">
-            {selectedIds.length} selected
-          </span>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="primary" onClick={handleBulkOnboard}>
-              Mark Onboarded
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setSelectedIds([])}>
-              Clear
-            </Button>
-          </div>
-        </div>
-      )}
 
-      {/* Select All Bar for Cards */}
-      {paginatedClients.length > 0 && (
-        <div className="flex items-center gap-3 mb-4 px-4 py-2 bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.05] rounded-lg">
-          <input
-            type="checkbox"
-            checked={selectAll}
-            ref={(el) => { if (el) el.indeterminate = isIndeterminate; }}
-            onChange={toggleSelectAll}
-            className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 cursor-pointer"
-            id="select-all-clients"
-          />
-          <label htmlFor="select-all-clients" className="text-xs font-medium text-gray-500 dark:text-gray-400 cursor-pointer">
-            Select All Clients
-          </label>
-        </div>
-      )}
 
       {/* Clients Card Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {paginatedClients.map((client) => {
-          const isSelected = selectedIds.includes(client.id);
-          return (
-            <div
-              key={client.id}
-              className={`relative rounded-2xl border bg-white p-5 dark:bg-white/[0.03] transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between ${isSelected
-                ? "border-brand-500 dark:border-brand-500/50 ring-1 ring-brand-500/20"
-                : "border-gray-200 dark:border-white/[0.05]"
-                }`}
-            >
-              {/* Card Header */}
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  {/* Select Checkbox */}
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleSelect(client.id)}
-                    className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 cursor-pointer shrink-0"
-                  />
+        {paginatedClients.map((client) => (
+          <div
+            key={client.id}
+            className="relative rounded-2xl border bg-white p-5 dark:bg-white/[0.03] transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between border-gray-200 dark:border-white/[0.05]"
+          >
+            {/* Card Header */}
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3 min-w-0">
                   {/* Avatar / Initial */}
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold text-sm">
                     {client.company.charAt(0).toUpperCase()}
@@ -551,7 +509,7 @@ export default function ClientList() {
                 </div>
 
                 {/* Assigned Employee */}
-                <div className="flex justify-between items-center text-xs">
+                <div className="flex justify-between items-center text-xs border-b border-gray-50 dark:border-white/[0.02] pb-1.5">
                   <span className="text-gray-400">Assigned To</span>
                   <span className="text-gray-650 dark:text-gray-300 font-medium flex items-center gap-1.5">
                     <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
@@ -559,6 +517,32 @@ export default function ClientList() {
                     </span>
                     {client.assignedEmployee || client.relationshipManager || "—"}
                   </span>
+                </div>
+
+                {/* Status Toggle Switch */}
+                <div className="flex justify-between items-center text-xs pt-1.5">
+                  <span className="text-gray-400">Status</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[11px] font-semibold ${client.status === "Active" ? "text-emerald-600 dark:text-emerald-400" : "text-gray-400 dark:text-gray-500"}`}>
+                      {client.status}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleStatus(client);
+                      }}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                        client.status === "Active" ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-700"
+                      }`}
+                      title={client.status === "Active" ? "Deactivate Client" : "Activate Client"}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                          client.status === "Active" ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -571,6 +555,15 @@ export default function ClientList() {
                 >
                   <FiEye className="size-4" />
                 </button>
+                {hasPermission('clients', 'edit') && (
+                  <button
+                    onClick={() => navigate(`/clients/${client.id}/edit`)}
+                    className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg border border-amber-200 dark:border-amber-800/50 transition cursor-pointer"
+                    title="Edit Client"
+                  >
+                    <FiEdit2 className="size-4" />
+                  </button>
+                )}
                 <button
                   onClick={() => exportClientProposalPDF(client)}
                   className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg border border-emerald-200 dark:border-emerald-800/50 transition cursor-pointer"
@@ -588,9 +581,8 @@ export default function ClientList() {
                   </button>
                 )}
               </div>
-            </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
 
       {paginatedClients.length === 0 && (
@@ -668,7 +660,7 @@ export default function ClientList() {
                         value={emp.name}
                         className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 py-1"
                       >
-                        {emp.name} {emp.role ? `(${emp.role})` : ""}
+                        {emp.name} {emp.role?.name ? `(${emp.role.name})` : ""}
                       </option>
                     ))}
                   </select>
@@ -692,14 +684,20 @@ export default function ClientList() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
-                    Target Delivery Date
+                    Target Delivery Date <span className="text-error-500">*</span>
                   </label>
                   <DatePicker
                     id="handover-target-date"
                     defaultDate={handoverTargetDate}
-                    onChange={(_: Date[], dateStr: string) => setHandoverTargetDate(dateStr)}
+                    onChange={(_: Date[], dateStr: string) => {
+                      setHandoverTargetDate(dateStr);
+                      if (targetDateError) setTargetDateError("");
+                    }}
                     placeholder="Select Delivery Date"
                   />
+                  {targetDateError && (
+                    <p className="mt-1.5 text-xs text-error-500 font-medium">{targetDateError}</p>
+                  )}
                 </div>
               </div>
 
