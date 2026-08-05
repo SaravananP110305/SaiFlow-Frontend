@@ -13,7 +13,6 @@ import {
   TableRow,
   TableCell,
 } from "../../../components/ui/table";
-import { ChevronDownIcon, ChevronUpIcon } from "../../../icons";
 import {
   FiEye,
   FiCheckCircle,
@@ -74,8 +73,6 @@ export default function MyLeads() {
   const [searchQuery, setSearchQuery] = useState("");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<keyof Lead>("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [activeTab, setActiveTab] = useState<"new" | "contacted">("new");
 
   type ContactResult = "Interested" | "Call Later" | "Not Interested";
@@ -164,16 +161,6 @@ export default function MyLeads() {
     }
   };
 
-  const handleSort = (field: keyof Lead) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortOrder("asc");
-    }
-    setCurrentPage(1);
-  };
-
   const processedLeads = useMemo(() => {
     let result = leads;
     if (activeTab === "new") {
@@ -194,21 +181,8 @@ export default function MyLeads() {
       );
     }
 
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-      const strA = String(aVal).toLowerCase();
-      const strB = String(bVal).toLowerCase();
-      if (strA < strB) return sortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
     return result;
-  }, [leads, activeTab, searchQuery, sortField, sortOrder]);
+  }, [leads, activeTab, searchQuery]);
 
   const paginatedLeads = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
@@ -217,28 +191,6 @@ export default function MyLeads() {
 
   const totalItems = processedLeads.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
-
-  const renderSortHeader = (label: string, field: keyof Lead) => {
-    const isActive = sortField === field;
-    return (
-      <button
-        onClick={() => handleSort(field)}
-        className="flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer"
-      >
-        {label}
-        <span className="flex flex-col">
-          <ChevronUpIcon
-            className={`w-3 h-3 -mb-1 transition-colors ${isActive && sortOrder === "asc" ? "text-brand-500" : "text-gray-300 dark:text-gray-600"
-              }`}
-          />
-          <ChevronDownIcon
-            className={`w-3 h-3 transition-colors ${isActive && sortOrder === "desc" ? "text-brand-500" : "text-gray-300 dark:text-gray-600"
-              }`}
-          />
-        </span>
-      </button>
-    );
-  };
 
   if (loading) {
     return <div className="py-10 text-center text-gray-500">Loading contacts...</div>;
@@ -301,30 +253,30 @@ export default function MyLeads() {
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] sticky top-0 bg-white dark:bg-gray-900 z-10">
               <TableRow>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("S.No", "id")}
+                  S.No
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   Lead ID
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Company", "company")}
+                  Company
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Contact Person", "contactPerson")}
+                  Contact Person
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Phone", "phone")}
+                  Phone
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Status", "status")}
+                  Status
                 </TableCell>
                 {activeTab === "new" && (
                   <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    {renderSortHeader("Priority", "priority")}
+                    Priority
                   </TableCell>
                 )}
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {renderSortHeader("Assigned To", "assignedTo")}
+                  Assigned To
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   Action
