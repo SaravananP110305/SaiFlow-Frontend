@@ -327,7 +327,7 @@ export default function UserRoleManagement() {
           <div className="w-full sm:w-64">
             <Input
               type="text"
-              placeholder="Search..."
+              placeholder="Search"
               value={searchQuery}
               onChange={(event) => {
                 setSearchQuery(event.target.value);

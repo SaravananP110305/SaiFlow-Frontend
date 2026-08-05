@@ -543,7 +543,7 @@ export default function Dashboard() {
             <div className="w-full sm:w-64">
               <Input
                 type="text"
-                placeholder="Search Calls..."
+                placeholder="Search"
                 value={callSearchQuery}
                 onChange={(e) => {
                   setCallSearchQuery(e.target.value);
@@ -755,7 +755,7 @@ export default function Dashboard() {
               <div className="w-full sm:w-64">
                 <Input
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                 />

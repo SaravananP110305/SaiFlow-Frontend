@@ -244,7 +244,7 @@ export default function QaList() {
           <div className="w-full sm:w-64">
             <Input
               type="text"
-              placeholder="Search Defects..."
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);

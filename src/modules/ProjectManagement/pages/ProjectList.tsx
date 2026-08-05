@@ -235,7 +235,7 @@ export default function ProjectList() {
           <div className="w-full sm:w-64">
             <Input
               type="text"
-              placeholder="Search Projects..."
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);

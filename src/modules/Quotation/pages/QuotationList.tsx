@@ -446,7 +446,7 @@ export default function QuotationList() {
           <div className="w-full sm:w-64">
             <Input
               type="text"
-              placeholder="Search proposals..."
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             />

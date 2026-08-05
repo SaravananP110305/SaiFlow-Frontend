@@ -336,7 +336,7 @@ export default function LeadList() {
         <div className="w-full sm:w-72">
           <Input
             type="text"
-            placeholder="Search by company, contact, email, phone..."
+            placeholder="Search"
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);

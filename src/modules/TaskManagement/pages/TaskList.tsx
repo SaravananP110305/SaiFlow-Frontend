@@ -241,7 +241,7 @@ export default function TaskList() {
           <div className="w-full sm:w-64">
             <Input
               type="text"
-              placeholder="Search Tasks..."
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);

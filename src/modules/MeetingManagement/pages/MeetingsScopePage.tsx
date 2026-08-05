@@ -493,7 +493,7 @@ export default function MeetingsScopePage() {
           <div className="w-full sm:w-64">
             <Input
               type="text"
-              placeholder="Search by company, contact, or type..."
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);

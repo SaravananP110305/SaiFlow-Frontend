@@ -286,7 +286,7 @@ export default function MyLeads() {
           <div className="w-full sm:w-64">
             <Input
               type="text"
-              placeholder="Search..."
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             />

@@ -236,7 +236,7 @@ export default function SupportList() {
           <div className="w-full sm:w-64">
             <Input
               type="text"
-              placeholder="Search Tickets..."
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);

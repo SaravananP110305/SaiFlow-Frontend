@@ -528,7 +528,7 @@ export default function MeetingForm() {
                 <div className="absolute left-0 z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-905 bg-white dark:bg-gray-900">
                   <input
                     type="text"
-                    placeholder="Search employees..."
+                    placeholder="Search"
                     value={ownerSearch}
                     onChange={(e) => setOwnerSearch(e.target.value)}
                     className="w-full rounded-md border border-gray-200 bg-transparent px-3 py-2 text-xs text-gray-800 dark:border-gray-700 dark:text-white mb-2 focus:outline-none focus:border-brand-500"
