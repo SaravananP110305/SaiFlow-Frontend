@@ -8,16 +8,10 @@ import Button from "../../../components/ui/button/Button";
 import Badge from "../../../components/ui/badge/Badge";
 import { Lead } from "../data/leadsData";
 import { leadService } from "../../../services/leadService";
-import { userService } from "../../../services/userService";
-import { useAuth } from "../../../context/AuthContext";
 import {
   getStatusLabel,
   getStatusBadgeColor,
-  getNextStatuses,
 } from "../utils/leadStatus";
-import Select from "../../../components/form/Select";
-import Input from "../../../components/form/input/InputField";
-import { Modal } from "../../../components/ui/modal";
 import { useToast } from "../../../hooks/useToast";
 import {
   FiBriefcase,
@@ -28,7 +22,6 @@ import {
   FiUserCheck,
   FiCalendar,
   FiEdit,
-  FiArrowLeft,
   FiActivity,
   FiXCircle,
   FiHash,
@@ -84,7 +77,6 @@ export default function LeadDetails() {
 
 
   const { showToast } = useToast();
-  const { hasPermission } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -143,20 +135,6 @@ export default function LeadDetails() {
       setTimeout(() => setTimelineVisibleCount(TIMELINE_INITIAL_COUNT), 0);
     }
   }
-
-  // Convert Lead Modal state
-  const [showConvertModal, setShowConvertModal] = useState(false);
-  const [paymentTerms, setPaymentTerms] = useState("Net 30");
-  const [creditLimit, setCreditLimit] = useState("");
-  const [wonAmount, setWonAmount] = useState("");
-  const [relManagerId, setRelManagerId] = useState<number | null>(null);
-  const [accManagerId, setAccManagerId] = useState<number | null>(null);
-  const [users, setUsers] = useState<any[]>([]);
-
-  // Status change modal state
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
-  const [nextStatus, setNextStatus] = useState("");
-  const [lostReason, setLostReason] = useState("");
 
   // Activity Timeline events (computed with useMemo; must stay before early returns)
   const timelineEvents = useMemo(() => {
@@ -239,58 +217,6 @@ export default function LeadDetails() {
     return events.sort((a, b) => b.timestamp - a.timestamp);
   }, [lead]);
 
-  useEffect(() => {
-    userService
-      .getUsers()
-      .then((res) => setUsers(res.data || []))
-      .catch(() => {
-        setUsers([]);
-      });
-  }, []);
-
-  const handleStatusChange = async (newStatus: string, reason?: string) => {
-    if (!lead) return;
-    try {
-      await leadService.updateLead(lead.id, {
-        status: newStatus,
-        ...(reason ? { lostReason: reason } : {}),
-      });
-      showToast(`Lead moved to ${getStatusLabel(newStatus)}.`, "success");
-      setStatusModalOpen(false);
-      setLostReason("");
-      loadLeadDetails();
-    } catch (err: any) {
-      showToast(err.response?.data?.message || "Failed to update lead status.", "error");
-    }
-  };
-
-  const openStatusModal = (status: string) => {
-    setNextStatus(status);
-    setLostReason("");
-    setStatusModalOpen(true);
-  };
-
-  const handleConvertLeadConfirm = async () => {
-    if (!lead) return;
-
-    try {
-      await leadService.convertLead(lead.id, {
-        gstPan: lead.gstNumber || "",
-        paymentTerms,
-        creditLimit: creditLimit !== "" ? Number(creditLimit) : null,
-        relationshipManagerId: relManagerId,
-        accountManagerId: accManagerId,
-        wonAmount: wonAmount !== "" ? Number(wonAmount) : null,
-      });
-
-      showToast(`Lead converted to Client successfully!`, "success");
-      setShowConvertModal(false);
-      navigate(`/clients`);
-    } catch (err: any) {
-      showToast(err.response?.data?.message || "Failed to convert lead to client.", "error");
-    }
-  };
-
   if (loading) {
     return <div className="py-10 text-center text-gray-500">Loading details...</div>;
   }
@@ -326,75 +252,6 @@ export default function LeadDetails() {
         description="View detailed information about a lead in SaiFlow CRM."
       />
       <PageBreadcrumb pageTitle="Lead Details" />
-
-      {/* Top action bar */}
-      <div className="flex items-center justify-between mb-5">
-        <button
-          onClick={() => navigate("/leads")}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-white transition cursor-pointer"
-        >
-          <FiArrowLeft className="size-4" />
-          Back to List
-        </button>
-        <div className="flex items-center gap-3 flex-wrap">
-          {hasPermission("leads", "edit") && lead.status === "QUALIFIED" && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => navigate(`/meetings/add?relatedType=Lead&relatedId=${lead.id}`)}
-              startIcon={<FiCalendar className="size-4" />}
-            >
-              Schedule Meeting
-            </Button>
-          )}
-          {hasPermission("leads", "edit") &&
-            ["QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON"].includes(lead.status) &&
-            (!lead.clients || lead.clients.length === 0) && (
-              <Button
-                size="sm"
-                onClick={() => setShowConvertModal(true)}
-                className="bg-success-600 hover:bg-success-700 text-white"
-              >
-                Convert to Client
-              </Button>
-            )}
-          {hasPermission("leads", "edit") && getNextStatuses(lead.status).length > 0 && (
-            <select
-              value=""
-              onChange={(e) => {
-                const s = e.target.value;
-                if (!s) return;
-                if (s === "LOST" || s === "DISQUALIFIED") {
-                  openStatusModal(s);
-                } else {
-                  handleStatusChange(s);
-                }
-              }}
-              className="h-10 appearance-none rounded-lg border border-gray-200 bg-white px-3.5 pr-8 text-sm text-gray-700 shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
-              style={{
-                backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-                backgroundPosition: "right 0.6rem center",
-                backgroundSize: "1.1rem",
-                backgroundRepeat: "no-repeat",
-              }}
-            >
-              <option value="">Change Status...</option>
-              {getNextStatuses(lead.status).map((s) => (
-                <option key={s} value={s}>
-                  {getStatusLabel(s)}
-                </option>
-              ))}
-            </select>
-          )}
-          <Button
-            size="sm"
-            onClick={() => navigate(`/leads/${lead.id}/edit`)}
-            startIcon={<FiEdit className="size-4" />}
-          >
-            Edit Lead
-          </Button>
-        </div>
-      </div>
 
       {/* Header Card */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-gray-200 bg-white px-6 py-5 mb-5 dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -664,172 +521,6 @@ export default function LeadDetails() {
             </div>
           )}
         </div>
-        {/* Convert Lead to Client Modal */}
-        <Modal
-          isOpen={showConvertModal}
-          onClose={() => setShowConvertModal(false)}
-          className="max-w-[500px] m-4"
-        >
-          <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
-            <div className="mb-6 space-y-4">
-              <div>
-                <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
-                  Convert Lead to Client
-                </h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Setup relationship profile and credit limits for <span className="font-semibold text-gray-850 dark:text-white/80">{lead.company}</span>.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    Payment Terms
-                  </label>
-                  <Select
-                    options={[
-                      { value: "Net 15", label: "Net 15" },
-                      { value: "Net 30", label: "Net 30" },
-                      { value: "Net 45", label: "Net 45" },
-                      { value: "Immediate", label: "Immediate" }
-                    ]}
-                    placeholder="Select Terms"
-                    defaultValue={paymentTerms}
-                    onChange={(val) => setPaymentTerms(val)}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    Credit Limit
-                  </label>
-                  <Input
-                    type="number"
-                    value={creditLimit}
-                    onChange={(e) => setCreditLimit(e.target.value)}
-                    placeholder="E.g., 500000"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    Won Amount
-                  </label>
-                  <Input
-                    type="number"
-                    value={wonAmount}
-                    onChange={(e) => setWonAmount(e.target.value)}
-                    placeholder={lead.budget ? String(lead.budget) : "Deal value"}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    Relationship Manager
-                  </label>
-                  <select
-                    value={relManagerId ?? ""}
-                    onChange={(e) => setRelManagerId(e.target.value ? Number(e.target.value) : null)}
-                    className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
-                  >
-                    <option value="">Select Manager</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    Account Manager
-                  </label>
-                  <select
-                    value={accManagerId ?? ""}
-                    onChange={(e) => setAccManagerId(e.target.value ? Number(e.target.value) : null)}
-                    className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
-                  >
-                    <option value="">Select Manager</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowConvertModal(false)}
-                className="w-1/2"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleConvertLeadConfirm}
-                className="w-1/2 bg-success-600 hover:bg-success-700 text-white"
-              >
-                Convert to Client
-              </Button>
-            </div>
-          </div>
-        </Modal>
-
-        {/* Lost / Disqualified Reason Modal */}
-        <Modal
-          isOpen={statusModalOpen}
-          onClose={() => setStatusModalOpen(false)}
-          className="max-w-[450px] m-4"
-        >
-          <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
-            <div className="mb-6 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-error-50 dark:bg-error-500/10 text-error-600 dark:text-error-400 mb-4">
-                <FiXCircle className="size-6" />
-              </div>
-              <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">
-                Mark as {getStatusLabel(nextStatus)}
-              </h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Provide a reason for moving this lead to {getStatusLabel(nextStatus)}.
-              </p>
-            </div>
-            <div className="mb-6">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Reason <span className="text-error-500">*</span>
-              </label>
-              <textarea
-                value={lostReason}
-                onChange={(e) => setLostReason(e.target.value)}
-                placeholder="E.g., Chose a competitor, budget constraints..."
-                rows={3}
-                className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-              />
-            </div>
-            <div className="flex items-center justify-center gap-3">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setStatusModalOpen(false)}
-                className="w-1/2"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                disabled={!lostReason.trim()}
-                onClick={() => handleStatusChange(nextStatus, lostReason.trim())}
-                className="w-1/2 bg-error-600 hover:bg-error-700"
-              >
-                Confirm
-              </Button>
-            </div>
-          </div>
-        </Modal>
       </div>
     </>
   );

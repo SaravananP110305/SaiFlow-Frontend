@@ -174,7 +174,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
         breadcrumbs.push({ label: leadName, to: `/leads/${id}` });
         breadcrumbs.push({ label: "Edit Lead" });
       } else {
-        breadcrumbs.push({ label: leadName });
+        breadcrumbs.push({ label: "Lead Details" });
       }
     } else if (pathname === "/connect/contacts") {
       breadcrumbs.push({ label: "Connect", to: "/connect/contacts" });
