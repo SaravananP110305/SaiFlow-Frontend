@@ -23,6 +23,7 @@ import {
   FiPlus,
   FiUpload,
   FiAlertCircle,
+  FiUserCheck,
 } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
 import { useAuth } from "../../../context/AuthContext";
@@ -82,6 +83,7 @@ export default function LeadList() {
 
   const uploadModal = useModal();
   const deleteModal = useModal();
+  const assignModal = useModal();
 
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [totalItems, setTotalItems] = useState(0);
@@ -110,6 +112,15 @@ export default function LeadList() {
 
   // Delete modal
   const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
+
+  // Assign modal
+  const [pendingAssign, setPendingAssign] = useState<{
+    lead: LeadRow;
+    userId: number;
+    userName: string;
+  } | null>(null);
+  // Bumped to force-remount the assignee selects (resets a cancelled/invalid selection).
+  const [assignSelectNonce, setAssignSelectNonce] = useState(0);
 
   const buildParams = (): LeadQuery => ({
     page: currentPage,
@@ -167,15 +178,39 @@ export default function LeadList() {
     loadFiltersAndStats();
   }, [loadFiltersAndStats]);
 
-  const handleDirectAssign = async (leadId: number, userIdStr: string) => {
-    if (!userIdStr) return;
+  const handleOpenAssign = (lead: LeadRow, userIdStr: string) => {
+    if (!userIdStr) {
+      // Unassigning isn't supported by the API; snap the dropdown back.
+      if (lead.assignedToId != null) setAssignSelectNonce((n) => n + 1);
+      return;
+    }
+    const userId = Number(userIdStr);
+    if (userId === lead.assignedToId) return;
+    const user = users.find((u) => u.id === userId);
+    if (!user) return;
+    setPendingAssign({ lead, userId, userName: user.name });
+    assignModal.openModal();
+  };
+
+  const handleCloseAssign = () => {
+    setPendingAssign(null);
+    assignModal.closeModal();
+    // Remount the selects so a cancelled selection snaps back to the real assignee.
+    setAssignSelectNonce((n) => n + 1);
+  };
+
+  const handleAssignConfirm = async () => {
+    if (!pendingAssign) return;
+    const { lead, userId, userName } = pendingAssign;
     try {
-      await leadService.assignLead(leadId, Number(userIdStr));
-      showToast("Lead assigned successfully.", "success");
+      await leadService.assignLead(lead.id, userId);
+      showToast(`Lead "${lead.companyName}" assigned to ${userName}.`, "success");
       fetchLeads();
     } catch (err: any) {
       showToast(err.response?.data?.message || "Failed to assign lead.", "error");
     }
+    setPendingAssign(null);
+    assignModal.closeModal();
   };
 
   const handleOpenDelete = (lead: LeadRow) => {
@@ -445,8 +480,9 @@ export default function LeadList() {
                         <TableCell className="px-4 py-4 text-theme-sm whitespace-nowrap">
                           {hasPermission("leads", "assign") ? (
                             <select
+                              key={`assign-${lead.id}-${assignSelectNonce}`}
                               value={users.find((u) => u.id === lead.assignedToId)?.id || ""}
-                              onChange={(e) => handleDirectAssign(lead.id, e.target.value)}
+                              onChange={(e) => handleOpenAssign(lead, e.target.value)}
                               className="h-9 w-40 appearance-none rounded-lg border border-gray-300 bg-transparent px-3 py-1.5 pr-8 text-xs shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 cursor-pointer"
                               style={selectChevron}
                             >
@@ -708,6 +744,48 @@ export default function LeadList() {
             </Button>
             <Button size="sm" disabled={!uploadedFile || importing} onClick={handleImport}>
               {importing ? "Importing..." : "Import Leads"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reassign Confirmation Modal */}
+      <Modal isOpen={assignModal.isOpen} onClose={handleCloseAssign} className="max-w-[450px] m-4">
+        <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
+          <div className="mb-6 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 mb-4">
+              <FiUserCheck className="size-6" />
+            </div>
+            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">Reassign Lead</h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Are you sure you want to reassign{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                {pendingAssign?.lead.companyName}
+              </span>
+              {pendingAssign?.lead.assignedToName &&
+                pendingAssign.lead.assignedToName !== "Unassigned" && (
+                  <>
+                    {" "}
+                    from{" "}
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      {pendingAssign.lead.assignedToName}
+                    </span>
+                  </>
+                )}
+              {" "}
+              to{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                {pendingAssign?.userName}
+              </span>
+              ?
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            <Button size="sm" variant="outline" onClick={handleCloseAssign} className="w-1/2">
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleAssignConfirm} className="w-1/2">
+              Confirm Assign
             </Button>
           </div>
         </div>
