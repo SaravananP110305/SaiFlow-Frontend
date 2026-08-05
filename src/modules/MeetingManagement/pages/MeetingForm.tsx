@@ -27,7 +27,6 @@ interface MeetingFormValues {
   meetingPlatform: string;
   startTime: string;
   endTime: string;
-  duration: string;
   meetingOwner: string[];
   clientContactPerson: string;
 }
@@ -68,19 +67,13 @@ function parseTimeToMinutes(timeStr: string): number | null {
   return hours * 60 + minutes;
 }
 
-function calculateDuration(start: string, end: string): string {
-  if (!start || !end) return "";
+function calculateDurationMinutes(start: string, end: string): number {
+  if (!start || !end) return 0;
   const startMin = parseTimeToMinutes(start);
   const endMin = parseTimeToMinutes(end);
-  if (startMin === null || endMin === null) return "";
-
+  if (startMin === null || endMin === null) return 0;
   const diff = endMin - startMin;
-  if (diff <= 0) return "";
-  const hours = Math.floor(diff / 60);
-  const mins = diff % 60;
-  if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
-  if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""}`;
-  return `${mins} mins`;
+  return diff > 0 ? diff : 0;
 }
 
 export default function MeetingForm() {
@@ -101,7 +94,7 @@ export default function MeetingForm() {
         const [leadsData, clientsData, usersData] = await Promise.all([
           leadService.getLeads({ limit: 100 }),
           clientService.getClients(),
-          userService.getUsers()
+          userService.getUsers({ limit: 100 })
         ]);
         if (leadsData && Array.isArray(leadsData.data)) {
           setRawLeads(leadsData.data.map((l: any) => ({
@@ -117,8 +110,14 @@ export default function MeetingForm() {
             name: c.contactName || c.name || ""
           })));
         }
-        if (usersData) {
-          setEmployees(usersData.map((u: any) => u.name));
+        if (usersData && Array.isArray(usersData.data)) {
+          // Only ACTIVE users (excluding the System Administrator account) are
+          // eligible meeting owners, matching the app's other user pickers.
+          setEmployees(
+            usersData.data
+              .filter((u: any) => u.status === "ACTIVE" && u.name !== "System Administrator")
+              .map((u: any) => u.name)
+          );
         }
       } catch (err) {
         console.error("Failed to load meetings dropdowns", err);
@@ -126,9 +125,6 @@ export default function MeetingForm() {
     };
     loadDropdownData();
   }, []);
-
-  const leads = rawLeads;
-  const clients = rawClients;
 
   const {
     control,
@@ -150,23 +146,22 @@ export default function MeetingForm() {
       meetingPlatform: "Google Meet",
       startTime: "",
       endTime: "",
-      duration: "",
       meetingOwner: [],
       clientContactPerson: "",
     },
   });
 
   const relatedToType = watch("relatedToType");
+  const relatedToId = watch("relatedToId");
   const meetingPlatform = watch("meetingPlatform");
-  const startTime = watch("startTime");
-  const endTime = watch("endTime");
   const currentMeetingOwner = watch("meetingOwner") || [];
 
-  // Auto-calculate duration when start or end time changes
-  useEffect(() => {
-    const calculated = calculateDuration(startTime, endTime);
-    setValue("duration", calculated);
-  }, [startTime, endTime, setValue]);
+  // Only Qualified leads are offered in the Lead dropdown; the currently
+  // selected lead stays visible in Edit mode even if its status changed later.
+  const leads = rawLeads.filter(
+    (l: any) => (l.status || "").toUpperCase() === "QUALIFIED" || l.id === Number(relatedToId)
+  );
+  const clients = rawClients;
 
   // Employee Multi-Select Dropdown state
   const [isOwnerDropdownOpen, setIsOwnerDropdownOpen] = useState(false);
@@ -202,7 +197,6 @@ export default function MeetingForm() {
               meetingPlatform: "Google Meet",
               startTime: meeting.scheduledAt ? new Date(meeting.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
               endTime: "",
-              duration: meeting.durationMinutes ? meeting.durationMinutes.toString() : "30",
               meetingOwner: meeting.createdBy ? [meeting.createdBy.name] : [],
               clientContactPerson: meeting.lead?.contactPerson || "",
             });
@@ -295,7 +289,7 @@ export default function MeetingForm() {
         leadId,
         title: `${data.company} - ${data.meetingPlatform}`,
         scheduledAt: scheduledAt.toISOString(),
-        durationMinutes: Number(data.duration) || 30,
+        durationMinutes: calculateDurationMinutes(data.startTime, data.endTime) || 30,
         meetingLink: data.linkOrLocation,
         status: "SCHEDULED",
         agenda: data.notes,
@@ -471,24 +465,6 @@ export default function MeetingForm() {
               )}
             </div>
 
-            <div className="sm:col-span-3">
-              <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
-                Duration
-              </label>
-              <Controller
-                name="duration"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    type="text"
-                    placeholder="Auto-calculated from start & end time"
-                    disabled
-                    className="bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                  />
-                )}
-              />
-            </div>
           </div>
         </div>
 

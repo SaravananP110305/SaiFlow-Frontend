@@ -21,8 +21,10 @@ import {
   FiPhone,
 } from "react-icons/fi";
 import { getStatusColor, getPriorityColor, type Lead } from "../../LeadManagement/data/leadsData";
+import { getStatusLabel } from "../../LeadManagement/utils/leadStatus";
 import { useAuth } from "../../../context/AuthContext";
 import { leadService } from "../../../services/leadService";
+import { connectService } from "../../../services/connectService";
 import { useToast } from "../../../hooks/useToast";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
@@ -33,7 +35,13 @@ export default function MyLeads() {
   const { showToast } = useToast();
 
   const { user } = useAuth();
-  const isAdmin = user?.role?.name === "Administrator";
+  // Mirrors the backend's canAccessAllLeads() — these roles see every lead.
+  // (The seeded System Administrator account has the "Administrator" role.)
+  const isManager = [
+    "Administrator",
+    "Business Development Manager",
+    "System Administrator",
+  ].includes(user?.role?.name);
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,14 +55,17 @@ export default function MyLeads() {
           ...l,
           company: l.company?.name || l.title || "",
           contactPerson: l.contactPerson || "",
+          email: l.email || "",
+          phone: l.phone || "",
+          priority: l.priority?.name || l.priority || "",
           assignedTo: l.assignedTo?.name || "Unassigned",
           status: l.status,
         }));
-        
-        if (user?.role?.name === "Administrator") {
+
+        if (isManager) {
           setLeads(mapped);
         } else {
-          setLeads(mapped.filter((l: any) => l.assignedTo === user?.name));
+          setLeads(mapped.filter((l: any) => l.assignedToId === user?.id));
         }
       }
     } catch (err) {
@@ -78,8 +89,12 @@ export default function MyLeads() {
   type ContactResult = "Interested" | "Call Later" | "Not Interested";
 
   const contactModal = useModal();
+  const confirmCallModal = useModal();
   const successModal = useModal();
   const [selectedLeadForContact, setSelectedLeadForContact] = useState<Lead | null>(null);
+  const [selectedLeadForCall, setSelectedLeadForCall] = useState<Lead | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [successRedirect, setSuccessRedirect] = useState<"contacted" | null>(null);
   const [contactResult, setContactResult] = useState<ContactResult | null>(null);
   const [contactSummary, setContactSummary] = useState("");
   const [savedOutcome, setSavedOutcome] = useState<string | null>(null);
@@ -89,16 +104,49 @@ export default function MyLeads() {
 
   const followUpTypeOptions = ["Call", "Meeting", "Email", "WhatsApp"];
 
-  const handleCallLead = async (lead: Lead) => {
+  const handleOpenCallConfirm = (lead: Lead) => {
+    setSelectedLeadForCall(lead);
+    confirmCallModal.openModal();
+  };
+
+  const handleConfirmCallLead = async () => {
+    if (!selectedLeadForCall || saving) return;
+    setSaving(true);
     try {
-      await leadService.updateLead(lead.id, { status: "Contacted" });
-      showToast(`${lead.company} marked as Contacted — moved to Contacted Leads.`, "success");
-      setActiveTab("contacted");
-      setCurrentPage(1);
+      // Creates the CONTACTED connect record; the lead status auto-transitions
+      // to CONTACTED server-side in the same transaction.
+      await connectService.createConnect({
+        leadId: selectedLeadForCall.id,
+        outcome: "CONTACTED",
+        status: "COMPLETED",
+      });
+      setSavedOutcome(
+        `"${selectedLeadForCall.company}" marked as Contacted — moved to Contacted Leads.`
+      );
+      setSuccessRedirect("contacted");
+      confirmCallModal.closeModal();
+      successModal.openModal();
       fetchLeads();
     } catch (err) {
       showToast("Failed to mark lead as contacted.", "error");
+    } finally {
+      setSaving(false);
     }
+  };
+
+  // Closes the shared success modal, shows a toast of the saved outcome and
+  // redirects to the Contacted tab only when the lead was marked as contacted
+  // (handles backdrop/ESC closes too).
+  const handleCloseSuccess = () => {
+    if (savedOutcome) {
+      showToast(savedOutcome, "success");
+    }
+    if (successRedirect === "contacted") {
+      setActiveTab("contacted");
+      setCurrentPage(1);
+    }
+    setSuccessRedirect(null);
+    successModal.closeModal();
   };
 
   const handleOpenOutcomeModal = (lead: Lead, result: ContactResult) => {
@@ -112,7 +160,7 @@ export default function MyLeads() {
   };
 
   const handleSaveContactOutcome = async () => {
-    if (!selectedLeadForContact) return;
+    if (!selectedLeadForContact || saving) return;
 
     if (contactResult === "Call Later") {
       if (!callLaterDate) {
@@ -129,26 +177,35 @@ export default function MyLeads() {
       }
     }
 
-    let newStatus: string;
     let outcomeMessage: string;
 
     if (contactResult === "Interested") {
-      newStatus = "Qualified";
       outcomeMessage = "Marked as Interested — lead moved to Qualified";
     } else if (contactResult === "Call Later") {
-      newStatus = "Scheduled";
       outcomeMessage = "Follow-up scheduled — lead moved to Scheduled";
     } else if (contactResult === "Not Interested") {
-      newStatus = "Lost";
       outcomeMessage = "Marked as Not Interested — lead moved to Lost";
     } else {
       return;
     }
 
+    setSaving(true);
     try {
-      await leadService.updateLead(selectedLeadForContact.id, {
-        status: newStatus as any,
-        requirements: contactSummary.trim() || undefined
+      // Save the outcome summary + follow-up details to the connect table;
+      // the lead status transition (QUALIFIED / MEETING_SCHEDULED / LOST)
+      // happens server-side. leads.requirements is reserved for Notes only.
+      await connectService.createConnect({
+        leadId: selectedLeadForContact.id,
+        outcome:
+          contactResult === "Interested"
+            ? "INTERESTED"
+            : contactResult === "Call Later"
+              ? "CALL_LATER"
+              : "NOT_INTERESTED",
+        summary: contactSummary.trim() || undefined,
+        followUpType: contactResult === "Call Later" ? callLaterType : undefined,
+        followUpDate: contactResult === "Call Later" ? callLaterDate : undefined,
+        followUpTime: contactResult === "Call Later" ? callLaterTime : undefined,
       });
 
       setSavedOutcome(outcomeMessage);
@@ -158,15 +215,23 @@ export default function MyLeads() {
       fetchLeads();
     } catch (err) {
       showToast("Failed to save contact outcome.", "error");
+    } finally {
+      setSaving(false);
     }
   };
 
   const processedLeads = useMemo(() => {
     let result = leads;
+    // Backend stores statuses as uppercase enum values (NEW / CONTACTED / ...).
+    // "New Leads" includes leads still in the new stage even after they are
+    // assigned (assigning auto-transitions NEW -> ASSIGNED). Managers see all
+    // of them; regular users only see the ones assigned to them.
     if (activeTab === "new") {
-      result = result.filter((l) => l.status === "New");
+      result = result.filter((l) =>
+        ["NEW", "ASSIGNED"].includes(l.status?.toUpperCase())
+      );
     } else {
-      result = result.filter((l) => l.status === "Contacted");
+      result = result.filter((l) => l.status?.toUpperCase() === "CONTACTED");
     }
 
     if (searchQuery.trim()) {
@@ -199,10 +264,10 @@ export default function MyLeads() {
   return (
     <>
       <PageMeta
-        title={isAdmin ? "Contacts | SaiFlow" : "Contacts | SaiFlow"}
-        description={isAdmin ? "View Contacts in SaiFlow CRM." : "View and contact your leads in SaiFlow CRM."}
+        title="Contacts | SaiFlow"
+        description={isManager ? "View Contacts in SaiFlow CRM." : "View and contact your leads in SaiFlow CRM."}
       />
-      <PageBreadcrumb pageTitle={isAdmin ? "Contacts" : "Contacts"} />
+      <PageBreadcrumb pageTitle="Contacts" />
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 dark:border-white/[0.05] mb-5">
@@ -216,7 +281,7 @@ export default function MyLeads() {
             : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
             }`}
         >
-          {isAdmin ? "New Leads" : "My New Leads"}
+          {isManager ? "New Leads" : "My New Leads"}
         </button>
         <button
           onClick={() => {
@@ -228,7 +293,7 @@ export default function MyLeads() {
             : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
             }`}
         >
-          {isAdmin ? "Contacted Leads" : "My Contacted Leads"}
+          {isManager ? "Contacted Leads" : "My Contacted Leads"}
         </button>
       </div>
 
@@ -285,13 +350,13 @@ export default function MyLeads() {
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {paginatedLeads.length > 0 ? (
-                paginatedLeads.map((lead) => (
+                paginatedLeads.map((lead, index) => (
                   <TableRow
                     key={lead.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                   >
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 font-mono text-xs">
-                      {lead.id}
+                      {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90">
                       <span className="font-mono text-xs tracking-wider">
@@ -309,7 +374,7 @@ export default function MyLeads() {
                     </TableCell>
                     <TableCell className="px-5 py-4 whitespace-nowrap">
                       <Badge size="sm" color={getStatusColor(lead.status)}>
-                        <span className="font-semibold">{lead.status}</span>
+                        <span className="font-semibold">{getStatusLabel(lead.status)}</span>
                       </Badge>
                     </TableCell>
                     {activeTab === "new" && (
@@ -325,7 +390,7 @@ export default function MyLeads() {
                     <TableCell className="px-5 py-4">
                       {activeTab === "new" ? (
                         <button
-                          onClick={() => handleCallLead(lead)}
+                          onClick={() => handleOpenCallConfirm(lead)}
                           title="Call Lead — Mark as Contacted"
                           className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
                         >
@@ -389,6 +454,45 @@ export default function MyLeads() {
           />
         )}
       </div>
+
+      {/* Mark as Contacted Confirmation Modal */}
+      <Modal isOpen={confirmCallModal.isOpen} onClose={confirmCallModal.closeModal} className="max-w-[450px] m-4">
+        <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
+          <div className="mb-6 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-4">
+              <FiPhone className="size-6" />
+            </div>
+            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">
+              Mark as Contacted?
+            </h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Confirm that you have contacted{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                {selectedLeadForCall?.company}
+              </span>
+              {selectedLeadForCall?.contactPerson && (
+                <>
+                  {" "}
+                  (
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    {selectedLeadForCall.contactPerson}
+                  </span>
+                  )
+                </>
+              )}
+              . The lead will be moved to the Contacted Leads list.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            <Button size="sm" variant="outline" onClick={confirmCallModal.closeModal} className="w-1/2">
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleConfirmCallLead} disabled={saving} className="w-1/2">
+              Confirm
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Outcome Modal (outcome is preset by the clicked action) */}
       <Modal isOpen={contactModal.isOpen} onClose={contactModal.closeModal} className="max-w-[500px] m-4">
@@ -509,7 +613,7 @@ export default function MyLeads() {
             <Button size="sm" variant="outline" onClick={contactModal.closeModal}>
               Cancel
             </Button>
-            <Button size="sm" onClick={handleSaveContactOutcome}>
+            <Button size="sm" onClick={handleSaveContactOutcome} disabled={saving}>
               Save
             </Button>
           </div>
@@ -517,14 +621,14 @@ export default function MyLeads() {
       </Modal>
 
       {/* Success Confirmation Modal */}
-      <Modal isOpen={successModal.isOpen} onClose={successModal.closeModal} className="max-w-[400px] m-4">
+      <Modal isOpen={successModal.isOpen} onClose={handleCloseSuccess} className="max-w-[400px] m-4">
         <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-50 dark:bg-success-500/10 mb-4">
             <FiCheckCircle className="size-7 text-success-600 dark:text-success-400" />
           </div>
           <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">Result Saved</h4>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">{savedOutcome}</p>
-          <Button size="sm" onClick={successModal.closeModal} className="w-full">
+          <Button size="sm" onClick={handleCloseSuccess} className="w-full">
             Done
           </Button>
         </div>

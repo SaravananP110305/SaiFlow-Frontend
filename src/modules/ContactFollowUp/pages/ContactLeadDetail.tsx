@@ -6,6 +6,7 @@ import PageMeta from "../../../components/common/PageMeta";
 import Badge from "../../../components/ui/badge/Badge";
 import { getStatusColor, getPriorityColor, Lead } from "../../LeadManagement/data/leadsData";
 import { leadService } from "../../../services/leadService";
+import { connectService } from "../../../services/connectService";
 import { meetingService } from "../../../services/meetingService";
 import { useEffect } from "react";
 import { useToast } from "../../../hooks/useToast";
@@ -233,16 +234,17 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
   const backLabel = isFromFollowUps ? "Back to Follow-Ups" : "Back to Contacts";
 
   const [lead, setLead] = useState<Lead | null>(null);
-  const [followups] = useState<any[]>([]);
+  const [followups, setFollowups] = useState<any[]>([]);
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchLeadDetails = async () => {
     setLoading(true);
     try {
-      const [leadData, meetingsData] = await Promise.all([
+      const [leadData, meetingsData, connectsData] = await Promise.all([
         leadService.getLeadById(Number(id)),
-        meetingService.getMeetings()
+        meetingService.getMeetings(),
+        connectService.getConnects({ leadId: Number(id), limit: 100 })
       ]);
 
       if (leadData) {
@@ -251,6 +253,8 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
           company: leadData.company?.name || leadData.title || "",
           contactPerson: leadData.contactPerson || "",
           assignedTo: leadData.assignedTo?.name || "Unassigned",
+          // leads.requirements holds Notes only; surface it for the Notes card.
+          summary: leadData.requirements || "",
           status: leadData.status
         });
       }
@@ -258,6 +262,31 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
       if (meetingsData && Array.isArray(meetingsData.data)) {
         const filteredMeetings = meetingsData.data.filter((m: any) => m.leadId === Number(id));
         setMeetings(filteredMeetings);
+      }
+
+      if (connectsData && Array.isArray(connectsData.data)) {
+        setFollowups(
+          connectsData.data
+            .filter((c: any) => c.leadId === Number(id))
+            .map((c: any) => ({
+              id: c.id,
+              leadId: c.leadId,
+              company: c.company || "",
+              contactPerson: c.contactPerson || "",
+              phone: c.phone || "",
+              assignedTo: c.assignedTo || "Unassigned",
+              date: c.followUpDate || "",
+              time: c.followUpTime || "",
+              reason: c.summary || "",
+              status:
+                c.status === "COMPLETED"
+                  ? "Completed"
+                  : c.status === "MISSED"
+                    ? "Missed"
+                    : "Scheduled",
+              followUpType: c.followUpType || undefined
+            }))
+        );
       }
     } catch (err) {
       console.error(err);
@@ -297,7 +326,7 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
     try {
       await leadService.updateLead(lead.id, { requirements: editedSummary });
       setLead({ ...lead, summary: editedSummary });
-      showToast("Summary updated successfully.", "success");
+      showToast("Notes updated successfully.", "success");
       setIsEditingSummary(false);
     } catch (err) {
       showToast("Failed to update summary.", "error");
@@ -628,13 +657,13 @@ export default function ContactLeadDetail({ isFollowUpView }: ContactLeadDetailP
           <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] p-5">
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05]">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Summary Details
+                Notes
               </h3>
               {!isEditingSummary && (
                 <button
                   onClick={handleStartEditSummary}
                   className="text-gray-400 hover:text-brand-500 dark:text-gray-500 dark:hover:text-brand-400 transition cursor-pointer"
-                  title="Edit Summary"
+                  title="Edit Notes"
                 >
                   <FiEdit className="size-4" />
                 </button>
