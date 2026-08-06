@@ -474,11 +474,11 @@ const renderQuotationTab = (proposal: Proposal) => {
         <InfoCard label="Warranty Period" value={quote.warrantyPeriod} />
       </div>
 
-      {quote.paymentMilestones.length > 0 && (
+      {(quote.paymentMilestones || []).length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-3">Payment Milestones</h3>
           <div className="space-y-2">
-            {quote.paymentMilestones.map((m, idx) => (
+            {(quote.paymentMilestones || []).map((m: any, idx: number) => (
               <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/[0.03] rounded-lg">
                 <span className="text-sm text-gray-700 dark:text-gray-300">{m.milestone}</span>
                 <div className="flex items-center gap-3">
