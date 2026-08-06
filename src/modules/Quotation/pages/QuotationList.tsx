@@ -56,6 +56,11 @@ const STATUS_CONFIG: Record<
   Converted: { label: "Converted", color: "primary", icon: <FiTrendingUp className="size-3.5" /> },
 };
 
+const getStatusConfig = (status: string) => {
+  const normalized = status === "Accepted" ? "Approved" : status === "Won" ? "Converted" : status;
+  return STATUS_CONFIG[normalized as ProposalStatus] || STATUS_CONFIG.Draft;
+};
+
 
 
 // ─── Status Transitions (for list-view quick actions) ───────────────────────
@@ -491,26 +496,26 @@ export default function QuotationList() {
                               }
                             }}
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all cursor-pointer
-                              ${STATUS_CONFIG[proposal.status].color === "light" ? "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "info" ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-400" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "warning" ? "border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "success" ? "border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "error" ? "border-red-200 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "primary" ? "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-900/20 dark:text-purple-400" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "dark" ? "border-gray-300 bg-gray-100 text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200" : ""}
+                              ${getStatusConfig(proposal.status).color === "light" ? "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" : ""}
+                              ${getStatusConfig(proposal.status).color === "info" ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-400" : ""}
+                              ${getStatusConfig(proposal.status).color === "warning" ? "border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400" : ""}
+                              ${getStatusConfig(proposal.status).color === "success" ? "border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400" : ""}
+                              ${getStatusConfig(proposal.status).color === "error" ? "border-red-200 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400" : ""}
+                              ${getStatusConfig(proposal.status).color === "primary" ? "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-900/20 dark:text-purple-400" : ""}
+                              ${getStatusConfig(proposal.status).color === "dark" ? "border-gray-300 bg-gray-100 text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200" : ""}
                               hover:ring-2 hover:ring-offset-1
-                              ${STATUS_CONFIG[proposal.status].color === "light" ? "hover:ring-gray-300" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "info" ? "hover:ring-blue-300" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "warning" ? "hover:ring-yellow-300" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "success" ? "hover:ring-green-300" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "error" ? "hover:ring-red-300" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "primary" ? "hover:ring-purple-300" : ""}
-                              ${STATUS_CONFIG[proposal.status].color === "dark" ? "hover:ring-gray-300" : ""}
+                              ${getStatusConfig(proposal.status).color === "light" ? "hover:ring-gray-300" : ""}
+                              ${getStatusConfig(proposal.status).color === "info" ? "hover:ring-blue-300" : ""}
+                              ${getStatusConfig(proposal.status).color === "warning" ? "hover:ring-yellow-300" : ""}
+                              ${getStatusConfig(proposal.status).color === "success" ? "hover:ring-green-300" : ""}
+                              ${getStatusConfig(proposal.status).color === "error" ? "hover:ring-red-300" : ""}
+                              ${getStatusConfig(proposal.status).color === "primary" ? "hover:ring-purple-300" : ""}
+                              ${getStatusConfig(proposal.status).color === "dark" ? "hover:ring-gray-300" : ""}
                               ${activeStatusDropdown === proposal.id ? "ring-2 ring-offset-1" : ""}
                             `}
                           >
-                            {STATUS_CONFIG[proposal.status].icon}
-                            {STATUS_CONFIG[proposal.status].label}
+                            {getStatusConfig(proposal.status).icon}
+                            {getStatusConfig(proposal.status).label}
                             <ChevronDownIcon className={`w-3 h-3 transition-transform ${activeStatusDropdown === proposal.id ? "rotate-180" : ""}`} />
                           </button>
                         </div>

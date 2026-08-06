@@ -43,6 +43,11 @@ const STATUS_CONFIG: Record<
   Converted: { label: "Converted", color: "primary", icon: <FiTrendingUp className="size-3.5" /> },
 };
 
+const getStatusConfig = (status: string) => {
+  const normalized = status === "Accepted" ? "Approved" : status === "Won" ? "Converted" : status;
+  return STATUS_CONFIG[normalized as ProposalStatus] || STATUS_CONFIG.Draft;
+};
+
 const WORKFLOW_STEPS: ProposalStatus[] = [
   "Draft",
   "Sent",
@@ -158,7 +163,7 @@ export default function ProposalDetails() {
     return <div className="py-10 text-center text-gray-500">Proposal not found.</div>;
   }
 
-  const status = STATUS_CONFIG[proposal.status];
+  const status = getStatusConfig(proposal.status);
 
   const tabs = [
     { key: "requirement" as const, label: "Requirement", icon: <FiList className="size-4" /> },
@@ -197,7 +202,8 @@ export default function ProposalDetails() {
           <div className="mt-5 pt-4 border-t border-gray-100 dark:border-white/[0.05]">
             <div className="flex items-center gap-0 overflow-x-auto pb-1">
               {WORKFLOW_STEPS.map((step, idx) => {
-                const stepIdx = WORKFLOW_STEPS.indexOf(proposal.status);
+                const normalizedStatus = (proposal.status as string) === "Accepted" ? "Approved" : (proposal.status as string) === "Won" ? "Converted" : proposal.status;
+                const stepIdx = WORKFLOW_STEPS.indexOf(normalizedStatus as ProposalStatus);
                 const rejected = proposal.status === "Rejected";
                 const converted = proposal.status === "Converted";
                 const isCompleted = idx < stepIdx;
