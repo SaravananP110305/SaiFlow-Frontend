@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { useNavigate } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
@@ -65,9 +66,23 @@ export default function FollowUps() {
 
   const [followupsList, setFollowupsList] = useState<FollowUp[]>([]);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  // setStatusFilter removed while the Status filter dropdown is commented out
+  const [statusFilter] = useState("all");
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
   const fetchFollowUps = async () => {
     try {
-      const data = await connectService.getConnects({ limit: 200 });
+      const data = await connectService.getConnects({
+        page: currentPage,
+        limit: rowsPerPage,
+        status: "SCHEDULED,MISSED,RESCHEDULED",
+        search: debouncedSearchQuery || undefined
+      });
       if (data && Array.isArray(data.data)) {
         // Only active follow-ups (rows with a follow-up date) belong on this
         // page; outcome-only records from the Contact page and completed
@@ -77,6 +92,8 @@ export default function FollowUps() {
             .filter((r: any) => r.followUpDate && r.status !== "COMPLETED")
             .map(toFollowUp)
         );
+        setTotalItems(data.meta?.total || 0);
+        setTotalPages(data.meta?.totalPages || 1);
       }
     } catch (err) {
       console.error(err);
@@ -87,30 +104,13 @@ export default function FollowUps() {
     if (user) {
       fetchFollowUps();
     }
-  }, [user]);
-
-  const [searchQuery, setSearchQuery] = useState("");
-  // setStatusFilter removed while the Status filter dropdown is commented out
-  const [statusFilter] = useState("all");
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [currentPage, setCurrentPage] = useState(1);
+  }, [user, currentPage, rowsPerPage, debouncedSearchQuery]);
   // setIsStatusOpen / isAssigneeOpen states removed while the filter dropdowns are commented out
   // setAssigneeFilter removed while the Assignee filter dropdown is commented out
   const [assigneeFilter] = useState("all");
 
   const processedItems = useMemo(() => {
     let result = [...followupsList];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (f) =>
-          f.company.toLowerCase().includes(q) ||
-          f.contactPerson.toLowerCase().includes(q) ||
-          f.reason.toLowerCase().includes(q) ||
-          f.assignedTo.toLowerCase().includes(q)
-      );
-    }
 
     if (statusFilter !== "all") {
       result = result.filter((f) => f.status === statusFilter);
@@ -124,15 +124,9 @@ export default function FollowUps() {
     result.sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
     return result;
-  }, [followupsList, searchQuery, statusFilter, assigneeFilter]);
+  }, [followupsList, statusFilter, assigneeFilter]);
 
-  const paginatedItems = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return processedItems.slice(start, start + rowsPerPage);
-  }, [processedItems, currentPage, rowsPerPage]);
-
-  const totalItems = processedItems.length;
-  const totalPages = Math.ceil(totalItems / rowsPerPage);
+  const paginatedItems = processedItems;
 
   // Modal state for completing follow-ups
   const [saving, setSaving] = useState(false);

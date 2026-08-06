@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { useNavigate } from "react-router";
 import { formatDate } from "../../../utils/dateFormatter";
 import { clientService } from "../../../services/clientService";
@@ -57,23 +58,67 @@ export default function ClientList() {
   const [employeesList, setEmployeesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchClientsAndProposals = async () => {
-    setLoading(true);
+  // States for search and pagination
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // setHandoverFilter removed while the Onboarding filter dropdown is commented out
+  const [handoverFilter] = useState<string>("all");
+  // setSortField removed while the Sort dropdown is commented out
+  const [sortField] = useState<keyof Client>("id");
+  // setSortOrder removed while the Sort dropdown is commented out
+  const [sortOrder] = useState<"asc" | "desc">("asc");
+
+  const loadMetadata = async () => {
     try {
-      const [clientsData, proposalsData, usersData] = await Promise.all([
-        clientService.getClients(),
-        proposalService.getProposals(),
+      const [proposalsData, usersData] = await Promise.all([
+        proposalService.getProposals({ limit: 1000 }),
         userService.getUsers().catch((err) => {
           console.warn("Failed to fetch users list (likely permission restricted):", err);
           return { data: [] };
         })
       ]);
 
+      if (proposalsData && Array.isArray(proposalsData.data)) {
+        const mappedProposals = proposalsData.data.map((bp: any) => ({
+          id: bp.id,
+          proposalNo: bp.proposalNumber,
+          companyName: bp.lead?.company?.name || bp.lead?.title || "Unknown Company",
+          leadName: bp.lead?.contactPerson || "Unknown Contact",
+          leadEmail: bp.lead?.email || "",
+          leadPhone: bp.lead?.phone || "",
+          value: Number(bp.amount),
+          status: bp.status,
+        }));
+        setProposals(mappedProposals as any);
+      }
+
+      const usersList = usersData?.data || [];
+      if (usersList.length > 0) {
+        setEmployeesList(usersList.filter((u: any) => u.status === "ACTIVE"));
+      }
+    } catch (err) {
+      console.error("Failed to load client metadata", err);
+    }
+  };
+
+  const fetchClients = async () => {
+    setLoading(true);
+    try {
+      const clientsData = await clientService.getClients({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: debouncedSearchQuery || undefined,
+      });
+
       if (clientsData && Array.isArray(clientsData.data)) {
         const mappedClients = clientsData.data.map((bc: any) => ({
           id: bc.id,
           company: bc.company?.name || "",
-          // Contact details come from the linked lead record
           name: bc.lead?.contactPerson || "",
           email: bc.lead?.email || "",
           phone: bc.lead?.phone || "",
@@ -110,48 +155,24 @@ export default function ClientList() {
           } : undefined
         }));
         setClients(mappedClients);
-      }
-
-      if (proposalsData && Array.isArray(proposalsData.data)) {
-        const mappedProposals = proposalsData.data.map((bp: any) => ({
-          id: bp.id,
-          proposalNo: bp.proposalNumber,
-          companyName: bp.lead?.company?.name || bp.lead?.title || "Unknown Company",
-          leadName: bp.lead?.contactPerson || "Unknown Contact",
-          leadEmail: bp.lead?.email || "",
-          leadPhone: bp.lead?.phone || "",
-          value: Number(bp.amount),
-          status: bp.status,
-        }));
-        setProposals(mappedProposals as any);
-      }
-
-      // userService.getUsers() returns the full response object; extract the data array
-      const usersList = usersData?.data || [];
-      if (usersList.length > 0) {
-        setEmployeesList(usersList.filter((u: any) => u.status === "ACTIVE"));
+        setTotalItems(clientsData.meta?.total || 0);
+        setTotalPages(clientsData.meta?.totalPages || 1);
       }
     } catch (err) {
       console.error(err);
-      showToast("Failed to fetch clients and proposals.", "error");
+      showToast("Failed to fetch clients.", "error");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchClientsAndProposals();
+    loadMetadata();
   }, []);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  // setHandoverFilter removed while the Onboarding filter dropdown is commented out
-  const [handoverFilter] = useState<string>("all");
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [currentPage, setCurrentPage] = useState(1);
-  // setSortField removed while the Sort dropdown is commented out
-  const [sortField] = useState<keyof Client>("id");
-  // setSortOrder removed while the Sort dropdown is commented out
-  const [sortOrder] = useState<"asc" | "desc">("asc");
+  useEffect(() => {
+    fetchClients();
+  }, [currentPage, rowsPerPage, debouncedSearchQuery]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -249,7 +270,7 @@ export default function ClientList() {
 
       showToast(`Project handover details for "${client.company}" saved successfully.`, "success");
       closeHandoverModal();
-      fetchClientsAndProposals();
+      fetchClients();
     } catch (err) {
       showToast("Failed to save project handover details.", "error");
     }
@@ -258,17 +279,6 @@ export default function ClientList() {
 
   const processedClients = useMemo(() => {
     let result = [...clients];
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (c) =>
-          c.name.toLowerCase().includes(query) ||
-          c.company.toLowerCase().includes(query) ||
-          c.email.toLowerCase().includes(query) ||
-          c.phone.includes(query)
-      );
-    }
 
     if (handoverFilter !== "all") {
       result = result.filter((c) => c.handoverStatus === handoverFilter);
@@ -288,12 +298,9 @@ export default function ClientList() {
     });
 
     return result;
-  }, [clients, searchQuery, handoverFilter, sortField, sortOrder]);
+  }, [clients, handoverFilter, sortField, sortOrder]);
 
-  const paginatedClients = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return processedClients.slice(start, start + rowsPerPage);
-  }, [processedClients, currentPage, rowsPerPage]);
+  const paginatedClients = processedClients;
 
 
 
@@ -302,13 +309,13 @@ export default function ClientList() {
     try {
       await clientService.updateClient(client.id, { status: newStatus });
       showToast(`Client status updated to ${newStatus}.`, "success");
-      fetchClientsAndProposals();
+      fetchClients();
     } catch (err) {
       showToast("Failed to update client status.", "error");
     }
   };
 
-  const totalPages = Math.ceil(processedClients.length / rowsPerPage);
+
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -597,11 +604,11 @@ export default function ClientList() {
         </div>
       )}
 
-      {processedClients.length > 0 && (
+      {totalItems > 0 && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          totalItems={processedClients.length}
+          totalItems={totalItems}
           rowsPerPage={rowsPerPage}
           onPageChange={setCurrentPage}
           onRowsPerPageChange={(rows) => { setRowsPerPage(rows); setCurrentPage(1); }}

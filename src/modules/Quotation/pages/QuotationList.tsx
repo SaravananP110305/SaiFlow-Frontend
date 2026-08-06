@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
 import { formatDate as centFormatDate } from "../../../utils/dateFormatter";
@@ -139,10 +140,24 @@ export default function QuotationList() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Filters & Search
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  // setStatusFilter removed while the Status filter dropdown is commented out
+  const [statusFilter] = useState<string>("all");
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
   const fetchProposals = async () => {
     setLoading(true);
     try {
-      const data = await proposalService.getProposals();
+      const data = await proposalService.getProposals({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: debouncedSearchQuery || undefined
+      });
       if (data && Array.isArray(data.data)) {
         const mapped = data.data.map((bp: any) => ({
           id: bp.id,
@@ -185,6 +200,8 @@ export default function QuotationList() {
           workflowLogs: []
         }));
         setProposals(mapped);
+        setTotalItems(data.meta?.total || 0);
+        setTotalPages(data.meta?.totalPages || 1);
       }
     } catch (err) {
       console.error(err);
@@ -196,14 +213,7 @@ export default function QuotationList() {
 
   useEffect(() => {
     fetchProposals();
-  }, []);
-
-  // Filters & Search
-  const [searchQuery, setSearchQuery] = useState("");
-  // setStatusFilter removed while the Status filter dropdown is commented out
-  const [statusFilter] = useState<string>("all");
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [currentPage, setCurrentPage] = useState(1);
+  }, [currentPage, rowsPerPage, debouncedSearchQuery]);
 
   // Status dropdown (per row in list view)
   const [activeStatusDropdown, setActiveStatusDropdown] = useState<number | null>(null);
@@ -344,33 +354,16 @@ export default function QuotationList() {
   // ── List View Processing ───────────────────────────────────────────────────
 
   const processedProposals = useMemo(() => {
-    // Converted leads have already become clients, so their proposals no longer
-    // belong in the active quotation list.
-    let result = proposals.filter((proposal) => proposal.status !== "Converted");
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.proposalNo.toLowerCase().includes(q) ||
-          p.companyName.toLowerCase().includes(q) ||
-          p.leadName.toLowerCase().includes(q) ||
-          p.leadEmail.toLowerCase().includes(q)
-      );
-    }
+    let result = [...proposals];
     if (statusFilter !== "all") {
       result = result.filter((p) => p.status === statusFilter);
     }
     // Static sort: newest first
     result.sort((a, b) => b.id - a.id);
     return result;
-  }, [proposals, searchQuery, statusFilter]);
+  }, [proposals, statusFilter]);
 
-  const paginatedProposals = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return processedProposals.slice(start, start + rowsPerPage);
-  }, [processedProposals, currentPage, rowsPerPage]);
-
-  const totalPages = Math.ceil(processedProposals.length / rowsPerPage);
+  const paginatedProposals = processedProposals;
 
 
 
@@ -566,11 +559,11 @@ export default function QuotationList() {
         </div>
       </div>
 
-      {processedProposals.length > 0 && (
+      {totalItems > 0 && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          totalItems={processedProposals.length}
+          totalItems={totalItems}
           rowsPerPage={rowsPerPage}
           onPageChange={setCurrentPage}
           onRowsPerPageChange={(rows) => { setRowsPerPage(rows); setCurrentPage(1); }}

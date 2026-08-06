@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { useNavigate } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
@@ -46,10 +47,23 @@ export default function MyLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [activeTab, setActiveTab] = useState<"new" | "contacted">("new");
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const data = await leadService.getLeads({ limit: 100 });
+      const data = await leadService.getLeads({
+        page: currentPage,
+        limit: rowsPerPage,
+        status: activeTab === "new" ? "NEW,ASSIGNED" : "CONTACTED",
+        search: debouncedSearchQuery || undefined
+      });
       if (data && Array.isArray(data.data)) {
         const mapped = data.data.map((l: any) => ({
           ...l,
@@ -61,12 +75,9 @@ export default function MyLeads() {
           assignedTo: l.assignedTo?.name || "Unassigned",
           status: l.status,
         }));
-
-        if (isManager) {
-          setLeads(mapped);
-        } else {
-          setLeads(mapped.filter((l: any) => l.assignedToId === user?.id));
-        }
+        setLeads(mapped);
+        setTotalItems(data.meta?.total || 0);
+        setTotalPages(data.meta?.totalPages || 1);
       }
     } catch (err) {
       console.error(err);
@@ -79,12 +90,7 @@ export default function MyLeads() {
     if (user) {
       fetchLeads();
     }
-  }, [user]);
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<"new" | "contacted">("new");
+  }, [user, currentPage, rowsPerPage, activeTab, debouncedSearchQuery]);
 
   type ContactResult = "Interested" | "Call Later" | "Not Interested";
 
@@ -220,42 +226,7 @@ export default function MyLeads() {
     }
   };
 
-  const processedLeads = useMemo(() => {
-    let result = leads;
-    // Backend stores statuses as uppercase enum values (NEW / CONTACTED / ...).
-    // "New Leads" includes leads still in the new stage even after they are
-    // assigned (assigning auto-transitions NEW -> ASSIGNED). Managers see all
-    // of them; regular users only see the ones assigned to them.
-    if (activeTab === "new") {
-      result = result.filter((l) =>
-        ["NEW", "ASSIGNED"].includes(l.status?.toUpperCase())
-      );
-    } else {
-      result = result.filter((l) => l.status?.toUpperCase() === "CONTACTED");
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (l) =>
-          l.company.toLowerCase().includes(q) ||
-          l.contactPerson.toLowerCase().includes(q) ||
-          l.email.toLowerCase().includes(q) ||
-          l.phone.toLowerCase().includes(q) ||
-          l.status.toLowerCase().includes(q)
-      );
-    }
-
-    return result;
-  }, [leads, activeTab, searchQuery]);
-
-  const paginatedLeads = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return processedLeads.slice(start, start + rowsPerPage);
-  }, [processedLeads, currentPage, rowsPerPage]);
-
-  const totalItems = processedLeads.length;
-  const totalPages = Math.ceil(totalItems / rowsPerPage);
+  const paginatedLeads = leads;
 
   if (loading) {
     return <div className="py-10 text-center text-gray-500">Loading contacts...</div>;

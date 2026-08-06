@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { useNavigate } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
@@ -31,7 +32,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { Meeting, getMeetingStatusColor } from "../data/meetingsData";
 import { meetingService } from "../../../services/meetingService";
 import { leadService } from "../../../services/leadService";
-import { useEffect } from "react";
+
 
 const getLocalDateString = (isoString: string) => {
   if (!isoString) return "";
@@ -65,10 +66,59 @@ export default function MeetingsScopePage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Filters
+  const [activeTab, setActiveTab] = useState<StatusTab>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  const [stats, setStats] = useState({
+    all: 0,
+    Scheduled: 0,
+    Rescheduled: 0,
+    Completed: 0,
+    Cancelled: 0,
+  });
+
+  const getBackendStatus = (tab: string) => {
+    if (tab === "all") return undefined;
+    return tab.toUpperCase();
+  };
+
+  const fetchStats = async () => {
+    try {
+      const data = await meetingService.getMeetings({ limit: 1000 });
+      if (data && Array.isArray(data.data)) {
+        const counts = { all: 0, Scheduled: 0, Rescheduled: 0, Completed: 0, Cancelled: 0 };
+        data.data.forEach((bm: any) => {
+          counts.all++;
+          const status = bm.status === "SCHEDULED" ? "Scheduled" :
+                         bm.status === "RESCHEDULED" ? "Rescheduled" :
+                         bm.status === "COMPLETED" ? "Completed" :
+                         bm.status === "CANCELLED" ? "Cancelled" : bm.status;
+          if (counts[status as keyof typeof counts] !== undefined) {
+            counts[status as keyof typeof counts]++;
+          }
+        });
+        setStats(counts);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchMeetings = async () => {
     setLoading(true);
     try {
-      const data = await meetingService.getMeetings({ limit: 1000 });
+      const data = await meetingService.getMeetings({
+        page: currentPage,
+        limit: rowsPerPage,
+        status: getBackendStatus(activeTab),
+        search: debouncedSearchQuery || undefined,
+      });
       if (data && Array.isArray(data.data)) {
         const mapped = data.data.map((bm: any) => {
           const type = getMeetingType(bm.meetingLink);
@@ -104,6 +154,8 @@ export default function MeetingsScopePage() {
           };
         });
         setMeetings(mapped);
+        setTotalItems(data.meta?.total || 0);
+        setTotalPages(data.meta?.totalPages || 1);
       }
     } catch (err) {
       console.error(err);
@@ -114,14 +166,12 @@ export default function MeetingsScopePage() {
   };
 
   useEffect(() => {
-    fetchMeetings();
+    fetchStats();
   }, []);
 
-  // Filters
-  const [activeTab, setActiveTab] = useState<StatusTab>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  useEffect(() => {
+    fetchMeetings();
+  }, [currentPage, rowsPerPage, activeTab, debouncedSearchQuery]);
 
   // Action Modals
   const [rescheduleModal, setRescheduleModal] = useState<{ open: boolean; meeting: Meeting | null }>({ open: false, meeting: null });
@@ -140,42 +190,8 @@ export default function MeetingsScopePage() {
   // Cancel form
   const [cancelSummary, setCancelSummary] = useState("");
 
-  // Stats
-  const stats = useMemo(() => ({
-    all: meetings.length,
-    Scheduled: meetings.filter(m => m.status === "Scheduled").length,
-    Rescheduled: meetings.filter(m => m.status === "Rescheduled").length,
-    Completed: meetings.filter(m => m.status === "Completed").length,
-    Cancelled: meetings.filter(m => m.status === "Cancelled").length,
-  }), [meetings]);
-
-  const filteredMeetings = useMemo(() => {
-    let result = [...meetings];
-    if (activeTab !== "all") {
-      result = result.filter(m => m.status === activeTab);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (m) =>
-          m.subject.toLowerCase().includes(q) ||
-          m.company.toLowerCase().includes(q) ||
-          m.contactPerson.toLowerCase().includes(q) ||
-          m.type?.toLowerCase().includes(q)
-      );
-    }
-    // Default ordering: newest meeting first (sorting UI removed).
-    result.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-    return result;
-  }, [meetings, activeTab, searchQuery]);
-
-  const paginatedMeetings = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return filteredMeetings.slice(start, start + rowsPerPage);
-  }, [filteredMeetings, currentPage, rowsPerPage]);
-
-  const totalItems = filteredMeetings.length;
-  const totalPages = Math.ceil(totalItems / rowsPerPage);
+  const filteredMeetings = meetings;
+  const paginatedMeetings = meetings;
 
   const openRescheduleModal = (meeting: Meeting) => {
     setRescheduleModal({ open: true, meeting });
@@ -210,6 +226,7 @@ export default function MeetingsScopePage() {
       showToast(`Meeting "${meeting.subject}" rescheduled successfully.`, "success");
       closeRescheduleModal();
       fetchMeetings();
+      fetchStats();
     } catch (err) {
       showToast("Failed to reschedule meeting.", "error");
     }
@@ -245,6 +262,7 @@ export default function MeetingsScopePage() {
       showToast(`Meeting "${meeting.subject}" completed successfully.`, "success");
       closeCompleteModal();
       fetchMeetings();
+      fetchStats();
     } catch (err) {
       showToast("Failed to complete meeting.", "error");
     }
@@ -280,6 +298,7 @@ export default function MeetingsScopePage() {
       showToast(`Meeting "${meeting.subject}" cancelled. Lead status updated to Lost.`, "error");
       closeCancelModal();
       fetchMeetings();
+      fetchStats();
     } catch (err) {
       showToast("Failed to cancel meeting.", "error");
     }
@@ -442,7 +461,7 @@ export default function MeetingsScopePage() {
           >
             {tab === "all" ? "All Meetings" : tab}
             <span className="rounded-full px-2 py-0.5 text-xs bg-gray-100 text-gray-600 dark:bg-white/[0.08] dark:text-gray-400">
-              {tab === "all" ? meetings.length : stats[tab]}
+              {tab === "all" ? stats.all : stats[tab]}
             </span>
           </button>
         ))}
