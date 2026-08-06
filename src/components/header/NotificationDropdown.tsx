@@ -1,17 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Link } from "react-router";
-
-interface NotificationItem {
-  id: number;
-  userName: string;
-  message: string;
-  targetName: string;
-  category: "Lead" | "Meeting" | "Follow-up" | "System";
-  time: string;
-  unread: boolean;
-}
+import { notificationService, type NotificationItem } from "../../services/notificationService";
 
 const categoryColors: Record<NotificationItem["category"], string> = {
   Lead: "bg-brand-500",
@@ -23,58 +14,35 @@ const categoryColors: Record<NotificationItem["category"], string> = {
 export default function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifying, setNotifying] = useState(true);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
-  const notifications: NotificationItem[] = [
-    {
-      id: 1,
-      userName: "John Doe",
-      message: "assigned a new lead",
-      targetName: "Adobe Inc.",
-      category: "Lead",
-      time: "5 min ago",
-      unread: true,
-    },
-    {
-      id: 2,
-      userName: "Jane Smith",
-      message: "scheduled a presales meeting with",
-      targetName: "Salesforce CRM",
-      category: "Meeting",
-      time: "15 min ago",
-      unread: true,
-    },
-    {
-      id: 3,
-      userName: "Alice Johnson",
-      message: "logged a successful follow-up with",
-      targetName: "Stripe Payment",
-      category: "Follow-up",
-      time: "1 hr ago",
-      unread: false,
-    },
-    {
-      id: 4,
-      userName: "System Auto",
-      message: "imported 3 new qualified leads from",
-      targetName: "Leads_Q3_Upload.xlsx",
-      category: "System",
-      time: "2 hrs ago",
-      unread: false,
-    },
-    {
-      id: 5,
-      userName: "Robert Lee",
-      message: "marked lead status as WON for",
-      targetName: "Netflix Stream",
-      category: "Lead",
-      time: "4 hrs ago",
-      unread: false,
-    },
-  ];
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const response = await notificationService.getNotifications();
+      const data = response.data?.data ?? [];
+      setNotifications(data);
+      setUnreadCount(response.data?.meta?.unreadCount ?? 0);
+      setError(false);
+    } catch (err) {
+      console.error("Failed to load notifications", err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
   function toggleDropdown() {
+    if (!isOpen) {
+      fetchNotifications();
+    }
     setIsOpen(!isOpen);
   }
 
@@ -87,6 +55,17 @@ export default function NotificationDropdown() {
     setNotifying(false);
   };
 
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+      setUnreadCount(0);
+      setNotifying(false);
+    } catch (err) {
+      console.error("Failed to mark notifications as read", err);
+    }
+  };
+
   return (
     <div className="relative">
       <button
@@ -95,7 +74,7 @@ export default function NotificationDropdown() {
       >
         <span
           className={`absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-orange-400 ${
-            !notifying ? "hidden" : "flex"
+            notifying && unreadCount > 0 ? "flex" : "hidden"
           }`}
         >
           <span className="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 animate-ping"></span>
@@ -124,40 +103,69 @@ export default function NotificationDropdown() {
           <h5 className="text-base font-semibold text-gray-800 dark:text-gray-200">
             Notifications
           </h5>
-          <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-600 dark:bg-orange-500/20 dark:text-orange-400">
-            {unreadCount} new
-          </span>
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                className="text-theme-xs font-medium text-brand-500 hover:text-brand-600 dark:text-brand-400 cursor-pointer"
+              >
+                Mark all read
+              </button>
+            )}
+            <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-600 dark:bg-orange-500/20 dark:text-orange-400">
+              {unreadCount} new
+            </span>
+          </div>
         </div>
         <ul className="flex flex-col h-auto overflow-y-auto custom-scrollbar">
-          {notifications.slice(0, 3).map((item) => (
-            <li key={item.id}>
-              <DropdownItem
-                onItemClick={closeDropdown}
-                className="flex rounded-lg px-3 py-3 hover:bg-gray-100 dark:hover:bg-white/5"
-              >
-                <span className="block min-w-0 flex-1">
-                  <span className="block text-theme-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium text-gray-800 dark:text-white/90">
-                      {item.userName}
-                    </span>{" "}
-                    {item.message}{" "}
-                    <span className="font-medium text-gray-800 dark:text-white/90">
-                      {item.targetName}
+          {loading && (
+            <li className="px-3 py-4 text-center text-theme-sm text-gray-400">
+              Loading notifications...
+            </li>
+          )}
+          {!loading && error && (
+            <li className="px-3 py-4 text-center text-theme-sm text-gray-400">
+              Failed to load notifications.
+            </li>
+          )}
+          {!loading && !error && notifications.length === 0 && (
+            <li className="px-3 py-4 text-center text-theme-sm text-gray-400">
+              No notifications yet.
+            </li>
+          )}
+          {!loading &&
+            !error &&
+            notifications.slice(0, 3).map((item) => (
+              <li key={item.id}>
+                <DropdownItem
+                  onItemClick={closeDropdown}
+                  className="flex rounded-lg px-3 py-3 hover:bg-gray-100 dark:hover:bg-white/5"
+                >
+                  <span className="block min-w-0 flex-1">
+                    <span className="block text-theme-sm text-gray-600 dark:text-gray-400">
+                      <span className="font-medium text-gray-800 dark:text-white/90">
+                        {item.userName}
+                      </span>{" "}
+                      {item.message}{" "}
+                      <span className="font-medium text-gray-800 dark:text-white/90">
+                        {item.targetName}
+                      </span>
+                    </span>
+                    <span className="mt-1 flex items-center gap-1.5 text-theme-xs text-gray-400 dark:text-gray-500">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          item.unread ? "bg-orange-400" : categoryColors[item.category]
+                        }`}
+                      ></span>
+                      {item.time}
                     </span>
                   </span>
-                  <span className="mt-1 flex items-center gap-1.5 text-theme-xs text-gray-400 dark:text-gray-500">
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${categoryColors[item.category]}`}
-                    ></span>
-                    {item.time}
-                  </span>
-                </span>
-              </DropdownItem>
-            </li>
-          ))}
+                </DropdownItem>
+              </li>
+            ))}
         </ul>
         <Link
-          to="#"
+          to="/notifications"
           onClick={closeDropdown}
           className="block px-4 py-2 mt-3 text-sm font-medium text-center text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
         >

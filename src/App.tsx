@@ -41,6 +41,7 @@ import QuotationList from "./modules/Quotation/pages/QuotationList";
 import AddProposal from "./modules/Quotation/pages/AddProposal";
 import ProposalDetails from "./modules/Quotation/pages/ProposalDetails";
 import SettingsPage from "./modules/Settings/pages/SettingsPage";
+import NotificationsPage from "./modules/Notifications/pages/NotificationsPage";
 
 
 import {
@@ -581,6 +582,14 @@ export default function App() {
               element={
                 <ProtectedRoute requiredPermission={{ module: 'settings', action: 'view' }}>
                   <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute requiredPermission={{ module: 'notifications', action: 'view' }}>
+                  <NotificationsPage />
                 </ProtectedRoute>
               }
             />
