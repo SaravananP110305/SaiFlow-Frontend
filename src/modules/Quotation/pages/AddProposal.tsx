@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Button from "../../../components/ui/button/Button";
@@ -20,6 +20,7 @@ import { proposalService } from "../../../services/proposalService";
 import { leadService } from "../../../services/leadService";
 import { masterService } from "../../../services/masterService";
 import { meetingService } from "../../../services/meetingService";
+import { clientService } from "../../../services/clientService";
 import {
   FiPlus, FiTrash2, FiXCircle, FiUser, FiList, FiCreditCard, FiFileText, FiCpu,
   FiChevronDown, FiChevronRight, FiArrowUp, FiArrowDown, FiEdit, FiLayers,
@@ -107,6 +108,9 @@ export default function AddProposal() {
   const isEditMode = !!id;
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const urlClientId = searchParams.get("clientId");
+  const [associationType, setAssociationType] = useState<"lead" | "client">("lead");
 
   // ── Backend API states ──────────────────────────────────────
   const [serviceOptions, setServiceOptions] = useState<{ value: string; label: string }[]>([]);
@@ -115,6 +119,9 @@ export default function AddProposal() {
   const [leadsList, setLeadsList] = useState<{ value: string; label: string }[]>([]);
   const [rawLeads, setRawLeads] = useState<Lead[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [clientsList, setClientsList] = useState<{ value: string; label: string }[]>([]);
+  const [rawClients, setRawClients] = useState<any[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
 
   useEffect(() => {
     const loadDropdownData = async () => {
@@ -122,12 +129,13 @@ export default function AddProposal() {
         // Values are stored as names (not IDs) and edit-mode defaults are
         // hardcoded, so fetching only ACTIVE records here is safe and keeps
         // the dropdowns consistent with the rest of the application.
-        const [servicesData, paymentTypesData, techStackData, leadsData, meetingsData] = await Promise.all([
+        const [servicesData, paymentTypesData, techStackData, leadsData, meetingsData, clientsData] = await Promise.all([
           masterService.getMasterItems("SERVICE", undefined, { status: "Active" }),
           masterService.getMasterItems("PAYMENT_TYPE", undefined, { status: "Active" }),
           masterService.getMasterItems("TECH_STACK", undefined, { status: "Active" }),
           leadService.getLeads({ limit: 1000 }),
-          meetingService.getMeetings({ status: "COMPLETED", limit: 1000 })
+          meetingService.getMeetings({ status: "COMPLETED", limit: 1000 }),
+          clientService.getClients({ limit: 1000 })
         ]);
         
         setServiceOptions(servicesData.map((x: any) => ({ value: x.name, label: x.name })));
@@ -149,12 +157,27 @@ export default function AddProposal() {
           const filtered = allMappedLeads.filter((l: any) => completedLeadIds.has(l.id));
           setLeadsList(filtered.map((l: any) => ({ value: l.id.toString(), label: `${l.contactPerson} (${l.company})` })));
         }
+        if (clientsData && Array.isArray(clientsData.data)) {
+          setRawClients(clientsData.data);
+          setClientsList(clientsData.data.map((c: any) => ({
+            value: c.id.toString(),
+            label: `${c.lead?.contactPerson || c.name || "Main contact"} (${c.company?.name || c.company || "Client"})`
+          })));
+        }
       } catch (err) {
         console.error("Failed to load drop-down lists", err);
       }
     };
     loadDropdownData();
   }, []);
+
+  // Auto-select and pre-fill client details if urlClientId is present
+  useEffect(() => {
+    if (urlClientId && rawClients.length > 0) {
+      setAssociationType("client");
+      handleClientSelect(urlClientId);
+    }
+  }, [urlClientId, rawClients]);
 
   const [formTechStack, setFormTechStack] = useState<string[]>([]);
 
@@ -198,6 +221,23 @@ export default function AddProposal() {
     }
   };
 
+  const handleClientSelect = (val: string) => {
+    const clientId = Number(val);
+    setSelectedClientId(clientId);
+    const client = rawClients.find((c) => c.id === clientId);
+    if (client) {
+      setFormLeadName(client.lead?.contactPerson || client.name || "Main contact");
+      setFormCompanyName(client.company?.name || client.company || "Client");
+      setFormLeadEmail(client.lead?.email || client.email || "");
+      setFormLeadPhone(client.lead?.phone || client.phone || "");
+      setFormLeadNameError("");
+      setFormCompanyNameError("");
+      setFormLeadEmailError("");
+      setFormLeadPhoneError("");
+      showToast(`Auto-filled from client "${client.company?.name || client.company}"`, "info");
+    }
+  };
+
   const [formRequirement, setFormRequirement] = useState<RequirementSection>(EMPTY_REQUIREMENT);
   const [formPhases, setFormPhases] = useState<ProposalPhase[]>([]);
   const [formDiscountPct, setFormDiscountPct] = useState(0);
@@ -222,11 +262,18 @@ export default function AddProposal() {
         try {
           const proposal = await proposalService.getProposalById(Number(id));
           if (proposal) {
-            setFormLeadName(proposal.lead?.contactPerson || "");
-            setFormCompanyName(proposal.lead?.company?.name || proposal.lead?.title || "");
-            setFormLeadEmail(proposal.lead?.email || "");
-            setFormLeadPhone(proposal.lead?.phone || "");
+            setFormLeadName(proposal.lead?.contactPerson || proposal.client?.lead?.contactPerson || proposal.client?.name || "");
+            setFormCompanyName(proposal.lead?.company?.name || proposal.lead?.title || proposal.client?.company?.name || "");
+            setFormLeadEmail(proposal.lead?.email || proposal.client?.lead?.email || proposal.client?.email || "");
+            setFormLeadPhone(proposal.lead?.phone || proposal.client?.lead?.phone || proposal.client?.phone || "");
             setFormStatus(proposal.status);
+            if (proposal.clientId) {
+              setAssociationType("client");
+              setSelectedClientId(proposal.clientId);
+            } else if (proposal.leadId) {
+              setAssociationType("lead");
+              setSelectedLeadId(proposal.leadId);
+            }
             
             if (proposal.requirements) {
               setFormRequirement({
@@ -519,7 +566,7 @@ export default function AddProposal() {
 
     try {
       let leadId = selectedLeadId;
-      if (!leadId) {
+      if (associationType === "lead" && !leadId) {
         const matched = rawLeads.find(l => l.company.toLowerCase() === formCompanyName.trim().toLowerCase());
         leadId = matched ? matched.id : (rawLeads[0]?.id || 1);
       }
@@ -528,7 +575,8 @@ export default function AddProposal() {
       const validUntilDate = new Date(Date.now() + formValidityDays * 24 * 60 * 60 * 1000).toISOString();
 
       const payload = {
-        leadId,
+        leadId: associationType === "lead" ? leadId : null,
+        clientId: associationType === "client" ? selectedClientId : null,
         proposalNumber: isEditMode ? undefined : generatedNum,
         title: formNotes.trim() || `Proposal for ${formCompanyName.trim()}`,
         amount: grandTotal,
@@ -573,16 +621,60 @@ export default function AddProposal() {
       <PageBreadcrumb pageTitle={isEditMode ? "Edit Proposal" : "New Proposal"} />
 
       <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-5">
-        {/* ── Lead Information ──────────────────────────────────────────────── */}
+        {/* ── Lead / Client Information ────────────────────────────────────── */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/[0.05] dark:bg-white/[0.03]">
           <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-4 pb-2 border-b border-gray-100 dark:border-white/[0.05] flex items-center gap-2">
-            <FiUser className="size-4 text-brand-500" /> Lead Information
+            <FiUser className="size-4 text-brand-500" /> Lead / Client Information
           </h3>
-          {/* Lead Quick Select removed */}
+          {!isEditMode && (
+            <div className="mb-4">
+              <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                Proposal association type
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="associationType"
+                    value="lead"
+                    checked={associationType === "lead"}
+                    onChange={() => {
+                      setAssociationType("lead");
+                      setSelectedLeadId(null);
+                      setSelectedClientId(null);
+                      setFormLeadName("");
+                      setFormCompanyName("");
+                      setFormLeadEmail("");
+                      setFormLeadPhone("");
+                    }}
+                  />
+                  New prospect / lead
+                </label>
+                <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="associationType"
+                    value="client"
+                    checked={associationType === "client"}
+                    onChange={() => {
+                      setAssociationType("client");
+                      setSelectedLeadId(null);
+                      setSelectedClientId(null);
+                      setFormLeadName("");
+                      setFormCompanyName("");
+                      setFormLeadEmail("");
+                      setFormLeadPhone("");
+                    }}
+                  />
+                  Existing client
+                </label>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">
-                Lead Name <span className="text-error-500">*</span>
+                {associationType === "lead" ? "Lead name" : "Client contact name"} <span className="text-error-500">*</span>
               </label>
               {isEditMode ? (
                 <Input
@@ -591,12 +683,19 @@ export default function AddProposal() {
                   value={formLeadName}
                   onChange={(e) => setFormLeadName(e.target.value)}
                 />
-              ) : (
+              ) : associationType === "lead" ? (
                 <Select
                   options={leadsList}
                   placeholder="Select a lead..."
                   defaultValue={selectedLeadId ? selectedLeadId.toString() : ""}
                   onChange={handleLeadSelect}
+                />
+              ) : (
+                <Select
+                  options={clientsList}
+                  placeholder="Select a client..."
+                  defaultValue={selectedClientId ? selectedClientId.toString() : ""}
+                  onChange={handleClientSelect}
                 />
               )}
               {formLeadNameError && (

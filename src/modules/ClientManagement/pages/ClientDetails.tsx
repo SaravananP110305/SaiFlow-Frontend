@@ -174,6 +174,9 @@ export default function ClientDetails() {
           <Badge size="md" color={client.status === "Active" ? "success" : client.status === "Blacklisted" ? "error" : "warning"}>
             {client.status}
           </Badge>
+          <Button size="sm" variant="outline" onClick={() => navigate(`/proposals/add?clientId=${client.id}`)}>
+            New project proposal
+          </Button>
         </div>
       </div>
 
