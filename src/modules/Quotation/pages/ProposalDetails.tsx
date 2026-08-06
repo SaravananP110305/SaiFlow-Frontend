@@ -25,6 +25,7 @@ import { useToast } from "../../../hooks/useToast";
 import {
   Proposal,
   ProposalStatus,
+  mapPhaseFromApi,
 } from "../data/quotationsData";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ export default function ProposalDetails() {
   const { showToast } = useToast();
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeDetailTab, setActiveDetailTab] = useState<"requirement" | "estimation" | "quotation" | "workflow">("requirement");
+  const [activeDetailTab, setActiveDetailTab] = useState<"requirement" | "phases" | "quotation" | "workflow">("requirement");
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -131,6 +132,8 @@ export default function ProposalDetails() {
               notes: data.title || "",
               termsAndConditions: ""
             },
+            phases: (data.phases || []).map((ph) => mapPhaseFromApi(ph)),
+            pricing: data.pricing || undefined,
             createdAt: data.createdAt || "",
             updatedAt: data.updatedAt || "",
             workflowLogs: []
@@ -159,7 +162,7 @@ export default function ProposalDetails() {
 
   const tabs = [
     { key: "requirement" as const, label: "Requirement", icon: <FiList className="size-4" /> },
-    { key: "estimation" as const, label: "Estimation", icon: <FiCreditCard className="size-4" /> },
+    { key: "phases" as const, label: "Phases & Pricing", icon: <FiCreditCard className="size-4" /> },
     { key: "quotation" as const, label: "Quotation", icon: <FiFileText className="size-4" /> },
     { key: "workflow" as const, label: "Workflow", icon: <FiActivity className="size-4" /> },
   ];
@@ -263,7 +266,7 @@ export default function ProposalDetails() {
         {/* Tab Content */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
           {activeDetailTab === "requirement" && renderRequirementTab(proposal)}
-          {activeDetailTab === "estimation" && renderEstimationTab(proposal)}
+          {activeDetailTab === "phases" && renderPhasesTab(proposal)}
           {activeDetailTab === "quotation" && renderQuotationTab(proposal)}
           {activeDetailTab === "workflow" && renderWorkflowTab(proposal)}
         </div>
@@ -291,55 +294,164 @@ const renderRequirementTab = (proposal: Proposal) => (
   </div>
 );
 
-const renderEstimationTab = (proposal: Proposal) => {
-  const est = proposal.estimation;
-  return (
-    <div className="p-5">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 dark:border-white/[0.05]">
-              <th className="text-left py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Category</th>
-              <th className="text-left py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Description</th>
-              <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Unit</th>
-              <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Unit Price</th>
-              <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Amount</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50 dark:divide-white/[0.03]">
-            {est.items.map((item) => (
-              <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
-                <td className="py-3 px-3">
-                  <Badge size="sm" color="primary">{item.category}</Badge>
-                </td>
-                <td className="py-3 px-3 text-gray-700 dark:text-gray-300">{item.description}</td>
-                <td className="py-3 px-3 text-right text-gray-500 dark:text-gray-400 text-xs">{item.unit}</td>
-                <td className="py-3 px-3 text-right text-gray-700 dark:text-gray-300">{formatCurrency(item.unitPrice)}</td>
-                <td className="py-3 px-3 text-right font-medium text-gray-800 dark:text-white">{formatCurrency(item.amount)}</td>
+const renderPhasesTab = (proposal: Proposal) => {
+  const phases = proposal.phases || [];
+  const pricing = proposal.pricing;
+
+  // Fall back to the legacy single-table estimation for old proposals
+  if (phases.length === 0) {
+    const est = proposal.estimation;
+    return (
+      <div className="p-5">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 dark:border-white/[0.05]">
+                <th className="text-left py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Category</th>
+                <th className="text-left py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Description</th>
+                <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Qty</th>
+                <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Unit Price</th>
+                <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Amount</th>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-gray-100 dark:border-white/[0.05]">
-              <td colSpan={4} className="py-3 px-3 text-right text-sm text-gray-500 dark:text-gray-400">Subtotal</td>
-              <td className="py-3 px-3 text-right text-sm text-gray-800 dark:text-white">{formatCurrency(est.subtotal)}</td>
-            </tr>
-            {est.discountPercent > 0 && (
+            </thead>
+            <tbody className="divide-y divide-gray-50 dark:divide-white/[0.03]">
+              {est.items.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                  <td className="py-3 px-3">
+                    <Badge size="sm" color="primary">{item.category}</Badge>
+                  </td>
+                  <td className="py-3 px-3 text-gray-700 dark:text-gray-300">{item.description}</td>
+                  <td className="py-3 px-3 text-right text-gray-500 dark:text-gray-400 text-xs">{item.quantity ?? 1}</td>
+                  <td className="py-3 px-3 text-right text-gray-700 dark:text-gray-300">{formatCurrency(item.unitPrice)}</td>
+                  <td className="py-3 px-3 text-right font-medium text-gray-800 dark:text-white">{formatCurrency(item.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-gray-100 dark:border-white/[0.05]">
+                <td colSpan={4} className="py-3 px-3 text-right text-sm text-gray-500 dark:text-gray-400">Subtotal</td>
+                <td className="py-3 px-3 text-right text-sm text-gray-800 dark:text-white">{formatCurrency(est.subtotal)}</td>
+              </tr>
+              {est.discountPercent > 0 && (
+                <tr>
+                  <td colSpan={4} className="py-1 px-3 text-right text-sm text-gray-500 dark:text-gray-400">Discount ({est.discountPercent}%)</td>
+                  <td className="py-1 px-3 text-right text-sm text-red-500">-{formatCurrency(est.discountAmount)}</td>
+                </tr>
+              )}
               <tr>
-                <td colSpan={4} className="py-1 px-3 text-right text-sm text-gray-500 dark:text-gray-400">Discount ({est.discountPercent}%)</td>
-                <td className="py-1 px-3 text-right text-sm text-red-500">-{formatCurrency(est.discountAmount)}</td>
+                <td colSpan={4} className="py-1 px-3 text-right text-sm text-gray-500 dark:text-gray-400">Tax ({est.taxPercent}%)</td>
+                <td className="py-1 px-3 text-right text-sm text-gray-800 dark:text-white">{formatCurrency(est.taxAmount)}</td>
               </tr>
+              <tr className="border-t-2 border-gray-200 dark:border-white/[0.1]">
+                <td colSpan={4} className="py-3 px-3 text-right text-base font-bold text-gray-800 dark:text-white">Total</td>
+                <td className="py-3 px-3 text-right text-base font-bold text-brand-600 dark:text-brand-400">{formatCurrency(est.total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  const subtotal = pricing?.subtotal ?? proposal.estimation.subtotal;
+  const discountPercent = pricing?.discountPercent ?? proposal.estimation.discountPercent;
+  const discountAmount = pricing?.discountAmount ?? proposal.estimation.discountAmount;
+  const taxPercent = pricing?.taxPercent ?? proposal.estimation.taxPercent;
+  const taxAmount = pricing?.taxAmount ?? proposal.estimation.taxAmount;
+  const total = pricing?.grandTotal ?? proposal.estimation.total;
+
+  return (
+    <div className="p-5 space-y-6">
+      {phases.map((phase, idx) => (
+        <div key={phase.id ?? idx} className="border border-gray-100 dark:border-white/[0.05] rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gray-50 dark:bg-white/[0.03] border-b border-gray-100 dark:border-white/[0.05]">
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-white">
+              Phase {idx + 1} - {phase.phaseName || "Untitled Phase"}
+            </h3>
+            <span className="text-sm font-semibold text-brand-600 dark:text-brand-400">{formatCurrency(phase.subtotal)}</span>
+          </div>
+          <div className="p-4 space-y-5">
+            {phase.overview && (
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1.5">Overview</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{phase.overview}</p>
+              </div>
             )}
-            <tr>
-              <td colSpan={4} className="py-1 px-3 text-right text-sm text-gray-500 dark:text-gray-400">Tax ({est.taxPercent}%)</td>
-              <td className="py-1 px-3 text-right text-sm text-gray-800 dark:text-white">{formatCurrency(est.taxAmount)}</td>
-            </tr>
-            <tr className="border-t-2 border-gray-200 dark:border-white/[0.1]">
-              <td colSpan={4} className="py-3 px-3 text-right text-base font-bold text-gray-800 dark:text-white">Total</td>
-              <td className="py-3 px-3 text-right text-base font-bold text-brand-600 dark:text-brand-400">{formatCurrency(est.total)}</td>
-            </tr>
-          </tfoot>
-        </table>
+
+            <PhaseSectionBlock title="Objectives" items={phase.objectives} />
+            <PhaseSectionBlock title="Technical Requirements" items={phase.technicalRequirements} />
+            <PhaseSectionBlock title="Deliverables" items={phase.deliverables} />
+            <PhaseSectionBlock title="Assumptions" items={phase.assumptions} />
+            <PhaseSectionBlock title="Constraints" items={phase.constraints} />
+
+            {phase.estimatedTimeline && (
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1.5">Estimated Timeline</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{phase.estimatedTimeline}</p>
+              </div>
+            )}
+
+            {phase.lineItems.length > 0 && (
+              <div className="overflow-x-auto border border-gray-100 dark:border-white/[0.05] rounded-lg">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-white/[0.05]">
+                      <th className="text-left py-2.5 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Category</th>
+                      <th className="text-left py-2.5 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Description</th>
+                      <th className="text-right py-2.5 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Qty</th>
+                      <th className="text-right py-2.5 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Unit Price</th>
+                      <th className="text-right py-2.5 px-3 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-white/[0.03]">
+                    {phase.lineItems.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                        <td className="py-2.5 px-3">
+                          <Badge size="sm" color="primary">{item.category}</Badge>
+                        </td>
+                        <td className="py-2.5 px-3 text-gray-700 dark:text-gray-300">{item.description}</td>
+                        <td className="py-2.5 px-3 text-right text-gray-500 dark:text-gray-400 text-xs">{item.quantity ?? 1}</td>
+                        <td className="py-2.5 px-3 text-right text-gray-700 dark:text-gray-300">{formatCurrency(item.unitPrice)}</td>
+                        <td className="py-2.5 px-3 text-right font-medium text-gray-800 dark:text-white">{formatCurrency(item.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-gray-100 dark:border-white/[0.05]">
+                      <td colSpan={4} className="py-2.5 px-3 text-right text-sm text-gray-500 dark:text-gray-400">Phase Total</td>
+                      <td className="py-2.5 px-3 text-right text-sm font-semibold text-brand-600 dark:text-brand-400">{formatCurrency(phase.subtotal)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {/* Overall Pricing Summary */}
+      <div className="p-4 rounded-lg border border-brand-200 dark:border-brand-500/20 bg-brand-50/50 dark:bg-brand-500/[0.05]">
+        <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-3">Overall Pricing Summary</h3>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
+            <span>Subtotal (all phases)</span>
+            <span className="font-semibold text-gray-800 dark:text-white">{formatCurrency(subtotal)}</span>
+          </div>
+          {discountPercent > 0 && (
+            <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
+              <span>Discount ({discountPercent}%)</span>
+              <span className="font-semibold text-red-500">-{formatCurrency(discountAmount)}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
+            <span>Tax ({taxPercent}%)</span>
+            <span className="font-semibold text-gray-800 dark:text-white">{formatCurrency(taxAmount)}</span>
+          </div>
+          <div className="flex items-center justify-between border-t border-brand-100 dark:border-brand-500/10 pt-3">
+            <span className="font-semibold text-gray-800 dark:text-white">Grand Total</span>
+            <span className="text-lg font-bold text-brand-600 dark:text-brand-400">{formatCurrency(total)}</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -427,6 +539,24 @@ const renderWorkflowTab = (proposal: Proposal) => (
 );
 
 // ─── Shared UI Sub-components ─────────────────────────────────────────────────
+
+function PhaseSectionBlock({ title, items }: { title: string; items: string[] }) {
+  const filtered = items.filter((i) => i.trim());
+  if (filtered.length === 0) return null;
+  return (
+    <div>
+      <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1.5">{title}</h4>
+      <ul className="space-y-1.5">
+        {filtered.map((item, idx) => (
+          <li key={idx} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0" />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function SectionBlock({ title, items, emptyText }: { title: string; items: string[]; emptyText: string }) {
   const filtered = items.filter((i) => i.trim());

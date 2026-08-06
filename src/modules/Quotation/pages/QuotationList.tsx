@@ -36,6 +36,8 @@ import { useAuth } from "../../../context/AuthContext";
 import {
   Proposal,
   ProposalStatus,
+  EstimationLineItem,
+  mapPhaseFromApi,
 } from "../data/quotationsData";
 import jsPDF from "jspdf";
 
@@ -229,8 +231,57 @@ export default function QuotationList() {
   // Action confirmation (only for destructive actions)
   const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
-  const handleExportPDF = (proposal: Proposal) => {
-    exportProposalToPDF(proposal, showToast);
+  const handleExportPDF = async (listItem: Proposal) => {
+    try {
+      showToast("Preparing PDF...", "info");
+      const full = await proposalService.getProposalById(listItem.id);
+      if (!full) return;
+      const proposal: Proposal = {
+        id: full.id,
+        proposalNo: full.proposalNumber,
+        companyName: full.lead?.company?.name || full.lead?.title || "Unknown Company",
+        leadName: full.lead?.contactPerson || "Unknown Contact",
+        leadEmail: full.lead?.email || "",
+        leadPhone: full.lead?.phone || "",
+        value: Number(full.amount),
+        status: full.status,
+        requirement: full.requirements || {
+          overview: full.lead?.requirements || "",
+          objectives: [],
+          technicalRequirements: [],
+          deliverables: [],
+          assumptions: [],
+          constraints: []
+        },
+        estimation: full.estimation || {
+          items: [],
+          subtotal: Number(full.amount),
+          discountPercent: 0,
+          discountAmount: 0,
+          taxPercent: 18,
+          taxAmount: 0,
+          total: Number(full.amount)
+        },
+        quotation: full.quotation || {
+          paymentTerms: "",
+          validityDays: full.validUntil ? Math.ceil((new Date(full.validUntil).getTime() - new Date(full.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 30,
+          deliveryTimeline: "",
+          warrantyPeriod: "",
+          paymentMilestones: [],
+          notes: full.title || "",
+          termsAndConditions: ""
+        },
+        phases: (full.phases || []).map((ph) => mapPhaseFromApi(ph)),
+        pricing: full.pricing || undefined,
+        createdAt: full.createdAt || "",
+        updatedAt: full.updatedAt || "",
+        workflowLogs: []
+      };
+      exportProposalToPDF(proposal, showToast);
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to generate PDF.", "error");
+    }
   };
 
 
@@ -876,117 +927,194 @@ export function exportProposalToPDF(proposal: Proposal, showToast: (msg: string,
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // 3. ESTIMATION DETAILS
+    // 3. PROJECT PHASES & ESTIMATION
     // ═══════════════════════════════════════════════════════════════════════════
-    sectionTitle("3. FINANCIAL ESTIMATION");
+    sectionTitle("3. PROJECT PHASES & ESTIMATION");
 
-    if (est.items && est.items.length > 0) {
-      // Table header row
+    // ── Helper: Draw an estimation table with a 5-column layout ─────────────
+    const drawEstimationTable = (items: EstimationLineItem[], phaseTotal: number | null) => {
+      if (!items || items.length === 0) {
+        bodyText("No line items defined.");
+        y += 3;
+        return;
+      }
+
       const colWidth = pageWidth - margin * 2;
-      const cols = [
-        margin,
-        margin + 42,
-        margin + 122,
-        pageWidth - margin
-      ];
+      const cols = [margin, margin + 42, margin + 118, margin + 138, pageWidth - margin];
 
       checkPageBreak(12);
       pdf.setFillColor(79, 70, 229); // Indigo-600 header background
       pdf.roundedRect(margin, y - 3.5, colWidth, 7, 1, 1, "F");
       pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(7.5);
+      pdf.setFontSize(7);
       pdf.setFont("helvetica", "bold");
       pdf.text("CATEGORY", cols[0] + 3, y + 1);
       pdf.text("DESCRIPTION", cols[1] + 3, y + 1);
-      pdf.text("RATE", cols[2] - 3, y + 1, { align: "right" });
-      pdf.text("TOTAL AMOUNT", cols[3] - 3, y + 1, { align: "right" });
+      pdf.text("QTY", cols[2] - 3, y + 1, { align: "right" });
+      pdf.text("RATE", cols[3] - 3, y + 1, { align: "right" });
+      pdf.text("TOTAL", cols[4] - 3, y + 1, { align: "right" });
       y += 6.5;
 
-      // Table rows
       pdf.setFont("helvetica", "normal");
-      est.items.forEach((item, idx) => {
+      items.forEach((item, idx) => {
         checkPageBreak(7.5);
-        
+
         // Alternating row background
         if (idx % 2 === 0) {
           pdf.setFillColor(248, 250, 252); // Slate-50
           pdf.rect(margin, y - 2.5, colWidth, 5.5, "F");
         }
-        
+
         pdf.setTextColor(51, 65, 85); // Slate-700
         pdf.setFontSize(7);
         pdf.setFont("helvetica", "bold");
-        pdf.text(item.category.substring(0, 18), cols[0] + 3, y + 1.2);
-        
+        pdf.text(String(item.category || "").substring(0, 16), cols[0] + 3, y + 1.2);
+
         pdf.setFont("helvetica", "normal");
         pdf.setTextColor(71, 85, 105); // Slate-600
-        const descLines = pdf.splitTextToSize(item.description, 74);
+        const descLines = pdf.splitTextToSize(item.description || "", 74);
         pdf.text(descLines[0] || "", cols[1] + 3, y + 1.2);
-        
+
         pdf.setFontSize(7);
         pdf.setTextColor(51, 65, 85);
-        pdf.text(formatCurrencyForPDF(item.unitPrice), cols[2] - 3, y + 1.2, { align: "right" });
-        
+        pdf.text(String(item.quantity ?? 1), cols[2] - 3, y + 1.2, { align: "right" });
+        pdf.text(formatCurrencyForPDF(item.unitPrice), cols[3] - 3, y + 1.2, { align: "right" });
+
         pdf.setFont("helvetica", "bold");
-        pdf.text(formatCurrencyForPDF(item.amount), cols[3] - 3, y + 1.2, { align: "right" });
+        pdf.text(formatCurrencyForPDF(item.amount), cols[4] - 3, y + 1.2, { align: "right" });
         pdf.setFont("helvetica", "normal");
-        
+
         y += 5.5;
       });
 
-      // Totals section
-      y += 2.5;
-      checkPageBreak(25);
-      const totalX = pageWidth - margin - 45;
-      pdf.setFontSize(8);
-
-      // Subtotal
-      pdf.setTextColor(100, 116, 139); // Slate-500
-      pdf.setFont("helvetica", "normal");
-      pdf.text("Subtotal:", totalX, y);
-      pdf.setTextColor(51, 65, 85);
-      pdf.text(formatCurrencyForPDF(est.subtotal), pageWidth - margin - 3, y, { align: "right" });
-      y += 5;
-
-      // Discount
-      if (est.discountPercent > 0) {
-        pdf.setTextColor(220, 38, 38); // Red-600
-        pdf.setFont("helvetica", "normal");
-        pdf.text(`Discount (${est.discountPercent}%):`, totalX, y);
-        pdf.text(`-${formatCurrencyForPDF(est.discountAmount)}`, pageWidth - margin - 3, y, { align: "right" });
+      if (phaseTotal !== null) {
+        y += 1.5;
+        checkPageBreak(10);
+        pdf.setDrawColor(79, 70, 229); // Indigo-600
+        pdf.setLineWidth(0.2);
+        pdf.line(pageWidth - margin - 60, y - 2.5, pageWidth - margin, y - 2.5);
+        pdf.setFontSize(7.5);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(51, 65, 85);
+        pdf.text("PHASE TOTAL", pageWidth - margin - 45, y);
+        pdf.text(formatCurrencyForPDF(phaseTotal), pageWidth - margin - 3, y, { align: "right" });
         y += 5;
       }
+    };
 
-      // Tax
-      pdf.setTextColor(100, 116, 139); // Slate-500
-      pdf.setFont("helvetica", "normal");
-      pdf.text(`Tax (${est.taxPercent}%):`, totalX, y);
-      pdf.setTextColor(51, 65, 85);
-      pdf.text(formatCurrencyForPDF(est.taxAmount), pageWidth - margin - 3, y, { align: "right" });
-      y += 5;
+    if (proposal.phases && proposal.phases.length > 0) {
+      proposal.phases.forEach((phase, pIdx) => {
+        checkPageBreak(16);
+        y += 3;
 
-      // Total (prominently highlighted)
-      pdf.setFillColor(245, 243, 255); // Indigo-50 background
-      pdf.roundedRect(totalX - 3, y - 3, pageWidth - margin - totalX + 6, 9, 1, 1, "F");
-      pdf.setDrawColor(79, 70, 229); // Indigo border
-      pdf.setLineWidth(0.2);
-      pdf.roundedRect(totalX - 3, y - 3, pageWidth - margin - totalX + 6, 9, 1, 1, "S");
-      
-      pdf.setTextColor(79, 70, 229); // Indigo-600
-      pdf.setFontSize(9);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("TOTAL DUE:", totalX, y + 3);
-      pdf.text(formatCurrencyForPDF(est.total), pageWidth - margin - 4, y + 3, { align: "right" });
-      y += 12;
+        // Phase title bar
+        pdf.setFillColor(245, 243, 255); // Indigo-50
+        pdf.setDrawColor(79, 70, 229); // Indigo-600
+        pdf.setLineWidth(0.2);
+        pdf.roundedRect(margin, y - 4, pageWidth - margin * 2, 7.5, 1, 1, "FD");
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(79, 70, 229);
+        pdf.text(`PHASE ${pIdx + 1} - ${phase.phaseName || "Untitled Phase"}`, margin + 4, y);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(100, 116, 139);
+        pdf.setFontSize(7);
+        pdf.text(`Phase Total: ${formatCurrencyForPDF(phase.subtotal)}`, pageWidth - margin - 4, y, { align: "right" });
+        y += 11;
+
+        if (phase.overview) {
+          pdf.setFontSize(8.5);
+          pdf.setFont("helvetica", "bold");
+          pdf.setTextColor(30, 41, 59); // Slate-800
+          pdf.text("Overview", margin + 2, y);
+          y += 5.5;
+          bodyText(phase.overview);
+          y += 2;
+        }
+
+        const phaseLists: [string, string[]][] = [
+          ["Objectives", phase.objectives],
+          ["Technical Requirements", phase.technicalRequirements],
+          ["Deliverables", phase.deliverables],
+          ["Assumptions", phase.assumptions],
+          ["Constraints", phase.constraints],
+        ];
+        phaseLists.forEach(([label, items]) => {
+          const clean = (items || []).filter((t: string) => t && t.trim());
+          if (clean.length === 0) return;
+          checkPageBreak(8);
+          pdf.setFontSize(8.5);
+          pdf.setFont("helvetica", "bold");
+          pdf.setTextColor(30, 41, 59);
+          pdf.text(label, margin + 2, y);
+          y += 5.5;
+          clean.forEach((t: string) => bulletItem(t));
+          y += 2;
+        });
+
+        drawEstimationTable(phase.lineItems, phase.subtotal);
+        y += 3;
+      });
+    } else if (est.items && est.items.length > 0) {
+      // Legacy single-table fallback (proposals created before phases)
+      drawEstimationTable(est.items, null);
     } else {
       bodyText("No estimation line items defined.");
       y += 5;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // 4. QUOTATION / PRICING TERMS
+    // 4. OVERALL PRICING SUMMARY
     // ═══════════════════════════════════════════════════════════════════════════
-    sectionTitle("4. QUOTATION & COMMITTED TERMS");
+    y += 2;
+    sectionTitle("4. OVERALL PRICING SUMMARY");
+    checkPageBreak(25);
+    const totalX = pageWidth - margin - 45;
+    pdf.setFontSize(8);
+
+    // Subtotal
+    pdf.setTextColor(100, 116, 139); // Slate-500
+    pdf.setFont("helvetica", "normal");
+    pdf.text("Subtotal (all phases):", totalX, y);
+    pdf.setTextColor(51, 65, 85);
+    pdf.text(formatCurrencyForPDF(est.subtotal), pageWidth - margin - 3, y, { align: "right" });
+    y += 5;
+
+    // Discount
+    if (est.discountPercent > 0) {
+      pdf.setTextColor(220, 38, 38); // Red-600
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`Discount (${est.discountPercent}%):`, totalX, y);
+      pdf.text(`-${formatCurrencyForPDF(est.discountAmount)}`, pageWidth - margin - 3, y, { align: "right" });
+      y += 5;
+    }
+
+    // Tax
+    pdf.setTextColor(100, 116, 139); // Slate-500
+    pdf.setFont("helvetica", "normal");
+    pdf.text(`Tax (${est.taxPercent}%):`, totalX, y);
+    pdf.setTextColor(51, 65, 85);
+    pdf.text(formatCurrencyForPDF(est.taxAmount), pageWidth - margin - 3, y, { align: "right" });
+    y += 5;
+
+    // Grand Total (prominently highlighted)
+    pdf.setFillColor(245, 243, 255); // Indigo-50 background
+    pdf.roundedRect(totalX - 3, y - 3, pageWidth - margin - totalX + 6, 9, 1, 1, "F");
+    pdf.setDrawColor(79, 70, 229); // Indigo border
+    pdf.setLineWidth(0.2);
+    pdf.roundedRect(totalX - 3, y - 3, pageWidth - margin - totalX + 6, 9, 1, 1, "S");
+
+    pdf.setTextColor(79, 70, 229); // Indigo-600
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("GRAND TOTAL:", totalX, y + 3);
+    pdf.text(formatCurrencyForPDF(est.total), pageWidth - margin - 4, y + 3, { align: "right" });
+    y += 12;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 5. QUOTATION / PRICING TERMS
+    // ═══════════════════════════════════════════════════════════════════════════
+    sectionTitle("5. QUOTATION & COMMITTED TERMS");
 
     // Info cards in a grid-like layout
     checkPageBreak(32);
@@ -1066,7 +1194,7 @@ export function exportProposalToPDF(proposal: Proposal, showToast: (msg: string,
     // 5. AUTHORIZATION & SIGN-OFF
     // ═══════════════════════════════════════════════════════════════════════════
     checkPageBreak(38);
-    sectionTitle("5. ACCEPTANCE & SIGN-OFF");
+    sectionTitle("6. ACCEPTANCE & SIGN-OFF");
     bodyText("By signing below, the client agrees to the scope of work, technical requirements, delivery timeline, payment terms, and conditions described in this proposal.");
     y += 8.5;
 

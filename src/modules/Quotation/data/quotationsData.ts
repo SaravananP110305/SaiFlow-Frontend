@@ -43,6 +43,85 @@ export interface EstimationSection {
   total: number;
 }
 
+// ─── Section: Project Phases ─────────────────────────────────────────────────
+
+export interface ProposalPhase {
+  id?: number;
+  phaseName: string;
+  overview: string;
+  objectives: string[];
+  technicalRequirements: string[];
+  deliverables: string[];
+  assumptions: string[];
+  constraints: string[];
+  lineItems: EstimationLineItem[];
+  subtotal: number;
+  estimatedTimeline?: string;
+}
+
+export interface PricingSummary {
+  subtotal: number;
+  discountPercent: number;
+  discountAmount: number;
+  taxPercent: number;
+  taxAmount: number;
+  grandTotal: number;
+}
+
+// Converts a phase object from the backend API (relation tables, Decimal
+// strings) into the frontend ProposalPhase shape.
+interface PhaseTextRow {
+  text: string;
+}
+
+interface PhaseLineItemApi {
+  id?: number | string;
+  category?: string;
+  description?: string;
+  unit?: string;
+  quantity?: number | string;
+  unitPrice?: number | string;
+  amount?: number | string;
+}
+
+interface PhaseApi {
+  id?: number | null;
+  phaseName?: string;
+  overview?: string;
+  estimatedTimeline?: string;
+  objectives?: PhaseTextRow[];
+  technicalRequirements?: PhaseTextRow[];
+  deliverables?: PhaseTextRow[];
+  assumptions?: PhaseTextRow[];
+  constraints?: PhaseTextRow[];
+  lineItems?: PhaseLineItemApi[];
+}
+
+export function mapPhaseFromApi(ph: PhaseApi): ProposalPhase {
+  const lineItems: EstimationLineItem[] = (ph?.lineItems || []).map((li) => ({
+    id: String(li.id),
+    category: li.category,
+    description: li.description,
+    unit: li.unit || "Project",
+    quantity: Number(li.quantity) || 1,
+    unitPrice: Number(li.unitPrice) || 0,
+    amount: Number(li.amount) || 0,
+  }));
+  return {
+    id: ph?.id,
+    phaseName: ph?.phaseName || "",
+    overview: ph?.overview || "",
+    estimatedTimeline: ph?.estimatedTimeline || "",
+    objectives: (ph?.objectives || []).map((o) => o.text),
+    technicalRequirements: (ph?.technicalRequirements || []).map((t) => t.text),
+    deliverables: (ph?.deliverables || []).map((d) => d.text),
+    assumptions: (ph?.assumptions || []).map((a) => a.text),
+    constraints: (ph?.constraints || []).map((c) => c.text),
+    lineItems,
+    subtotal: lineItems.reduce((s, i) => s + i.amount, 0),
+  };
+}
+
 // ─── Section: Quotation / Pricing ────────────────────────────────────────────
 
 export interface QuotationSection {
@@ -82,6 +161,8 @@ export interface Proposal {
   requirement: RequirementSection;
   estimation: EstimationSection;
   quotation: QuotationSection;
+  phases?: ProposalPhase[];
+  pricing?: PricingSummary;
   workflowLogs: WorkflowLog[];
   value?: number;
 }
