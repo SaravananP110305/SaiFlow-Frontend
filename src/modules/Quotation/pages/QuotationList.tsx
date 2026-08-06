@@ -271,7 +271,7 @@ export default function QuotationList() {
           notes: full.title || "",
           termsAndConditions: ""
         },
-        phases: (full.phases || []).map((ph) => mapPhaseFromApi(ph)),
+        phases: (full.phases || []).map((ph: any) => mapPhaseFromApi(ph)),
         pricing: full.pricing || undefined,
         createdAt: full.createdAt || "",
         updatedAt: full.updatedAt || "",

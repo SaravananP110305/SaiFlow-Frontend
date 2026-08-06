@@ -132,7 +132,7 @@ export default function ProposalDetails() {
               notes: data.title || "",
               termsAndConditions: ""
             },
-            phases: (data.phases || []).map((ph) => mapPhaseFromApi(ph)),
+            phases: (data.phases || []).map((ph: any) => mapPhaseFromApi(ph)),
             pricing: data.pricing || undefined,
             createdAt: data.createdAt || "",
             updatedAt: data.updatedAt || "",

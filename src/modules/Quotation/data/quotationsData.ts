@@ -100,15 +100,15 @@ interface PhaseApi {
 export function mapPhaseFromApi(ph: PhaseApi): ProposalPhase {
   const lineItems: EstimationLineItem[] = (ph?.lineItems || []).map((li) => ({
     id: String(li.id),
-    category: li.category,
-    description: li.description,
+    category: li.category || "",
+    description: li.description || "",
     unit: li.unit || "Project",
     quantity: Number(li.quantity) || 1,
     unitPrice: Number(li.unitPrice) || 0,
     amount: Number(li.amount) || 0,
   }));
   return {
-    id: ph?.id,
+    id: ph?.id ?? undefined,
     phaseName: ph?.phaseName || "",
     overview: ph?.overview || "",
     estimatedTimeline: ph?.estimatedTimeline || "",

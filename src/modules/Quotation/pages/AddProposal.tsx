@@ -299,10 +299,10 @@ export default function AddProposal() {
             }
 
             if (proposal.phases && proposal.phases.length > 0) {
-              setFormPhases(proposal.phases.map((ph) => mapPhaseFromApi(ph)));
+              setFormPhases(proposal.phases.map((ph: any) => mapPhaseFromApi(ph)));
             } else if (proposal.estimation && Array.isArray(proposal.estimation.items)) {
               // Legacy single-table estimation → migrate into Phase 1
-              const legacyItems = proposal.estimation.items.map((item, idx) => ({
+              const legacyItems = proposal.estimation.items.map((item: any, idx: number) => ({
                 id: item.id || `li-${idx + 1}`,
                 category: item.category || "",
                 description: item.description || "",
@@ -320,7 +320,7 @@ export default function AddProposal() {
                 assumptions: [""],
                 constraints: [""],
                 lineItems: legacyItems.length ? legacyItems : [newPhaseItem()],
-                subtotal: legacyItems.reduce((s, i) => s + i.amount, 0),
+                subtotal: legacyItems.reduce((s: number, i: any) => s + i.amount, 0),
                 estimatedTimeline: "",
               }]);
             } else {
