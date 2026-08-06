@@ -361,22 +361,6 @@ export default function AddProposal() {
   }, [id, isEditMode]);
 
 
-  // ── Requirement Array Helpers ──────────────────────────────────────────────
-
-  const updateReqArray = (
-    field: "objectives" | "technicalRequirements" | "deliverables" | "assumptions" | "constraints",
-    index: number, value: string
-  ) => {
-    setFormRequirement((prev) => ({ ...prev, [field]: prev[field].map((item, i) => (i === index ? value : item)) }));
-  };
-
-  const addReqArrayItem = (field: "objectives" | "technicalRequirements" | "deliverables" | "assumptions" | "constraints") => {
-    setFormRequirement((prev) => ({ ...prev, [field]: [...prev[field], ""] }));
-  };
-
-  const removeReqArrayItem = (field: "objectives" | "technicalRequirements" | "deliverables" | "assumptions" | "constraints", index: number) => {
-    setFormRequirement((prev) => ({ ...prev, [field]: prev[field].filter((_, i) => i !== index) }));
-  };
 
   // ── Phase Helpers ──────────────────────────────────────────────────────────
 
@@ -797,31 +781,6 @@ export default function AddProposal() {
               className="w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-800 dark:text-white/90 resize-none h-20"
               placeholder="Brief overview of the project..." />
           </div>
-          {(["objectives", "technicalRequirements", "deliverables", "assumptions", "constraints"] as const).map((field) => (
-            <div key={field} className="mb-3">
-              <label className="mb-1 block text-xs font-semibold text-gray-500 dark:text-gray-400 capitalize">
-                {field.replace(/([A-Z])/g, " $1").trim()}
-              </label>
-              {formRequirement[field].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 mb-1.5">
-                  <input value={item}
-                    onChange={(e) => updateReqArray(field, idx, e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:text-white/90"
-                    placeholder={`Add ${field.replace(/([A-Z])/g, " $1").toLowerCase().slice(0, -1)}...`} />
-                  {formRequirement[field].length > 1 && (
-                    <button type="button" onClick={() => removeReqArrayItem(field, idx)}
-                      className="text-red-400 hover:text-red-600 cursor-pointer shrink-0 p-1">
-                      <FiXCircle className="size-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button type="button" onClick={() => addReqArrayItem(field)}
-                className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1 mt-1 cursor-pointer">
-                <FiPlus className="size-3" /> Add More
-              </button>
-            </div>
-          ))}
         </div>
 
         {/* ── Project Phases ────────────────────────────────────────────────── */}
