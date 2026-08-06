@@ -1,5 +1,11 @@
 import api, { setAccessToken, refreshAccessToken } from './api';
 
+export interface ProfileUpdate {
+  name?: string;
+  email?: string;
+  phone?: string;
+}
+
 export const authService = {
   login: async (credentials: any) => {
     const response = await api.post('/auth/login', credentials, {
@@ -28,6 +34,11 @@ export const authService = {
   getPrivileges: async () => {
     const response = await api.get('/auth/privileges');
     return response.data?.data;
+  },
+
+  updateProfile: async (data: ProfileUpdate) => {
+    const response = await api.patch('/auth/profile', data);
+    return response.data?.data?.user;
   },
 
   refreshToken: async () => {

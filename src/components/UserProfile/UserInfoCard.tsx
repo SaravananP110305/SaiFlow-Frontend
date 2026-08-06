@@ -1,5 +1,10 @@
+interface UserInfoCardProps {
+  name: string;
+  email: string;
+  phone: string;
+}
 
-export default function UserInfoCard() {
+export default function UserInfoCard({ name, email, phone }: UserInfoCardProps) {
   return (
     <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -14,7 +19,7 @@ export default function UserInfoCard() {
                 Name
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                Musharof Chowdhury
+                {name}
               </p>
             </div>
 
@@ -23,7 +28,7 @@ export default function UserInfoCard() {
                 Email Address
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                randomuser@pimjo.com
+                {email}
               </p>
             </div>
 
@@ -32,16 +37,7 @@ export default function UserInfoCard() {
                 Phone
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                +09 363 398 46
-              </p>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                Bio
-              </p>
-              <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                Team Manager
+                {phone || "—"}
               </p>
             </div>
           </div>

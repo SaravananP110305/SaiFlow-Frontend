@@ -1,16 +1,26 @@
-import ownerImg from "/images/user/owner.jpg";
+interface UserMetaCardProps {
+  name: string;
+  onEdit?: () => void;
+}
 
-export default function UserMetaCard({ onEdit }: { onEdit?: () => void }) {
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+export default function UserMetaCard({ name, onEdit }: UserMetaCardProps) {
   return (
     <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-col items-center gap-6 xl:flex-row">
-          <div className="w-20 h-20 overflow-hidden border border-gray-200 rounded-full dark:border-gray-800">
-            <img src={ownerImg} alt="User" className="object-cover w-full h-full" />
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-brand-50 text-2xl font-semibold text-brand-500 dark:border-gray-800 dark:bg-brand-500/10 dark:text-brand-400">
+            {getInitials(name)}
           </div>
           <div>
             <h4 className="text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left">
-              Musharof Chowdhury
+              {name}
             </h4>
           </div>
         </div>
