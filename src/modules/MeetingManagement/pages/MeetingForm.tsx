@@ -128,7 +128,10 @@ export default function MeetingForm() {
         const [leadsData, clientsData, usersData] = await Promise.all([
           leadService.getLeads({ limit: 100 }),
           clientService.getClients(),
-          userService.getUsers({ limit: 100 })
+          userService.getUsers({ limit: 100 }).catch((err) => {
+            console.warn("Failed to fetch users list (likely permission restricted):", err);
+            return { data: [] };
+          })
         ]);
         if (leadsData && Array.isArray(leadsData.data)) {
           setRawLeads(leadsData.data.map((l: any) => ({

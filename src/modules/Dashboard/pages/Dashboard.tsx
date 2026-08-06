@@ -106,7 +106,10 @@ export default function Dashboard() {
       const [summary, leadsData, usersData, chartsData, connectsData] = await Promise.all([
         reportService.getDashboardSummary(),
         leadService.getLeads({ limit: 100 }),
-        userService.getUsers({ limit: 100 }),
+        userService.getUsers({ limit: 100 }).catch((err) => {
+          console.warn("Failed to fetch users list (likely permission restricted):", err);
+          return { data: [] };
+        }),
         reportService.getDashboardCharts(),
         connectService.getConnects({ limit: 200 })
       ]);

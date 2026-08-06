@@ -77,7 +77,10 @@ export default function AddClient() {
           masterService.getMasterItems("INDUSTRY"),
           masterService.getMasterItems("DESIGNATION"),
           masterService.getMasterItems("PAYMENT_TYPE"),
-          userService.getUsers()
+          userService.getUsers().catch((err) => {
+            console.warn("Failed to fetch users list (likely permission restricted):", err);
+            return { data: [] };
+          })
         ]);
         
         // Keep the full raw country list so the country → state → city cascade

@@ -130,7 +130,10 @@ export default function AddLead() {
           masterService.getMasterItems("COUNTRY"),
           masterService.getMasterItems("INDUSTRY"),
           masterService.getMasterItems("DESIGNATION"),
-          userService.getUsers()
+          userService.getUsers().catch((err) => {
+            console.warn("Failed to fetch users list (likely permission restricted):", err);
+            return { data: [] };
+          })
         ]);
 
         // Keep full raw lists so existing records that reference an inactive

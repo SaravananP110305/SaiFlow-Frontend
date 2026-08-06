@@ -63,7 +63,10 @@ export default function ClientList() {
       const [clientsData, proposalsData, usersData] = await Promise.all([
         clientService.getClients(),
         proposalService.getProposals(),
-        userService.getUsers()
+        userService.getUsers().catch((err) => {
+          console.warn("Failed to fetch users list (likely permission restricted):", err);
+          return { data: [] };
+        })
       ]);
 
       if (clientsData && Array.isArray(clientsData.data)) {
