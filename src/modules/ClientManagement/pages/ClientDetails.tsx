@@ -175,7 +175,7 @@ export default function ClientDetails() {
             {client.status}
           </Badge>
           <Button size="sm" variant="outline" onClick={() => navigate(`/proposals/add?clientId=${client.id}`)}>
-            New project proposal
+            New Project Proposal
           </Button>
         </div>
       </div>
@@ -188,15 +188,15 @@ export default function ClientDetails() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`py-3 px-4 text-sm font-semibold border-b-2 transition-all duration-200 flex items-center gap-2 cursor-pointer whitespace-nowrap ${activeTab === tab.id
-                  ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                  : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/[0.03] rounded-t-lg"
+                ? "border-brand-500 text-brand-600 dark:text-brand-400"
+                : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/[0.03] rounded-t-lg"
                 }`}
             >
               {tab.label}
               {tab.count !== undefined && (
                 <span className={`inline-flex items-center justify-center min-w-[22px] h-[22px] rounded-full px-1.5 text-[11px] font-bold leading-none transition-all duration-200 ${activeTab === tab.id
-                    ? "bg-brand-500 text-white shadow-xs"
-                    : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                  ? "bg-brand-500 text-white shadow-xs"
+                  : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
                   }`}>
                   {tab.count}
                 </span>
