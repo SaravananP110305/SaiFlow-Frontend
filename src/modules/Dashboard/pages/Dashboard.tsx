@@ -9,10 +9,6 @@ import { Pagination } from "../../../components/ui/pagination/Pagination";
 import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
 import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-} from "../../../icons";
-import {
   FiLayers,
   FiUsers,
   FiCheckCircle,
@@ -22,26 +18,64 @@ import {
   FiUserCheck,
   FiEye,
 } from "react-icons/fi";
-import { ASSIGNEES } from "../../LeadManagement/data/leadsData";
 import { useToast } from "../../../hooks/useToast";
 import { formatTime } from "../../../utils/dateFormatter";
+import { getStatusLabel, getStatusBadgeColor } from "../../LeadManagement/utils/leadStatus";
 import { leadService } from "../../../services/leadService";
 import { reportService } from "../../../services/reportService";
 import { userService } from "../../../services/userService";
+import { connectService } from "../../../services/connectService";
 
 interface Lead {
   id: number;
-  sNo: number;
+  sNo?: number;
   company: string;
   contactPerson: string;
   phone: string;
-  status: "New" | "Contacted" | "Qualified" | "Scheduled" | "Completed" | "Missed" | "Rescheduled" | "Proposal sent" | "Won" | "Lost";
+  status: string;
   assignedTo: string;
+}
+
+interface ApiLead {
+  id: number;
+  title?: string;
+  company?: string;
+  contactPerson?: string;
+  phone?: string;
+  status?: string;
+  assignedTo?: { name: string } | null;
+  assignedToId?: number | null;
 }
 
 interface CallLead extends Lead {
   sNo: number;
   followUpTime?: string;
+}
+
+interface FollowUp {
+  id: number;
+  leadId: number;
+  followUpDate?: string;
+  followUpTime?: string;
+  status?: string;
+  company?: string;
+  contactPerson?: string;
+}
+
+interface DashboardCharts {
+  leadTrend: { categories: string[]; series: number[] };
+  conversion: { categories: string[]; won: number[]; lost: number[] };
+}
+
+interface DashboardSummary {
+  totalLeads: number;
+  unassignedLeads: number;
+  wonLeads: number;
+  scheduledMeetings: number;
+  openProposals: number;
+  activeClients: number;
+  totalWonRevenue: number;
+  conversionRate: string;
 }
 
 export default function Dashboard() {
@@ -50,43 +84,52 @@ export default function Dashboard() {
 
   // ── Backend API states ──────────────────────────────────────
   const [rawLeads, setRawLeads] = useState<Lead[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
-  const [dashboardSummary, setDashboardSummary] = useState<any>({
+  const [users, setUsers] = useState<{ id: number; name: string; role?: { name?: string } | null }[]>([]);
+  const [connects, setConnects] = useState<FollowUp[]>([]);
+  const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary>({
     totalLeads: 0,
     unassignedLeads: 0,
     wonLeads: 0,
     scheduledMeetings: 0,
     openProposals: 0,
+    activeClients: 0,
     totalWonRevenue: 0,
     conversionRate: "0%"
+  });
+  const [dashboardCharts, setDashboardCharts] = useState<DashboardCharts>({
+    leadTrend: { categories: [], series: [] },
+    conversion: { categories: [], won: [], lost: [] }
   });
 
   const fetchDashboardData = async () => {
     try {
-      const [summary, leadsData, usersData] = await Promise.all([
+      const [summary, leadsData, usersData, chartsData, connectsData] = await Promise.all([
         reportService.getDashboardSummary(),
         leadService.getLeads({ limit: 100 }),
-        userService.getUsers()
+        userService.getUsers({ limit: 100 }),
+        reportService.getDashboardCharts(),
+        connectService.getConnects({ limit: 200 })
       ]);
       if (summary) setDashboardSummary(summary);
+      if (chartsData) setDashboardCharts(chartsData);
       if (leadsData && Array.isArray(leadsData.data)) {
-        const mapped = leadsData.data.map((l: any) => ({
+        const mapped = leadsData.data.map((l: ApiLead) => ({
           ...l,
           company: l.title || l.company || "",
           contactPerson: l.contactPerson || "",
           phone: l.phone || "",
-          status: l.status || "New",
+          status: l.status || "NEW",
           assignedTo: l.assignedTo?.name || "Unassigned",
           assignedToId: l.assignedToId
         }));
         setRawLeads(mapped);
       }
-      if (usersData) setUsers(usersData);
+      if (usersData?.data) setUsers(usersData.data);
+      if (connectsData?.data) setConnects(connectsData.data);
     } catch (err) {
       console.error("Failed to load dashboard data", err);
     }
   };
-
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -98,7 +141,7 @@ export default function Dashboard() {
       company: l.company,
       contactPerson: l.contactPerson,
       phone: l.phone,
-      status: l.status as any,
+      status: l.status,
       assignedTo: l.assignedTo || "Unassigned",
     }));
   }, [rawLeads]);
@@ -108,8 +151,6 @@ export default function Dashboard() {
   // setStatusFilter / setAssigneeFilter removed while the filter dropdowns are commented out
   const [statusFilter] = useState("all");
   const [assigneeFilter] = useState("all");
-  const [sortField, setSortField] = useState<keyof Lead>("sNo");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
@@ -120,17 +161,39 @@ export default function Dashboard() {
   const [callAssigneeFilter] = useState("all");
   const [callCurrentPage, setCallCurrentPage] = useState(1);
   const [callRowsPerPage, setCallRowsPerPage] = useState(5);
-  const [callSortField, setCallSortField] = useState<keyof CallLead>("sNo");
-  const [callSortOrder, setCallSortOrder] = useState<"asc" | "desc">("asc");
 
   // ── Today Lead Calls & Reassign Action ────────────────────────
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+
+  const followUpByLeadId = useMemo(() => {
+    const map: Record<number, string> = {};
+    const ordered = [...connects].sort((a, b) => {
+      const aScore = a.status === "SCHEDULED" ? 0 : 1;
+      const bScore = b.status === "SCHEDULED" ? 0 : 1;
+      return aScore - bScore;
+    });
+    for (const c of ordered) {
+      if (c.followUpDate === todayStr && c.followUpTime && map[c.leadId] === undefined) {
+        map[c.leadId] = c.followUpTime;
+      }
+    }
+    return map;
+  }, [connects, todayStr]);
+
   const todayCalls = useMemo<CallLead[]>(() => {
     const list = rawLeads.filter(
-      (l) => l.status === "Scheduled" || l.status === "Contacted" || l.status === "New"
+      (l) => l.status === "MEETING_SCHEDULED" || l.status === "CONTACTED" || l.status === "NEW"
     );
     const base = list.length > 0 ? list : rawLeads.slice(0, 5);
-    return base.map((l, index) => ({ ...l, sNo: index + 1 }));
-  }, [rawLeads]);
+    return base.map((l, index) => ({
+      ...l,
+      sNo: index + 1,
+      followUpTime: followUpByLeadId[l.id],
+    }));
+  }, [rawLeads, followUpByLeadId]);
 
   const filteredTodayCalls = useMemo(() => {
     let result = [...todayCalls];
@@ -157,24 +220,8 @@ export default function Dashboard() {
       result = result.filter((lead) => lead.assignedTo === callAssigneeFilter);
     }
 
-    result.sort((a, b) => {
-      const aVal = a[callSortField];
-      const bVal = b[callSortField];
-
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return callSortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-
-      const strA = String(aVal).toLowerCase();
-      const strB = String(bVal).toLowerCase();
-
-      if (strA < strB) return callSortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return callSortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
     return result;
-  }, [todayCalls, callSearchQuery, callStatusFilter, callAssigneeFilter, callSortField, callSortOrder]);
+  }, [todayCalls, callSearchQuery, callStatusFilter, callAssigneeFilter]);
 
   const paginatedTodayCalls = useMemo(() => {
     const startIndex = (callCurrentPage - 1) * callRowsPerPage;
@@ -197,45 +244,9 @@ export default function Dashboard() {
       await leadService.assignLead(leadId, foundUser.id);
       showToast(`Lead call reassigned to ${targetAssignee} successfully!`, "success");
       fetchDashboardData();
-    } catch (err) {
+    } catch {
       showToast("Failed to reassign lead call.", "error");
     }
-  };
-
-  const getStatusColor = (status: Lead["status"]) => {
-    switch (status) {
-      case "New": return "primary";
-      case "Contacted": return "info";
-      case "Qualified": return "warning";
-      case "Scheduled": return "primary";
-      case "Completed": return "success";
-      case "Missed": return "error";
-      case "Rescheduled": return "warning";
-      case "Proposal sent": return "warning";
-      case "Won": return "success";
-      case "Lost": return "error";
-      default: return "light";
-    }
-  };
-
-  const handleSort = (field: keyof Lead) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortOrder("asc");
-    }
-    setCurrentPage(1);
-  };
-
-  const handleCallSort = (field: keyof CallLead) => {
-    if (callSortField === field) {
-      setCallSortOrder(callSortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setCallSortField(field);
-      setCallSortOrder("asc");
-    }
-    setCallCurrentPage(1);
   };
 
   /* Filter option lists commented out per Task 1 / Task 2
@@ -285,24 +296,8 @@ export default function Dashboard() {
       result = result.filter((lead) => lead.assignedTo === assigneeFilter);
     }
 
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-
-      const strA = String(aVal).toLowerCase();
-      const strB = String(bVal).toLowerCase();
-
-      if (strA < strB) return sortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
     return result;
-  }, [searchQuery, statusFilter, assigneeFilter, sortField, sortOrder, localLeads]);
+  }, [searchQuery, statusFilter, assigneeFilter, localLeads]);
 
   const paginatedLeads = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -311,58 +306,6 @@ export default function Dashboard() {
 
   const totalItems = processedLeads.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
-
-  const renderSortHeader = (label: string, field: keyof Lead) => {
-    const isActive = sortField === field;
-    return (
-      <button
-        onClick={() => handleSort(field)}
-        className="flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer"
-      >
-        {label}
-        <span className="flex flex-col">
-          <ChevronUpIcon
-            className={`w-3 h-3 -mb-1 transition-colors ${isActive && sortOrder === "asc"
-              ? "text-brand-500"
-              : "text-gray-300 dark:text-gray-600"
-              }`}
-          />
-          <ChevronDownIcon
-            className={`w-3 h-3 transition-colors ${isActive && sortOrder === "desc"
-              ? "text-brand-500"
-              : "text-gray-300 dark:text-gray-600"
-              }`}
-          />
-        </span>
-      </button>
-    );
-  };
-
-  const renderCallSortHeader = (label: string, field: keyof CallLead) => {
-    const isActive = callSortField === field;
-    return (
-      <button
-        onClick={() => handleCallSort(field)}
-        className="flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer"
-      >
-        {label}
-        <span className="flex flex-col">
-          <ChevronUpIcon
-            className={`w-3 h-3 -mb-1 transition-colors ${isActive && callSortOrder === "asc"
-              ? "text-brand-500"
-              : "text-gray-300 dark:text-gray-600"
-              }`}
-          />
-          <ChevronDownIcon
-            className={`w-3 h-3 transition-colors ${isActive && callSortOrder === "desc"
-              ? "text-brand-500"
-              : "text-gray-300 dark:text-gray-600"
-              }`}
-          />
-        </span>
-      </button>
-    );
-  };
 
   // ── 4 KPI METRICS ──────────────────────────────────────────
   const kpiMetrics = useMemo(() => {
@@ -374,7 +317,7 @@ export default function Dashboard() {
       },
       {
         label: "Active Clients",
-        value: dashboardSummary.wonLeads || 0,
+        value: dashboardSummary.activeClients || 0,
         icon: <FiUsers className="text-info-500 w-5 h-5" />,
       },
       {
@@ -405,7 +348,7 @@ export default function Dashboard() {
     },
     dataLabels: { enabled: false },
     xaxis: {
-      categories: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+      categories: dashboardCharts.leadTrend.categories,
       axisBorder: { show: false },
       axisTicks: { show: false },
     },
@@ -419,7 +362,7 @@ export default function Dashboard() {
   };
 
   const leadTrendSeries = [
-    { name: "Leads generated", data: [45, 60, 55, 75, 90, 80, 95, 110, 105, 130, 120, 150] },
+    { name: "Leads generated", data: dashboardCharts.leadTrend.series },
   ];
 
   // ── Conversion Rate ─────────────────────────────────────────
@@ -436,7 +379,7 @@ export default function Dashboard() {
     dataLabels: { enabled: false },
     stroke: { show: true, width: 2, colors: ["transparent"] },
     xaxis: {
-      categories: ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+      categories: dashboardCharts.conversion.categories,
       axisBorder: { show: false },
       axisTicks: { show: false },
     },
@@ -453,8 +396,8 @@ export default function Dashboard() {
   };
 
   const conversionSeries = [
-    { name: "Won leads", data: [12, 18, 15, 22, 30, 28] },
-    { name: "Lost leads", data: [4, 6, 5, 8, 10, 9] },
+    { name: "Won leads", data: dashboardCharts.conversion.won },
+    { name: "Lost leads", data: dashboardCharts.conversion.lost },
   ];
 
   // ── RENDER ──────────────────────────────────────────────────
@@ -643,12 +586,12 @@ export default function Dashboard() {
           <table className="min-w-full divide-y divide-gray-100 dark:divide-white/[0.05]">
             <thead>
               <tr className="bg-gray-50/50 dark:bg-gray-900/50">
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("S.No", "sNo")}</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Lead ID", "id")}</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Company", "company")}</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Contact Person", "contactPerson")}</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Scheduled Time", "followUpTime")}</th>
-                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">{renderCallSortHeader("Current Assignee", "assignedTo")}</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">S.No</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">Lead ID</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">Company</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">Contact Person</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">Scheduled Time</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400">Current Assignee</th>
                 <th className="px-4 py-2.5 text-end text-xs font-semibold text-gray-500 dark:text-gray-400">Quick Reassign</th>
               </tr>
             </thead>
@@ -669,10 +612,14 @@ export default function Dashboard() {
                       {lead.contactPerson}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-medium">
-                        <FiClock className="size-3 text-gray-400" />
-                        {formatTime(lead.followUpTime || "10:00 AM")}
-                      </span>
+                      {lead.followUpTime ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-medium">
+                          <FiClock className="size-3 text-gray-400" />
+                          {formatTime(lead.followUpTime)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">Not scheduled</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs">
                       <Badge size="sm" color="light">
@@ -695,15 +642,19 @@ export default function Dashboard() {
                         <option value="" disabled className="text-gray-400 dark:bg-gray-900 dark:text-gray-500">
                           Reassign To...
                         </option>
-                        {ASSIGNEES.filter((a) => a !== lead.assignedTo).map((assignee) => (
-                          <option
-                            key={assignee}
-                            value={assignee}
-                            className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 py-1"
-                          >
-                            {assignee}
-                          </option>
-                        ))}
+                        {users
+                          .filter((u) => u.name !== "System Administrator" && u.role?.name !== "Administrator")
+                          .map((u) => u.name)
+                          .filter((name: string) => name && name !== lead.assignedTo)
+                          .map((name: string) => (
+                            <option
+                              key={name}
+                              value={name}
+                              className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 py-1"
+                            >
+                              {name}
+                            </option>
+                          ))}
                       </select>
                     </td>
                   </tr>
@@ -833,22 +784,22 @@ export default function Dashboard() {
               <thead className="border-b border-gray-100 dark:border-white/[0.05] sticky top-0 bg-white dark:bg-gray-900 z-10">
                 <tr>
                   <th className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                    {renderSortHeader("S.No", "sNo")}
+                    S.No
                   </th>
                   <th className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                    {renderSortHeader("Company", "company")}
+                    Company
                   </th>
                   <th className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                    {renderSortHeader("Contact Person", "contactPerson")}
+                    Contact Person
                   </th>
                   <th className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                     Phone
                   </th>
                   <th className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                    {renderSortHeader("Status", "status")}
+                    Status
                   </th>
                   <th className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                    {renderSortHeader("Assigned To", "assignedTo")}
+                    Assigned To
                   </th>
                   <th className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                     Action
@@ -865,7 +816,7 @@ export default function Dashboard() {
                       <td className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">{lead.contactPerson}</td>
                       <td className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">{lead.phone}</td>
                       <td className="px-5 py-4 text-theme-sm">
-                        <Badge size="sm" color={getStatusColor(lead.status)}>{lead.status}</Badge>
+                        <Badge size="sm" color={getStatusBadgeColor(lead.status)}>{getStatusLabel(lead.status)}</Badge>
                       </td>
                       <td className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">{lead.assignedTo}</td>
                       <td className="px-5 py-4 text-theme-sm">

@@ -21,6 +21,11 @@ export const reportService = {
     return response.data?.data;
   },
 
+  getDashboardCharts: async () => {
+    const response = await api.get('/reports/dashboard-charts');
+    return response.data?.data;
+  },
+
   getLeadReport: async (params?: ReportQuery) => {
     const response = await api.get('/reports/leads', { params });
     return response.data;
