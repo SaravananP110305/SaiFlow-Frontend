@@ -37,12 +37,22 @@ const getApiBaseUrl = () => {
   return `http://${hostname}:5000/api/v1`;
 };
 
+// Resolve relative media paths (e.g. /uploads/avatars/abc.jpg) to absolute URLs
+// pointing at the API server, while leaving absolute URLs untouched.
+export const resolveMediaUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  if (/^https?:\/\//.test(url)) return url;
+  const base = getApiBaseUrl().replace(/\/api\/v1\/?$/, '');
+  return `${base}${url.startsWith('/') ? url : `/${url}`}`;
+};
+
 const api = axios.create({
   baseURL: getApiBaseUrl(),
-  withCredentials: true, // Crucial to send secure cookies (refresh token)
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  withCredentials: true // Crucial to send secure cookies (refresh token)
+  // Note: no global Content-Type header. Axios sets 'application/json'
+  // automatically for object payloads, and for FormData uploads the browser
+  // must set 'multipart/form-data; boundary=...' itself (a forced JSON header
+  // would make axios serialize FormData to JSON and break file uploads).
 });
 
 // Request Interceptor: Inject Access Token

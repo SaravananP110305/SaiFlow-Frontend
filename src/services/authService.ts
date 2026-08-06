@@ -41,6 +41,15 @@ export const authService = {
     return response.data?.data?.user;
   },
 
+  uploadProfilePhoto: async (file: File) => {
+    const formData = new FormData();
+    formData.append('photo', file);
+    // No Content-Type is set here on purpose: axios passes FormData through
+    // untouched and the browser sets 'multipart/form-data; boundary=...'.
+    const response = await api.patch('/auth/profile/photo', formData);
+    return response.data?.data?.user;
+  },
+
   refreshToken: async () => {
     return refreshAccessToken();
   },

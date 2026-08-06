@@ -11,6 +11,7 @@ import Button from "../components/ui/button/Button";
 import Input from "../components/form/input/InputField";
 import Label from "../components/form/Label";
 import { authService } from "../services/authService";
+import { resolveMediaUrl } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 interface ProfileFormValues {
@@ -48,12 +49,14 @@ export default function UserProfiles() {
     name: string;
     email: string;
     phone: string;
+    avatarUrl: string | null;
     role: { name: string } | null;
     status: string;
     createdAt: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [form, setForm] = useState<ProfileFormValues>({
     name: "",
     email: "",
@@ -91,6 +94,35 @@ export default function UserProfiles() {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handlePhotoChange = async (file: File) => {
+    if (photoUploading) return;
+
+    if (!file.type.startsWith("image/")) {
+      showToast("Please choose an image file.", "error");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("Image must be 5 MB or smaller.", "error");
+      return;
+    }
+
+    setPhotoUploading(true);
+    try {
+      const updated = await authService.uploadProfilePhoto(file);
+      if (updated) {
+        setProfile((prev) =>
+          prev ? { ...prev, avatarUrl: updated.avatarUrl ?? null } : prev
+        );
+        refetchUser();
+        showToast("Profile photo updated successfully.", "success");
+      }
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err), "error");
+    } finally {
+      setPhotoUploading(false);
     }
   };
 
@@ -166,7 +198,13 @@ export default function UserProfiles() {
           </div>
         ) : (
           <div className="space-y-6">
-            <UserMetaCard name={profile.name} onEdit={openModal} />
+            <UserMetaCard
+              name={profile.name}
+              avatarUrl={resolveMediaUrl(profile.avatarUrl)}
+              uploading={photoUploading}
+              onPhotoChange={handlePhotoChange}
+              onEdit={openModal}
+            />
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <UserInfoCard
                 name={profile.name}

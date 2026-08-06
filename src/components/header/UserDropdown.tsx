@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router";
 import { FiUser, FiLogOut, FiLock } from "react-icons/fi";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../context/AuthContext";
+import { resolveMediaUrl } from "../../services/api";
 import ownerImg from "/images/user/owner.jpg";
 
 export default function UserDropdown() {
@@ -16,6 +17,7 @@ export default function UserDropdown() {
   const name = user?.name || "Guest User";
   const email = user?.email || "";
   const displayName = user?.name || "User";
+  const avatarUrl = resolveMediaUrl(user?.avatarUrl);
 
   function toggleDropdown() {
     setIsOpen(!isOpen);
@@ -50,7 +52,11 @@ export default function UserDropdown() {
         className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400 cursor-pointer"
       >
         <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <img src={ownerImg} alt="User" className="object-cover w-full h-full" />
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={displayName} className="object-cover w-full h-full" />
+          ) : (
+            <img src={ownerImg} alt="User" className="object-cover w-full h-full" />
+          )}
         </span>
 
         <span className="hidden mr-1 font-medium text-theme-sm sm:block">{displayName}</span>

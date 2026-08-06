@@ -1,6 +1,11 @@
+import { useEffect, useRef, useState } from "react";
+
 interface UserMetaCardProps {
   name: string;
+  avatarUrl?: string | null;
+  uploading?: boolean;
   onEdit?: () => void;
+  onPhotoChange?: (file: File) => void;
 }
 
 function getInitials(name: string): string {
@@ -10,13 +15,117 @@ function getInitials(name: string): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-export default function UserMetaCard({ name, onEdit }: UserMetaCardProps) {
+export default function UserMetaCard({
+  name,
+  avatarUrl,
+  uploading = false,
+  onEdit,
+  onPhotoChange
+}: UserMetaCardProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imgFailed, setImgFailed] = useState(false);
+
+  // Reset the error fallback whenever a new photo URL arrives so a previously
+  // failed image doesn't keep the initials placeholder forever.
+  useEffect(() => {
+    setImgFailed(false);
+  }, [avatarUrl]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onPhotoChange) {
+      onPhotoChange(file);
+    }
+    // Reset so the same file can be selected again after an error/retry
+    e.target.value = "";
+  };
+
   return (
     <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-col items-center gap-6 xl:flex-row">
-          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-brand-50 text-2xl font-semibold text-brand-500 dark:border-gray-800 dark:bg-brand-500/10 dark:text-brand-400">
-            {getInitials(name)}
+          <div className="group/avatar relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-brand-50 text-2xl font-semibold text-brand-500 dark:border-gray-800 dark:bg-brand-500/10 dark:text-brand-400">
+            {avatarUrl && !imgFailed ? (
+              <img
+                src={avatarUrl}
+                alt={name}
+                className="h-full w-full object-cover"
+                onError={() => setImgFailed(true)}
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center">
+                {getInitials(name)}
+              </span>
+            )}
+
+            {onPhotoChange && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  aria-label="Change profile photo"
+                  title="Change profile photo"
+                  className="group/btn absolute inset-0 flex items-center justify-center rounded-full bg-gray-900/0 text-white transition-colors duration-200 hover:bg-gray-900/60 focus-visible:bg-gray-900/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {uploading ? (
+                    <svg
+                      className="animate-spin"
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                  ) : (
+                    <span className="flex flex-col items-center gap-1 opacity-0 transition-opacity duration-200 group-hover/btn:opacity-100 group-focus-visible/btn:opacity-100">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z"
+                          fill="currentColor"
+                        />
+                        <path
+                          d="M9.27 4.05L10.5 2.5h3l1.23 1.55H19a2 2 0 012 2v11a2 2 0 01-2 2H5a2 2 0 01-2-2v-11a2 2 0 012-2h4.27zM12 17.5a5 5 0 110-10 5 5 0 010 10z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                      <span className="text-[10px] font-medium leading-none tracking-wide">
+                        Change
+                      </span>
+                    </span>
+                  )}
+                </button>
+              </>
+            )}
           </div>
           <div>
             <h4 className="text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left">
