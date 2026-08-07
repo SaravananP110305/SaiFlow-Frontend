@@ -71,62 +71,62 @@ export interface ConvertPayload {
 
 export const leadService = {
   getLeads: async (params?: LeadQuery) => {
-    const response = await api.get('/leads', { params });
+    const response = await api.post('/get-lead', params);
     return response.data;
   },
 
   getLeadById: async (id: number) => {
-    const response = await api.get(`/leads/${id}`);
+    const response = await api.get(`/get-lead/${id}`);
     return response.data?.data;
   },
 
   createLead: async (data: LeadPayload) => {
-    const response = await api.post('/leads', data);
+    const response = await api.post('/create-lead', data);
     return response.data?.data;
   },
 
   updateLead: async (id: number, data: Partial<LeadPayload>) => {
-    const response = await api.put(`/leads/${id}`, data);
+    const response = await api.put(`/update-lead/${id}`, data);
     return response.data?.data;
   },
 
   assignLead: async (id: number, assignedToId: number) => {
-    const response = await api.patch(`/leads/${id}/assignment`, { assignedToId });
+    const response = await api.patch(`/assign-lead/${id}`, { assignedToId });
     return response.data?.data;
   },
 
   deleteLead: async (id: number) => {
-    const response = await api.delete(`/leads/${id}`);
+    const response = await api.delete(`/delete-lead/${id}`);
     return response.data;
   },
 
   getStatusCounts: async () => {
-    const response = await api.get('/leads/status-counts');
+    const response = await api.post('/get-lead-status-counts');
     return response.data?.data;
   },
 
   bulkAssign: async (ids: number[], assignedToId: number) => {
-    const response = await api.post('/leads/bulk-assign', { ids, assignedToId });
+    const response = await api.post('/bulk-assign-lead', { ids, assignedToId });
     return response.data?.data;
   },
 
   bulkDelete: async (ids: number[]) => {
-    const response = await api.post('/leads/bulk-delete', { ids });
+    const response = await api.post('/bulk-delete-lead', { ids });
     return response.data?.data;
   },
 
   importLeads: async (rows: ImportRow[]) => {
-    const response = await api.post('/leads/import', { leads: rows });
+    const response = await api.post('/import-lead', { leads: rows });
     return response.data?.data;
   },
 
   exportLeads: async (params?: LeadQuery) => {
-    const response = await api.get('/leads/export', { params, responseType: 'blob' });
+    const response = await api.post('/export-lead', params, { responseType: 'blob' });
     return response.data as Blob;
   },
 
   convertLead: async (id: number, data: ConvertPayload) => {
-    const response = await api.post(`/leads/${id}/convert`, data);
+    const response = await api.post(`/convert-lead/${id}`, data);
     return response.data?.data;
   }
 };

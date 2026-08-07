@@ -374,7 +374,7 @@ export default function AddClient() {
       if (isEditMode && id) {
         const client = await clientService.getClientById(Number(id));
         if (client && client.companyId) {
-          await api.put(`/companies/${client.companyId}`, companyPayload);
+          await api.put(`/update-company/${client.companyId}`, companyPayload);
         }
         await clientService.updateClient(Number(id), {
           ...clientPayload,
@@ -383,15 +383,15 @@ export default function AddClient() {
         showToast("Client details updated.", "success");
       } else {
         let companyId;
-        const searchRes = await api.get('/companies', { params: { search: company.trim() } });
+        const searchRes = await api.post('/get-company', { search: company.trim() });
         const existingCompany = searchRes.data?.data?.find(
           (c: any) => c.name.toLowerCase() === company.trim().toLowerCase()
         );
         if (existingCompany) {
           companyId = existingCompany.id;
-          await api.put(`/companies/${existingCompany.id}`, companyPayload);
+          await api.put(`/update-company/${existingCompany.id}`, companyPayload);
         } else {
-          const newCompany = await api.post('/companies', companyPayload);
+          const newCompany = await api.post('/create-company', companyPayload);
           companyId = newCompany.data?.data?.id;
         }
 

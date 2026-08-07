@@ -30,17 +30,17 @@ export interface NotificationQuery {
 
 export const notificationService = {
   getNotifications: async (params?: NotificationQuery) => {
-    const response = await api.get("/notifications", { params });
+    const response = await api.post("/get-notification", params);
     return response.data as NotificationListResponse;
   },
 
   markAsRead: async (id: number) => {
-    const response = await api.patch(`/notifications/${id}/read`);
+    const response = await api.put(`/update-notification-read/${id}`);
     return response.data;
   },
 
   markAllAsRead: async () => {
-    const response = await api.patch("/notifications/read-all");
+    const response = await api.put("/update-notification-all/read");
     return response.data;
   }
 };

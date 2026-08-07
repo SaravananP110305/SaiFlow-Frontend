@@ -17,42 +17,42 @@ export interface ReportQuery {
 
 export const reportService = {
   getDashboardSummary: async () => {
-    const response = await api.get('/reports/dashboard-summary');
+    const response = await api.post('/get-report-dashboard-summary');
     return response.data?.data;
   },
 
   getDashboardCharts: async () => {
-    const response = await api.get('/reports/dashboard-charts');
+    const response = await api.post('/get-report-dashboard-charts');
     return response.data?.data;
   },
 
   getLeadReport: async (params?: ReportQuery) => {
-    const response = await api.get('/reports/leads', { params });
+    const response = await api.post('/get-report-lead', params);
     return response.data;
   },
 
   getMeetingReport: async (params?: ReportQuery) => {
-    const response = await api.get('/reports/meetings', { params });
+    const response = await api.post('/get-report-meeting', params);
     return response.data;
   },
 
   getEmployeeReport: async (params?: ReportQuery) => {
-    const response = await api.get('/reports/employees', { params });
+    const response = await api.post('/get-report-employee', params);
     return response.data;
   },
 
   getClientReport: async (params?: ReportQuery) => {
-    const response = await api.get('/reports/clients', { params });
+    const response = await api.post('/get-report-customer', params);
     return response.data;
   },
 
   getProposalReport: async (params?: ReportQuery) => {
-    const response = await api.get('/reports/proposals', { params });
+    const response = await api.post('/get-report-proposal', params);
     return response.data;
   },
 
   getFollowUpReport: async (params?: ReportQuery) => {
-    const response = await api.get('/reports/follow-ups', { params });
+    const response = await api.post('/get-report-follow-up', params);
     return response.data;
   }
 };
