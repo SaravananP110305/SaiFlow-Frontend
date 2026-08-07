@@ -24,6 +24,7 @@ import {
   FiUpload,
   FiAlertCircle,
   FiUserCheck,
+  FiDownload,
 } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
 import { useAuth } from "../../../context/AuthContext";
@@ -109,6 +110,30 @@ export default function LeadList() {
   const [dragOver, setDragOver] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await leadService.exportLeads({
+        search: debouncedSearchQuery.trim() || undefined
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `saiflow_leads_${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showToast("Leads exported successfully.", "success");
+    } catch (err: any) {
+      console.error(err);
+      showToast("Failed to export leads.", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Delete modal
   const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
@@ -345,6 +370,18 @@ export default function LeadList() {
           />
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          {hasPermission("leads", "view") && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExport}
+              disabled={exporting}
+              startIcon={<FiDownload className="size-4" />}
+              className="h-11 px-4 py-2.5"
+            >
+              {exporting ? "Exporting..." : "Export"}
+            </Button>
+          )}
           {hasPermission("leads", "create") && (
             <>
               <Button
