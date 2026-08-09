@@ -10,13 +10,12 @@ import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
 import {
   FiLayers,
-  FiUsers,
   FiCheckCircle,
-  FiCreditCard,
   FiPhoneCall,
   FiClock,
   FiUserCheck,
   FiEye,
+  FiTrendingUp,
 } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
 import { formatTime } from "../../../utils/dateFormatter";
@@ -310,7 +309,7 @@ export default function Dashboard() {
   const totalItems = processedLeads.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
 
-  // ── 4 KPI METRICS ──────────────────────────────────────────
+  // ── 5 KPI METRICS ──────────────────────────────────────────
   const kpiMetrics = useMemo(() => {
     return [
       {
@@ -319,9 +318,9 @@ export default function Dashboard() {
         icon: <FiLayers className="text-brand-500 w-5 h-5" />,
       },
       {
-        label: "Active Clients",
-        value: dashboardSummary.activeClients || 0,
-        icon: <FiUsers className="text-info-500 w-5 h-5" />,
+        label: "Scheduled Meetings",
+        value: dashboardSummary.scheduledMeetings || 0,
+        icon: <FiClock className="text-warning-500 w-5 h-5" />,
       },
       {
         label: "Won Leads",
@@ -329,9 +328,9 @@ export default function Dashboard() {
         icon: <FiCheckCircle className="text-success-500 w-5 h-5" />,
       },
       {
-        label: "Potential Revenue",
-        value: `₹${Number(dashboardSummary.totalWonRevenue || 0).toLocaleString("en-IN")}`,
-        icon: <FiCreditCard className="text-warning-500 w-5 h-5" />,
+        label: "Conversion Rate",
+        value: dashboardSummary.conversionRate || "0%",
+        icon: <FiTrendingUp className="text-brand-500 w-5 h-5" />,
       },
     ];
   }, [dashboardSummary]);
@@ -417,7 +416,7 @@ export default function Dashboard() {
         </h2>
       </div>
 
-      {/* ── 4 KPI METRICS ──────────────────────────────────── */}
+      {/* ── 5 KPI METRICS ──────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4 md:gap-6">
         {kpiMetrics.map((metric) => (
           <div
