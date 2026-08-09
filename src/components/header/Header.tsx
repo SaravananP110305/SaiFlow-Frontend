@@ -40,6 +40,13 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const matchesAll = (q: string, record: object) => {
+    return Object.values(record).some((v) => {
+      if (v == null) return false;
+      return String(v).toLowerCase().includes(q);
+    });
+  };
+
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
     if (!query.trim()) {
@@ -53,7 +60,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
     // Search leads
     const leads = initialLeads;
     for (const lead of leads) {
-      if (lead.company?.toLowerCase().includes(q) || lead.contactPerson?.toLowerCase().includes(q) || lead.email?.toLowerCase().includes(q)) {
+      if (matchesAll(q, lead)) {
         results.push({ type: "lead", id: lead.id, title: lead.company, subtitle: `${lead.contactPerson} \u2022 ${lead.email}`, url: `/leads/${lead.id}` });
         if (results.length >= 20) break;
       }
@@ -63,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
     if (results.length < 20) {
       const clients = initialClients;
       for (const client of clients) {
-        if (client.company?.toLowerCase().includes(q) || client.name?.toLowerCase().includes(q) || client.email?.toLowerCase().includes(q)) {
+        if (matchesAll(q, client)) {
           results.push({ type: "client", id: client.id, title: client.company, subtitle: `${client.name} \u2022 ${client.email}`, url: `/clients/${client.id}` });
           if (results.length >= 20) break;
         }
@@ -74,7 +81,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
     if (results.length < 20) {
       const meetings = initialMeetings;
       for (const meeting of meetings) {
-        if (meeting.subject?.toLowerCase().includes(q) || meeting.company?.toLowerCase().includes(q) || meeting.contactPerson?.toLowerCase().includes(q)) {
+        if (matchesAll(q, meeting)) {
           results.push({ type: "meeting", id: meeting.id, title: meeting.subject, subtitle: `${meeting.company} \u2022 ${meeting.date}`, url: `/meetings/${meeting.id}` });
           if (results.length >= 20) break;
         }
@@ -85,7 +92,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
     if (results.length < 20) {
       const proposals = initialProposals;
       for (const proposal of proposals) {
-        if (proposal.companyName?.toLowerCase().includes(q) || proposal.leadName?.toLowerCase().includes(q) || proposal.proposalNo?.toLowerCase().includes(q)) {
+        if (matchesAll(q, proposal)) {
           results.push({ type: "proposal", id: proposal.id, title: proposal.companyName, subtitle: `${proposal.proposalNo} \u2022 ${proposal.leadName}`, url: `/proposals` });
           if (results.length >= 20) break;
         }

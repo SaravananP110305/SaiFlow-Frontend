@@ -204,10 +204,13 @@ export default function Dashboard() {
       const query = callSearchQuery.toLowerCase();
       result = result.filter(
         (lead) =>
+          String(lead.sNo).toLowerCase().includes(query) ||
           lead.company.toLowerCase().includes(query) ||
           lead.contactPerson.toLowerCase().includes(query) ||
           lead.phone.toLowerCase().includes(query) ||
+          lead.status.toLowerCase().includes(query) ||
           lead.assignedTo.toLowerCase().includes(query) ||
+          (lead.followUpTime || "").toLowerCase().includes(query) ||
           `sf-lead-${String(lead.id).padStart(4, "0")}`
             .toLowerCase()
             .includes(query)
@@ -282,11 +285,15 @@ export default function Dashboard() {
       const query = searchQuery.toLowerCase();
       result = result.filter(
         (lead) =>
+          String(lead.sNo).toLowerCase().includes(query) ||
           lead.company.toLowerCase().includes(query) ||
           lead.contactPerson.toLowerCase().includes(query) ||
           lead.phone.toLowerCase().includes(query) ||
           lead.assignedTo.toLowerCase().includes(query) ||
-          lead.status.toLowerCase().includes(query)
+          lead.status.toLowerCase().includes(query) ||
+          `sf-lead-${String(lead.id).padStart(4, "0")}`
+            .toLowerCase()
+            .includes(query)
       );
     }
 
@@ -604,7 +611,7 @@ export default function Dashboard() {
                     <td className="px-4 py-3 text-start text-xs text-gray-500 dark:text-gray-400">
                       {lead.sNo}
                     </td>
-                    <td className="px-4 py-3 text-xs font-mono text-gray-500 dark:text-gray-400">
+                    <td className="px-4 py-3 text-xs font-mono font-semibold text-gray-800 dark:text-white/90">
                       SF-LEAD-{String(lead.id).padStart(4, "0")}
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold text-gray-800 dark:text-white/90">

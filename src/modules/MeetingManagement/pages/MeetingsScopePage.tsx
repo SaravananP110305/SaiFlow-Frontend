@@ -494,7 +494,7 @@ export default function MeetingsScopePage() {
                     <TableCell className="px-4 py-4 text-theme-sm text-gray-500 dark:text-gray-400 font-mono text-xs">
                       {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
-                    <TableCell className="px-4 py-4 text-theme-sm text-gray-500 dark:text-gray-400 font-mono text-xs">
+                    <TableCell className="px-4 py-4 text-theme-sm font-semibold text-gray-800 dark:text-white/90 font-mono text-xs">
                       {`SF-MTG-${String(meeting.id).padStart(4, "0")}`}
                     </TableCell>
                     <TableCell className="px-4 py-4">

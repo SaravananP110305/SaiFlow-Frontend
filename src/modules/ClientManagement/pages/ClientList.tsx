@@ -480,7 +480,7 @@ export default function ClientList() {
                 {/* Client ID */}
                 <div className="flex justify-between items-center text-xs border-b border-gray-50 dark:border-white/[0.02] pb-1.5">
                   <span className="text-gray-400">Client ID</span>
-                  <span className="font-mono text-gray-650 dark:text-gray-300 font-medium">
+                  <span className="font-mono text-gray-800 dark:text-white/90 font-semibold">
                     {`SF-CLI-${String(client.id).padStart(4, "0")}`}
                   </span>
                 </div>

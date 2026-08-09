@@ -458,7 +458,7 @@ export default function QuotationList() {
                       <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 font-mono text-xs">
                         {(currentPage - 1) * rowsPerPage + index + 1}
                       </TableCell>
-                      <TableCell className="px-5 py-4 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                      <TableCell className="px-5 py-4 text-theme-sm font-semibold text-gray-800 dark:text-white/90">
                         {proposal.proposalNo}
                       </TableCell>
                       <TableCell className="px-5 py-4 text-theme-sm font-medium text-gray-800 dark:text-white/90">

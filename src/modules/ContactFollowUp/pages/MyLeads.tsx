@@ -330,7 +330,7 @@ export default function MyLeads() {
                       {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90">
-                      <span className="font-mono text-xs tracking-wider">
+                      <span className="font-mono text-xs tracking-wider font-semibold">
                         SF-LEAD-{String(lead.id).padStart(4, "0")}
                       </span>
                     </TableCell>

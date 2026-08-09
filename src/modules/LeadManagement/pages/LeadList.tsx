@@ -478,7 +478,7 @@ export default function LeadList() {
                           {(currentPage - 1) * rowsPerPage + index + 1}
                         </TableCell>
                         <TableCell className="px-4 py-4 text-theme-sm">
-                          <span className="font-mono text-xs tracking-wider text-gray-500 dark:text-gray-400">
+                          <span className="font-mono text-xs tracking-wider font-semibold text-gray-800 dark:text-white/90">
                             SF-LEAD-{String(lead.id).padStart(4, "0")}
                           </span>
                         </TableCell>
@@ -606,7 +606,7 @@ export default function LeadList() {
                           <p className="text-sm font-semibold text-gray-800 dark:text-white/90 truncate">
                             {lead.companyName}
                           </p>
-                          <span className="font-mono text-[10px] tracking-wider text-gray-400 dark:text-gray-500">
+                          <span className="font-mono text-[10px] tracking-wider font-semibold text-gray-700 dark:text-gray-300">
                             SF-LEAD-{String(lead.id).padStart(4, "0")}
                           </span>
                         </div>

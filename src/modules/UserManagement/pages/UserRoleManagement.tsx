@@ -447,7 +447,7 @@ export default function UserRoleManagement() {
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 text-center">
                       {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 text-center">
+                    <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 text-center font-semibold">
                       {formatRoleId(role.id)}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 font-medium">

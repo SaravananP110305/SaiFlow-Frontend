@@ -413,7 +413,7 @@ export default function UserManagement() {
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400 font-mono text-xs">
                       {(currentPage - 1) * rowsPerPage + index + 1}
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 font-mono text-xs tracking-wider">
+                    <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 font-mono text-xs tracking-wider font-semibold">
                       {user.employeeId}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90 font-medium">

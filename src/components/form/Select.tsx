@@ -70,6 +70,12 @@ const Select: React.FC<SelectProps> = ({
       } ${className}`}
       value={selectedValue}
       onChange={handleChange}
+      style={{
+        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+        backgroundPosition: "right 0.75rem center",
+        backgroundSize: "1.1rem",
+        backgroundRepeat: "no-repeat",
+      }}
     >
       {/* Render placeholder option only if options doesn't already contain a value="" item */}
       {!hasEmptyInOptions && placeholder && (
