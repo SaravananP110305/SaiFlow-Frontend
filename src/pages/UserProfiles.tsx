@@ -163,7 +163,8 @@ export default function UserProfiles() {
     field: keyof ProfileFormValues,
     label: string,
     required: boolean,
-    className?: string
+    className?: string,
+    disabled?: boolean
   ) => (
     <div className={className}>
       <Label>
@@ -175,6 +176,7 @@ export default function UserProfiles() {
         onChange={(e) => handleChange(field, e.target.value)}
         error={!!errors[field]}
         hint={errors[field]}
+        disabled={disabled}
         className={errors[field] ? "border-error-500" : ""}
       />
     </div>
@@ -242,7 +244,7 @@ export default function UserProfiles() {
 
                 <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
                   {renderField("name", "Name", true, "col-span-2 lg:col-span-1")}
-                  {renderField("email", "Email Address", true, "col-span-2 lg:col-span-1")}
+                  {renderField("email", "Email Address", true, "col-span-2 lg:col-span-1", true)}
                   {renderField("phone", "Phone", false, "col-span-2 lg:col-span-1")}
                 </div>
               </div>
