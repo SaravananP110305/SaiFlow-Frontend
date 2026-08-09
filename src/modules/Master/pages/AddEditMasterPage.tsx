@@ -241,13 +241,16 @@ export default function AddEditMasterPage() {
       ? "Department"
       : "";
 
-  return (
+return (
     <>
       <PageMeta
         title={`${resolvedBreadcrumbTitle} | SaiFlow`}
         description={`Manage ${config.itemNamePlural} in SaiFlow CRM.`}
       />
-      <PageBreadcrumb pageTitle={resolvedBreadcrumbTitle} />
+      <PageBreadcrumb
+        pageTitle={resolvedBreadcrumbTitle}
+        customName={isEditMode && name ? name : undefined}
+      />
 
       <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03] w-full">
         <form onSubmit={handleSave} className="space-y-6">

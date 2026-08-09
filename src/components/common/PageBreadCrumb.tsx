@@ -108,7 +108,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle, customName }) =>
         breadcrumbs.push({ label: pluralLabel, to: `/master/${tab}` });
         breadcrumbs.push({ label: `Add ${singularLabel}` });
       } else if (id && isEdit) {
-        const itemName = getMasterItemName(id);
+        const itemName = customName || getMasterItemName(id);
         breadcrumbs.push({ label: pluralLabel, to: `/master/${tab}` });
         breadcrumbs.push({ label: `Edit ${itemName}` });
       } else {

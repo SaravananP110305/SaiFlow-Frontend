@@ -19,10 +19,6 @@ import {
   TableRow,
   TableCell,
 } from "../../../components/ui/table";
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-} from "../../../icons";
 import { FiEdit, FiTrash2, FiPlus } from "react-icons/fi";
 import { useToast } from "../../../hooks/useToast";
 import { useAuth } from "../../../context/AuthContext";
@@ -64,8 +60,6 @@ export default function MasterConfigPage({
   const [statusFilter, setStatusFilter] = useState("all");
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<keyof MasterItem>("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Dropdown filter open states
   // const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false); // Status filter commented out
@@ -133,8 +127,6 @@ export default function MasterConfigPage({
     setSearchQuery("");
     setStatusFilter("all");
     setCurrentPage(1);
-    setSortField("id");
-    setSortOrder("asc");
   }, [category]);
 
   // Handlers
@@ -169,9 +161,14 @@ export default function MasterConfigPage({
     if (selectedItem) {
       try {
         await masterService.deleteMasterItem(selectedItem.id);
-        const updated = items.filter((i) => i.id !== selectedItem.id);
-        setItems(updated);
         showToast(`"${selectedItem.name}" ${itemNameSingular} deleted successfully.`, "success");
+        // If we deleted the only row on a page beyond the first, step back
+        // one page; otherwise refetch the current page so totals stay correct.
+        if (items.length === 1 && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+        } else {
+          loadItems();
+        }
       } catch (err: any) {
         showToast(err.response?.data?.message || `Cannot delete "${selectedItem.name}" because it is currently in use.`, "error");
       }
@@ -179,77 +176,11 @@ export default function MasterConfigPage({
     deleteModal.closeModal();
   };
 
-  // Sorting columns handler
-  const handleSort = (field: keyof MasterItem) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortOrder("asc");
-    }
-    setCurrentPage(1);
-  };
-
-  // Filters & Sorting calculations
-  const processedItems = useMemo(() => {
-    let result = [...items];
-
-    // Since searching and filtering status are done on the server, we only sort here!
-    result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-
-      const strA = String(aVal).toLowerCase();
-      const strB = String(bVal).toLowerCase();
-
-      if (strA < strB) return sortOrder === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return result;
-  }, [items, sortField, sortOrder]);
-
-  // Paginated items (server already handles pagination, so we render whole list)
-  const paginatedItems = processedItems;
-
-  // Sorting header renderer
-  const renderSortHeader = (label: string, field: keyof MasterItem, centered = false) => {
-    const isActive = sortField === field;
-    return (
-      <button
-        onClick={() => handleSort(field)}
-        className={`flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white cursor-pointer ${centered ? "mx-auto justify-center" : ""
-          }`}
-      >
-        {label}
-        <span className="flex flex-col">
-          <ChevronUpIcon
-            className={`w-3 h-3 -mb-1 transition-colors ${isActive && sortOrder === "asc"
-                ? "text-brand-500"
-                : "text-gray-300 dark:text-gray-600"
-              }`}
-          />
-          <ChevronDownIcon
-            className={`w-3 h-3 transition-colors ${isActive && sortOrder === "desc"
-                ? "text-brand-500"
-                : "text-gray-300 dark:text-gray-600"
-              }`}
-          />
-        </span>
-      </button>
-    );
-  };
-
   return (
     <>
       <PageMeta
         title={`${pageTitle} | SaiFlow`}
-        description="Manage configuration settings in SaiFlow CRM."
+        description={`Manage ${itemNamePlural.toLowerCase()} in SaiFlow CRM.`}
       />
       {/* Page Title & Breadcrumb */}
       <PageBreadcrumb pageTitle={pageTitle} />
@@ -336,13 +267,13 @@ export default function MasterConfigPage({
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] sticky top-0 bg-white dark:bg-gray-900 z-10">
               <TableRow>
                 <TableCell isHeader className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[70px]">
-                  {renderSortHeader("S.No", "id", true)}
+                  S.No
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[45%]">
-                  {renderSortHeader("Name", "name")}
+                  Name
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[180px]">
-                  {renderSortHeader("Status", "status", true)}
+                  Status
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400 w-[120px]">
                   Action
@@ -350,8 +281,8 @@ export default function MasterConfigPage({
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {paginatedItems.length > 0 ? (
-                paginatedItems.map((item, index) => (
+              {items.length > 0 ? (
+                items.map((item, index) => (
                   <TableRow
                     key={item.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
